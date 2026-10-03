@@ -10,6 +10,11 @@ The scripts CI runs and a developer runs before claiming a change is done: `chec
 `check-architecture` assertion greps for, and the failure that put it there, is in
 [`docs/setup/26-hygiene-and-ci.md`](../../../docs/setup/26-hygiene-and-ci.md).
 
+`guide-publish.mjs` is not a gate. `pnpm guide:publish` publishes the super admin guide, the
+Markdown pages and manifest in `tooling/scripts/guide/`, into a running app's docs through its own
+API. It creates, moves, saves and publishes what changed, and with `--prune` removes pages the
+manifest no longer names.
+
 ## How lite's `check-architecture` differs from the big kit's
 
 Every rule-enforcing assertion is kept. What changed is listed below, one line each, so a port
