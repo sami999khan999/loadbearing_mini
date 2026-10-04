@@ -1,0 +1,29 @@
+{
+  "title": "Codebase",
+  "description": "Every package, app and file in the repository, described in plain words",
+  "pages": [
+    "index",
+    "root",
+    "docs",
+    "tooling",
+    "errors",
+    "core",
+    "permissions",
+    "observability",
+    "contracts",
+    "asset",
+    "content",
+    "application",
+    "infrastructure",
+    "auth",
+    "composition",
+    "api-server",
+    "ui",
+    "api-client",
+    "query",
+    "feature",
+    "app-web",
+    "app-worker",
+    "app-realtime"
+  ]
+}

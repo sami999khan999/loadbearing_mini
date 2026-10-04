@@ -1,0 +1,5 @@
+{
+  "title": "Explained",
+  "description": "The whole project in plain words: how everything works, and every package and file",
+  "pages": ["index", "architecture", "codebase"]
+}

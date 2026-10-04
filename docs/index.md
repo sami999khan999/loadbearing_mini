@@ -24,6 +24,11 @@ orientation rather than a rule, an argument, a build step, or the running stack.
 request from arrival to years later and names the store it touches at each point. Read it once,
 before the trees, if the question is "where does anything actually go".
 
+[The plain-language guide](explained/index.md) is for someone new to the project. It explains
+[how everything works](explained/architecture.md) without assuming the rules above, and describes
+[every package and every file](explained/codebase/index.md) in plain words. When it and a tree
+disagree, the tree is the precise one.
+
 ## Which of the first two do I read?
 
 `ai/` holds the rule; `opinions/` holds the reason. A rule file is ~400 tokens and tells you what to
