@@ -15,6 +15,13 @@ Markdown pages and manifest in `tooling/scripts/guide/`, into a running app's do
 API. It creates, moves, saves and publishes what changed, and with `--prune` removes pages the
 manifest no longer names.
 
+`explained-publish.mjs` does the same for the plain-language guide in `docs/explained/`, as one
+space in any organization: `pnpm explained:publish <base-url> <credentials-file>
+<organization-id> [--audience members|owner|public|granted] [--slug explained] [--prune]`. The
+folder's `meta.json` files give the page order, and a folder's `index.md` becomes a page with the
+folder's other pages under it. Links between guide pages become doc routes; links to other files in
+the repository point at them on the git origin (`--repo` and `--branch` override it).
+
 ## How lite's `check-architecture` differs from the big kit's
 
 Every rule-enforcing assertion is kept. What changed is listed below, one line each, so a port
