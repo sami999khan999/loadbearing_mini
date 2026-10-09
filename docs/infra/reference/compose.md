@@ -53,7 +53,7 @@ project default would keep starting a container whose whole job is to finish.
 `minio-init` sets **no CORS rule**. The `mc` client has `mc cors set`, but the MinIO server pinned
 here refuses it ("a header you provided implies functionality that is not implemented"), because it
 has no per-bucket CORS API and answers every origin instead. A production bucket on S3 or R2 does
-need a rule allowing `PUT` and `POST` from the app's origin, or browser uploads fail: see
+need a rule allowing `POST` from the app's origin, or browser uploads fail: see
 [the bucket's CORS rule](../deployment.md#the-buckets-cors-rule).
 
 ### What lite does not run

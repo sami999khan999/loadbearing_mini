@@ -380,9 +380,9 @@ produces DNS errors that name a bucket-prefixed host.
 
 The browser uploads a doc image straight to the bucket, so the bucket must allow the app's origin.
 MinIO answers every origin by default; S3 and R2 answer none, and an upload then fails in the
-browser with a CORS error that appears in no server log. Allow `PUT` and `POST` — the upload is a
-presigned `PUT` today and a presigned `POST` on the branch that replaces it, so a rule for both
-survives the switch. `GET` and `HEAD` are not needed: `/api/doc-image/…` answers with a redirect to
+browser with a CORS error that appears in no server log. Allow `POST`: the upload is a presigned
+`POST` whose policy binds the size and type, so the bucket refuses anything larger than the limit.
+`GET` and `HEAD` are not needed: `/api/doc-image/…` answers with a redirect to
 a signed URL that an `<img>` follows, and no script fetches the bytes.
 
 ```json
@@ -390,7 +390,7 @@ a signed URL that an `<img>` follows, and no script fetches the bytes.
   "CORSRules": [
     {
       "AllowedOrigins": ["https://app.example.com"],
-      "AllowedMethods": ["PUT", "POST"],
+      "AllowedMethods": ["POST"],
       "AllowedHeaders": ["*"],
       "ExposeHeaders": ["ETag"],
       "MaxAgeSeconds": 3600

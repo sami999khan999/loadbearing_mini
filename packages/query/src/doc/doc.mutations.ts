@@ -103,7 +103,7 @@ export class DocMutations {
     });
   }
 
-  // Two steps as one mutation: sign, then PUT the bytes straight to storage. The answer is
+  // Two steps as one mutation: sign, then POST the bytes straight to storage. The answer is
   // the URL the Markdown links, which goes through the app's access check, not the bucket.
   public static useUploadImage(client: ApiClient) {
     return useAppMutation<string, { readonly spaceId: DocSpaceId; readonly file: File }>({
@@ -113,11 +113,11 @@ export class DocMutations {
           contentType: file.type as DocImageType,
           size: file.size,
         });
-        const response = await fetch(signed.uploadUrl, {
-          method: "PUT",
-          headers: { "content-type": file.type },
-          body: file,
-        });
+        // Storage reads the policy's fields first and stops at the file, so it goes last.
+        const form = new FormData();
+        for (const [name, value] of Object.entries(signed.post.fields)) form.append(name, value);
+        form.append("file", file);
+        const response = await fetch(signed.post.url, { method: "POST", body: form });
         // The code the server would have used, so the copy layer has a sentence for it.
         if (!response.ok) throw new Error("UNAVAILABLE");
         return signed.url;

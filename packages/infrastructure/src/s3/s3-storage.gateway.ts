@@ -1,12 +1,14 @@
 import {
   Buffer,
   createHash,
+  createPresignedPost,
   DeleteObjectCommand,
   GetObjectCommand,
   getSignedUrl,
   HeadObjectCommand,
   ListObjectsV2Command,
   NotFoundError,
+  type PresignedPost,
   PutObjectCommand,
   Readable,
   type S3Client,
@@ -142,8 +144,8 @@ export class S3StorageGateway extends StorageGateway {
     }
   }
 
-  // `ListObjectsV2` returns up to a thousand keys and this asks for no more: the one
-  // reader is a tenant's exports, which is nine objects a day for seven days.
+  // `ListObjectsV2` returns up to a thousand keys and this asks for no more: the caller
+  // picks a prefix narrow enough that one page is the answer.
   public override async list(prefix: string): Promise<readonly string[]> {
     const response = await this.s3.send(
       new ListObjectsV2Command({ Bucket: this.config.bucket, Prefix: prefix }),
@@ -152,18 +154,48 @@ export class S3StorageGateway extends StorageGateway {
     return (response.Contents ?? []).flatMap((object) => (object.Key ? [object.Key] : []));
   }
 
+  // The continuation token walks the prefix, so the caller may delete what it was given.
+  public override async *listPages(
+    prefix: string,
+    pageSize?: number,
+  ): AsyncGenerator<readonly string[]> {
+    let token: string | undefined;
+    do {
+      const response = await this.s3.send(
+        new ListObjectsV2Command({
+          Bucket: this.config.bucket,
+          Prefix: prefix,
+          MaxKeys: pageSize,
+          ContinuationToken: token,
+        }),
+      );
+      const keys = (response.Contents ?? []).flatMap((object) => (object.Key ? [object.Key] : []));
+      if (keys.length > 0) yield keys;
+      token = response.IsTruncated ? response.NextContinuationToken : undefined;
+    } while (token);
+  }
+
   // Expiry is the caller's, not the gateway's: a link in an email needs longer than
   // one rendered in a live UI, and that is a use-case decision.
-  public override async presignUpload(
+  public override async presignPost(
     key: string,
     contentType: string,
+    maxBytes: number,
     expiresInSeconds: number,
-  ): Promise<string> {
-    return getSignedUrl(
-      this.s3,
-      new PutObjectCommand({ Bucket: this.config.bucket, Key: key, ContentType: contentType }),
-      { expiresIn: expiresInSeconds },
-    );
+  ): Promise<PresignedPost> {
+    // The length range is the reason this is a POST: a presigned PUT signs no length, so a
+    // client could declare five megabytes and send five gigabytes.
+    const { url, fields } = await createPresignedPost(this.s3, {
+      Bucket: this.config.bucket,
+      Key: key,
+      Conditions: [
+        ["content-length-range", 1, maxBytes],
+        ["eq", "$Content-Type", contentType],
+      ],
+      Fields: { "Content-Type": contentType },
+      Expires: expiresInSeconds,
+    });
+    return { url, fields };
   }
 
   public override async presignDownload(key: string, expiresInSeconds: number): Promise<string> {

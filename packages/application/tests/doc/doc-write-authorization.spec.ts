@@ -180,7 +180,7 @@ const WRITES: readonly { name: string; key: PermissionKey; finds: boolean; run: 
     run: (actor, fake) =>
       new DeleteDocPageUseCase(
         new Authorizer(),
-        ...(DEPENDENCIES(6, fake) as [never, never, never, never, never, never]),
+        ...(DEPENDENCIES(7, fake) as [never, never, never, never, never, never, never]),
       ).execute(actor, { pageId: PAGE }),
   },
   {

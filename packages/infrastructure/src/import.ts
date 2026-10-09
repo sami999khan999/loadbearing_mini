@@ -26,6 +26,9 @@ export {
 // ── @aws-sdk/lib-storage ─────────────────────────────────────────────────────
 export { Upload } from "@aws-sdk/lib-storage";
 
+// ── @aws-sdk/s3-presigned-post ───────────────────────────────────────────────
+export { createPresignedPost } from "@aws-sdk/s3-presigned-post";
+
 // ── @aws-sdk/s3-request-presigner ────────────────────────────────────────────
 export { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
@@ -54,6 +57,7 @@ export {
   type DocGrantee,
   type DocGrantRecord,
   type DocGrantRepository,
+  DocImageKey,
   type DocPageDraftRecord,
   type DocPageNodeRecord,
   type DocPagePublishedRecord,
@@ -122,6 +126,7 @@ export {
   type PlatformPolicyRepository,
   type PlatformReader,
   type PreferenceRecord,
+  type PresignedPost,
   // A value, not a type: the founder and the invitation claimer construct one to write
   // an audit row as the tenant being created or joined.
   Principal,

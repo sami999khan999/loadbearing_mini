@@ -219,6 +219,14 @@ export abstract class DocPageRepository {
     orderedIds: readonly DocPageId[],
   ): Promise<void>;
 
+  // The distinct image links under `linkPrefix` in any draft, published page or revision
+  // of the space: a short list of links, never every page's body.
+  public abstract listImageLinks(
+    organizationId: OrganizationId,
+    spaceId: DocSpaceId,
+    linkPrefix: string,
+  ): Promise<readonly string[]>;
+
   // The pages with their revisions and sections. The caller names the whole subtree.
   public abstract delete(
     organizationId: OrganizationId,

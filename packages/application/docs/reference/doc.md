@@ -315,8 +315,9 @@ own name, in the order the server ranked them.
 ## Images
 
 An image is uploaded straight from the browser to storage. `docPage.upload` checks the key,
-the type and the size, then signs one `PUT`, which is good for five minutes. The app never
-holds the bytes.
+the type and the declared size, then signs one `POST` policy, which is good for five minutes.
+Storage enforces the policy: the length range and the content type are conditions of the signature,
+so a client that declares one size and sends another is refused. The app never holds the bytes.
 
 **The key is the index.** An image lives at `doc/<organization>/<space>/<id>.<type>`, so there
 is no table of images to keep in step:
@@ -325,8 +326,22 @@ is no table of images to keep in step:
 |---|---|
 | A space is deleted | its prefix, after the commit |
 | A tenant is purged | its prefix, beside the partition drop |
+| A page is deleted | the space's unlinked images, an hour later, by `doc-image-orphans` |
 
-A page deleted on its own leaves its images in place, because another page may link them.
+**A page's delete does not delete its images**, because another page may link them. It queues
+one `doc-image-orphans` job for the space instead, held back an hour and deduplicated while it
+waits. The worker places the job on the tenant's node and `DocImageOrphans` does the rest:
+
+- it reads every image link the space's text holds, in drafts, published pages and all revisions,
+  as a short list of links rather than the bodies;
+- it lists the space's prefix a page at a time and deletes each image nothing links;
+- it **skips anything uploaded in the last hour**, read off the version 7 id in the file name,
+  because an upload is signed before the text that links it is saved. An unsaved draft keeps its
+  images.
+
+A restored revision's images are safe for the same reason: revisions are searched too. A key
+the class would not have written is never deleted. A finished job logs `doc.images.swept` with the
+count, and nothing when every image was still linked.
 
 A page links `/api/doc-image/<organization>/<space>/<type>/<id>`, never the bucket.
 
@@ -342,7 +357,7 @@ A page links `/api/doc-image/<organization>/<space>/<type>/<id>`, never the buck
 served to every reader of the page.
 
 > [!IMPORTANT]
-> A browser upload is cross-origin. MinIO allows every origin by default. An S3 or R2 bucket needs
-> a CORS rule allowing `PUT` and `POST` from the app's origin, or every upload fails in the browser
-> with a CORS error and nothing in the app's logs. See
+> A browser upload is a cross-origin `POST`. MinIO allows every origin by default. An S3 or R2
+> bucket needs a CORS rule allowing `POST` from the app's origin, or every upload fails in the
+> browser with a CORS error and nothing in the app's logs. See
 > [the bucket's CORS rule](../../../../docs/infra/deployment.md#the-buckets-cors-rule).

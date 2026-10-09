@@ -21,6 +21,7 @@ export {
   type DocImageType,
   type DocImageUploadDto,
   type DocNavNodeDto,
+  DocPageContract,
   type DocPageDraftDto,
   type DocPageId,
   type DocPageKind,
