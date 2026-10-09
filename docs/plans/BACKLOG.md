@@ -12,12 +12,14 @@ Checkboxes: `[ ]` todo, `[~]` in progress, `[!]` blocked, `[x]` done, `[-]` drop
 
 ## 1. Found while building
 
-- [ ] `BL.1` **`tooling/scripts` tests end in a Vitest worker timeout.** All 145 tests pass, then
+- [x] `BL.1` **`tooling/scripts` tests end in a Vitest worker timeout.** All 145 tests pass, then
   Vitest reports `Error: [vitest-worker]: Timeout calling "onTaskUpdate"` and the run exits 1. A
   spec blocks the worker's event loop long enough (the fixture harness runs the architecture
   check synchronously) that the progress RPC times out. Seen twice on 2026-09-30, both times with
   other packages testing in parallel. **The big kit shows the same at the cut commit** (run alone,
   2026-09-30): pre-existing upstream, so fix it there and port the fix.
+  **Done 2026-10-10.** The fixture harness runs the check through an awaited `execFile`. Three
+  runs beside the big kit's suite, all green. `ae5836c`.
 
 ## 2. The docs system — gaps shared with the big kit
 
@@ -27,24 +29,57 @@ decision 7 in [`DOCS-SYSTEM-PLAN.md`](DOCS-SYSTEM-PLAN.md) replaces it with whol
 What is still owed by that plan is there and in [`TESTS.md`](TESTS.md): the latency budgets
 (`DS0.2`) and the hand checks.
 
-- [ ] `BL.2` **No diff between revisions.** The history lists every publish and restores one into
+- [x] `BL.2` **No diff between revisions.** The history lists every publish and restores one into
   the draft, but shows no comparison. **Fix:** a line diff of a revision's Markdown against the
   draft, computed in the browser from the revision read, which is already cached. Big kit: `DC.1`.
-- [ ] `BL.3` **An image upload's size is checked as declared, not as sent.**
+  **Done 2026-10-10.** A Compare action per revision opens a line diff against the saved draft.
+  `doc-revision-diff.panel.spec.tsx`. `cdacbe0f`.
+- [x] `BL.3` **An image upload's size is checked as declared, not as sent.**
   `UploadDocImageUseCase` refuses a declared size over 5 MB, but a presigned `PUT` does not bind
   the length, so a writer holding the URL could send more until it expires. **Fix:** a presigned
   `POST` with a `content-length-range` condition, which needs a `StorageGateway` method. Big kit:
   `DC.4`.
-- [ ] `BL.4` **A page's images outlive the page.** Deleting a space sweeps its prefix through
+  **Done 2026-10-10.** `StorageGateway.presignPost` binds `content-length-range` and the type;
+  MinIO refuses an over-limit body with 400. `4ad36521`.
+- [x] `BL.4` **A page's images outlive the page.** Deleting a space sweeps its prefix through
   `DocImageSweep`, but deleting one page leaves its images, since another page may link them.
   **Fix:** a sweep that lists a space's prefix and deletes what no published or draft Markdown in
   the space names. Big kit: `DC.5`.
-- [ ] `BL.5` **A tenant export leaves out doc images.** The export reads partitions; images live
+  **Done 2026-10-10.** A page delete queues `doc-image-orphans` for its space; `DocImageOrphans`
+  deletes what no draft, page or revision names. `47bf8e65`.
+- [x] `BL.5` **A tenant export leaves out doc images.** The export reads partitions; images live
   only in the bucket under the tenant's doc prefix. **Fix:** copy that prefix into the export. Big
   kit: `DC.6`.
-- [ ] `BL.6` **A production bucket needs a CORS rule before images can be uploaded.** MinIO allows
+  **Done 2026-10-10.** `exportTenant` copies `doc/<org>/` into `export/<org>/<day>/doc-image/` and
+  lists each in the manifest. `52b9919b`.
+- [x] `BL.6` **A production bucket needs a CORS rule before images can be uploaded.** MinIO allows
   every origin by default, so nothing here noticed. **Fix:** document the rule in `docs/infra/`
   beside the bucket's other settings, and set it where the bucket is provisioned. Big kit: `DC.7`.
-- [ ] `BL.7` **The in-app reader still sends a page's HTML and markdown twice.** `/doc/<space>/…`
+  **Done 2026-10-10.** The rule, `POST` from the app origin, is in `docs/infra/deployment.md`;
+  MinIO refuses a per-bucket rule, so dev sets none. `d987ebb5`.
+- [x] `BL.7` **The in-app reader still sends a page's HTML and markdown twice.** `/doc/<space>/…`
   dehydrates both the query cache and the loader data. `DS0.10` fixed only the public `/docs`
   reader. **Fix:** strip the loader copy as `/docs/$space/$` does. Big kit: `LP.2`.
+  **Done 2026-10-10.** The loader awaits the query and returns nothing;
+  `apps/web/tests/route/doc-loader.spec.ts`. `0e5b4e9b`.
+
+## 3. Fixed with the big kit on 2026-10-10
+
+Shared code, fixed in the big kit first and ported here, each under its big-kit ID. They were
+never boxes in this file, so they are recorded once here.
+
+- [x] `AX7.5` Every `color-mix` in `packages/ui` is `in oklab`, so a tinted badge keeps its hue in
+  dark themes; `color.md` and `palette.md` say why. `d9fe1211`.
+- [x] `AX3.10` `check-architecture` §18 counts a primary key leading with a foreign key. `a75b361`.
+- [x] `AX1.8` The rule-file size claims state the measured ceiling, ~1,650 tokens. `82c72b14`.
+- [x] `AX2.11` `packages/permissions/docs/index.md` lists one file per line. `8f8ed273`.
+- [x] `AX4.15` `listFlags` returns readonly arrays without copying them. `0825a478`.
+- [x] `UI.2` The narrow-screen sidebar drawer is a Base UI dialog, so it traps focus. `fa910157`.
+- [x] `RV.4` Stream revalidation is one registry per process, one query per tenant per tick.
+  `bb2cc516..9a2675a9`.
+- [x] `RV.7` §14 fails a `// ──` separator that splits a sentence; 17 comments rejoined. `b4325c5`.
+- [x] `CP7.9` Web no longer serves `realtime.*`; the stream smoke spec dials `apps/realtime`.
+  `cbee47c7`.
+- [x] `CR.33` Index text is staged in the bucket and the job carries its key, so the one Redis no
+  longer holds up to 100 KB a job. `639282ad..6bc83ebe`, `408392a9`.
+

@@ -30,7 +30,7 @@ from the right place.
 
 | Date | What | From commit |
 |---|---|---|
-| — | nothing yet | — |
+| 2026-10-10 | The shared fixes in `docs/plans/BACKLOG.md` §2 and §3: tooling, UI, web, realtime, index staging and doc storage | big kit `dev`, `a73274ed..ef48f12d` |
 
 ## Added in lite, owed to the big kit
 
