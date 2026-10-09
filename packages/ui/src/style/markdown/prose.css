@@ -62,7 +62,7 @@
   color: var(--primary);
   font-weight: var(--weight-medium);
   text-decoration: underline;
-  text-decoration-color: color-mix(in oklch, var(--primary) 40%, transparent);
+  text-decoration-color: color-mix(in oklab, var(--primary) 40%, transparent);
   text-underline-offset: 0.2em;
 }
 

@@ -57,7 +57,7 @@ const STATUS = "ui-command__status m-0 px-4 py-6 text-center text-fg-muted text-
 
 // A matched word the server marks with <mark> is tinted, never a fill for the text to sit on.
 const EXCERPT =
-  "ui-command__excerpt truncate text-fg-muted text-xs [&_mark]:bg-[color-mix(in_oklch,var(--primary)_18%,transparent)] [&_mark]:text-fg";
+  "ui-command__excerpt truncate text-fg-muted text-xs [&_mark]:bg-[color-mix(in_oklab,var(--primary)_18%,transparent)] [&_mark]:text-fg";
 
 export function CommandDialog({
   label,
@@ -126,7 +126,7 @@ export function CommandDialog({
         {
           // The page dimmed with --bg rather than black, for the reason Sidebar gives.
         }
-        <BaseDialog.Backdrop className="ui-command__backdrop fixed inset-0 z-50 bg-[color-mix(in_oklch,var(--bg)_60%,transparent)]" />
+        <BaseDialog.Backdrop className="ui-command__backdrop fixed inset-0 z-50 bg-[color-mix(in_oklab,var(--bg)_60%,transparent)]" />
         <BaseDialog.Popup
           aria-label={label}
           initialFocus={input}

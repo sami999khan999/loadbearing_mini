@@ -53,7 +53,7 @@ const LINK =
 // A primary-tinted pill with --fg text: --primary text on a color-mix tint is a pairing
 // check-contrast.mjs cannot see, --fg on a near-page background is one it asserts.
 const ACTIVE =
-  "ui-nav-tree__link--active bg-[color-mix(in_oklch,var(--primary)_14%,var(--bg))] font-medium text-fg hover:bg-[color-mix(in_oklch,var(--primary)_14%,var(--bg))] hover:text-fg";
+  "ui-nav-tree__link--active bg-[color-mix(in_oklab,var(--primary)_14%,var(--bg))] font-medium text-fg hover:bg-[color-mix(in_oklab,var(--primary)_14%,var(--bg))] hover:text-fg";
 
 // Which sections a reader closed, for this tab's session. Storage can be absent or refuse
 // (a private window, a sandboxed frame), and then a section simply starts open again.

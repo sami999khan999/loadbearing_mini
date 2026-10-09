@@ -16,11 +16,11 @@ const BASE =
 // --danger ships a verified foreground (4.62:1 light, 5.32:1 dark); --success and --warning do not.
 const VARIANT: Readonly<Record<ButtonVariant, string>> = Object.freeze({
   primary:
-    "bg-primary text-primary-fg enabled:hover:bg-[color-mix(in_oklch,var(--primary)_88%,var(--fg))] enabled:active:bg-[color-mix(in_oklch,var(--primary)_78%,var(--fg))]",
+    "bg-primary text-primary-fg enabled:hover:bg-[color-mix(in_oklab,var(--primary)_88%,var(--fg))] enabled:active:bg-[color-mix(in_oklab,var(--primary)_78%,var(--fg))]",
   secondary: "border-border bg-surface text-fg enabled:hover:bg-muted",
   ghost: "bg-transparent text-fg enabled:hover:bg-muted",
   danger:
-    "bg-danger text-primary-fg enabled:hover:bg-[color-mix(in_oklch,var(--danger)_88%,var(--fg))]",
+    "bg-danger text-primary-fg enabled:hover:bg-[color-mix(in_oklab,var(--danger)_88%,var(--fg))]",
 });
 
 // For an element that must look like a button and cannot be one: a router link, or the

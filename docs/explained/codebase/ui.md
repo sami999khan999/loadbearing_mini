@@ -212,7 +212,7 @@ Every colour is one of twelve named tokens, and six themes (slate, forest, graph
 | File | What it does |
 |---|---|
 | `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
-| `sidebar.tsx` | `Sidebar`: a side panel that is always shown on wide screens and slides in over a backdrop on narrow ones. |
+| `sidebar.tsx` | `Sidebar`: a side panel that is always shown on wide screens and becomes a modal drawer (Base UI `Dialog`, with a focus trap) on narrow ones. |
 
 ### `packages/ui/src/component/status-badge/`
 
@@ -462,7 +462,7 @@ Every colour is one of twelve named tokens, and six themes (slate, forest, graph
 |---|---|
 | `docs-primitives.md` | Sidebar, NavTree, Menu, CommandDialog, Card, Prose, CodeBlock, Toc, ThemeToggle and ReaderLayout — and the exact HTML the Markdown renderer must emit for Prose to style it. |
 | `meta.json` | Sidebar title, description and page order for this docs folder. |
-| `palette.md` | The twelve colour names every theme declares, why they are oklch, the sRGB gamut trap that makes a chroma lie, and the four steps that add a theme. |
+| `palette.md` | The twelve colour names every theme declares, why they are oklch, why every mix is `in oklab`, the sRGB gamut trap that makes a chroma lie, and the four steps that add a theme. |
 | `popover.md` | A panel anchored to the control that opened it, on Base UI — what it keeps from the hand-rolled version, what it deliberately is not, and the two behaviours that changed. |
 | `scrollbar.md` | PageScrollbar — the glass overlay for the page and the themed thin bar for every inner scroller, coloured only from the twelve tokens, and why it needs themeScope. |
 | `theming.md` | Why a theme is two attributes rather than a provider or a compound key, what colorScheme actually fixes, and why a dark-only palette needs resolveMode. |

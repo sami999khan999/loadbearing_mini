@@ -31,7 +31,7 @@ disagree, the tree is the precise one.
 
 ## Which of the first two do I read?
 
-`ai/` holds the rule; `opinions/` holds the reason. A rule file is ~400 tokens and tells you what to
+`ai/` holds the rule; `opinions/` holds the reason. A rule file averages ~800 tokens and tells you what to
 do. Its opinions page is ~2,000 and tells you why, with the failure that produced it.
 
 **Start from `ai/`.** Every rule file ends by naming its opinions page, so following the footer is

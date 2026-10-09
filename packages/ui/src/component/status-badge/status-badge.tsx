@@ -16,13 +16,13 @@ export interface StatusBadgeProps {
 const TONE: Readonly<Record<BadgeTone, string>> = Object.freeze({
   neutral: "border-border bg-muted",
   accent:
-    "border-[color-mix(in_oklch,var(--primary)_32%,var(--border))] bg-[color-mix(in_oklch,var(--primary)_14%,var(--surface))]",
+    "border-[color-mix(in_oklab,var(--primary)_32%,var(--border))] bg-[color-mix(in_oklab,var(--primary)_14%,var(--surface))]",
   success:
-    "border-[color-mix(in_oklch,var(--success)_32%,var(--border))] bg-[color-mix(in_oklch,var(--success)_14%,var(--surface))]",
+    "border-[color-mix(in_oklab,var(--success)_32%,var(--border))] bg-[color-mix(in_oklab,var(--success)_14%,var(--surface))]",
   warning:
-    "border-[color-mix(in_oklch,var(--warning)_32%,var(--border))] bg-[color-mix(in_oklch,var(--warning)_14%,var(--surface))]",
+    "border-[color-mix(in_oklab,var(--warning)_32%,var(--border))] bg-[color-mix(in_oklab,var(--warning)_14%,var(--surface))]",
   danger:
-    "border-[color-mix(in_oklch,var(--danger)_32%,var(--border))] bg-[color-mix(in_oklch,var(--danger)_14%,var(--surface))]",
+    "border-[color-mix(in_oklab,var(--danger)_32%,var(--border))] bg-[color-mix(in_oklab,var(--danger)_14%,var(--surface))]",
 });
 
 // No status vocabulary of its own: a caller maps its state to a tone, which is what

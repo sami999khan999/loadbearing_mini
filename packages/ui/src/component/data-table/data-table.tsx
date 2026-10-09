@@ -38,7 +38,7 @@ function DataTableSkeleton({ rows = 5, columns = 3 }: DataTableSkeletonProps) {
           {Array.from({ length: columns }, (_, column) => (
             // --muted mixed toward --border rather than a grey of its own: right in every theme.
             <span
-              className="ui-data-table__skeleton-cell h-(--text-base) animate-pulse rounded-sm bg-[color-mix(in_oklch,var(--muted)_60%,var(--border))] motion-reduce:animate-none"
+              className="ui-data-table__skeleton-cell h-(--text-base) animate-pulse rounded-sm bg-[color-mix(in_oklab,var(--muted)_60%,var(--border))] motion-reduce:animate-none"
               key={column}
             />
           ))}

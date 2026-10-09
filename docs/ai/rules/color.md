@@ -33,12 +33,16 @@ description: Every colour is one of the twelve custom properties, read as var().
 - **In a component, a colour is a Tailwind utility of the twelve** — `bg-surface`,
   `text-fg-muted`, `border-border` — from `packages/ui/src/style/tailwind.css`, which resets
   Tailwind's palette so `bg-red-500` generates nothing. A derived state is an arbitrary value
-  mixing two of them, `bg-[color-mix(in_oklch,var(--primary)_88%,var(--fg))]`. An arbitrary
+  mixing two of them, `bg-[color-mix(in_oklab,var(--primary)_88%,var(--fg))]`. An arbitrary
   literal, `text-[#fff]`, compiles and is wrong in every theme.
 
 - **Derive states, do not name them.** There is no `--primary-hover`:
-  `color-mix(in oklch, var(--primary) 88%, var(--fg))` steps evenly in every theme. Twelve names is
+  `color-mix(in oklab, var(--primary) 88%, var(--fg))` steps evenly in every theme. Twelve names is
   a set someone can hold in their head; twelve plus a hover and an active each is not.
+
+- **Every mix is `in oklab`, never `in oklch`.** `oklch` interpolates hue, so 14% green into a
+  dark `--surface` at hue 260 lands at hue 245 — blue, not green. `oklab` mixes the colour itself,
+  and a near-grey base barely moves it.
 
 - **A component takes a semantic tone, never a colour.** `<StatusBadge tone="danger">`, not a
   `color` prop and not `style={{ color: "#b91c1c" }}`. Components carry `ui-*` class hooks; a colour
