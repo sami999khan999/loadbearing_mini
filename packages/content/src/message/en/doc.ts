@@ -154,6 +154,17 @@ export const doc = {
   "doc.revision.item": "Revision {revision}",
   "doc.revision.restore": "Restore to draft",
   "doc.revision.restored": "Revision {revision} is now the draft. Publish it to make it live.",
+  "doc.revision.compare": "Compare",
+  "doc.revision.compareTitle": "Revision {revision} against the draft",
+  "doc.revision.compareHint":
+    "Removed lines are in the revision only; added lines are in the saved draft only.",
+  "doc.revision.close": "Close",
+  "doc.revision.loading": "Loading the revision…",
+  "doc.revision.tooLarge": "These two texts differ too much to compare line by line.",
+  "doc.revision.same": "The draft is the same as this revision.",
+  "doc.revision.added": "Added:",
+  "doc.revision.removed": "Removed:",
+  "doc.revision.unfold": "Show {count} unchanged lines",
   "doc.access.legend": "Access",
   "doc.access.hint":
     "Readers see this only when every link set here passes. Leave all four as None for no link.",
