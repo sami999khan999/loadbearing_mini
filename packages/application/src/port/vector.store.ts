@@ -41,6 +41,10 @@ export abstract class VectorStore {
 
   public abstract deleteBySource(organizationId: OrganizationId, sourceId: string): Promise<void>;
 
+  // Holds this source's write lock until the transaction ends. Two jobs for one source
+  // queue here, so the version check after it is read against the winner's chunks.
+  public abstract lockSource(organizationId: OrganizationId, sourceId: string): Promise<void>;
+
   // Null when nothing is indexed under that source. One row, off the source index.
   public abstract sourceOf(
     organizationId: OrganizationId,

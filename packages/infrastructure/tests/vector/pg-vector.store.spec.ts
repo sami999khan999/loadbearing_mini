@@ -7,7 +7,7 @@ import type { Database } from "../../src/pg/primitive/index.js";
 import { DatabaseCluster } from "../../src/pg/primitive/index.js";
 import { PgVectorStore } from "../../src/pg/repository/pg-vector.store.js";
 import { documentChunks, organizations } from "../../src/pg/schema/index.js";
-import { ShardScope, TransactionScope } from "../../src/pg/transaction/index.js";
+import { PgUnitOfWork, ShardScope, TransactionScope } from "../../src/pg/transaction/index.js";
 import { DATABASE_URL, openDatabase, seedOrganizationId, seedTenant } from "../support/database.js";
 
 // The model every chunk below is written by, and every search asks for.
@@ -342,5 +342,55 @@ describe("PgVectorStore — models and text", () => {
     ]);
 
     await store.deleteBySource(organizationId, sourceId);
+  });
+});
+
+describe("PgVectorStore.lockSource", () => {
+  // The second transaction cannot take the lock until the first ends, even though the
+  // source has no chunks yet and a row lock would have nothing to hold.
+  it("makes a second job for the same source wait for the first to finish", async () => {
+    const organizationId = await seedOrg();
+    const sourceId = Uuid.v7();
+    const events: string[] = [];
+    const scope = new TransactionScope();
+    const locking = new PgVectorStore(DatabaseCluster.single(database), scope, shards);
+    const unit = new PgUnitOfWork(DatabaseCluster.single(database), scope, shards, "routed");
+
+    const first = unit.run(async () => {
+      await locking.lockSource(organizationId, sourceId);
+      events.push("first locked");
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      events.push("first done");
+    });
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    const second = unit.run(async () => {
+      await locking.lockSource(organizationId, sourceId);
+      events.push("second locked");
+    });
+    await Promise.all([first, second]);
+
+    expect(events).toEqual(["first locked", "first done", "second locked"]);
+  });
+
+  it("does not make a different source wait", async () => {
+    const organizationId = await seedOrg();
+    const scope = new TransactionScope();
+    const locking = new PgVectorStore(DatabaseCluster.single(database), scope, shards);
+    const unit = new PgUnitOfWork(DatabaseCluster.single(database), scope, shards, "routed");
+    const events: string[] = [];
+
+    const first = unit.run(async () => {
+      await locking.lockSource(organizationId, Uuid.v7());
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      events.push("first done");
+    });
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    await unit.run(async () => {
+      await locking.lockSource(organizationId, Uuid.v7());
+      events.push("other locked");
+    });
+    await first;
+
+    expect(events).toEqual(["other locked", "first done"]);
   });
 });

@@ -34,7 +34,12 @@ export class MoveDocPageUseCase {
         input.pageId,
       );
 
+      // Before the tree is read: a concurrent move waits here and sees this one's result.
+      await this.tree.lock(organizationId, page.spaceId);
       const nodes = await this.pages.listBySpace(organizationId, page.spaceId);
+      if (!nodes.some((node) => node.id === page.id)) {
+        throw new NotFoundError("doc.page", input.pageId);
+      }
       DocRules.assertTree(
         nodes.map((node) => (node.id === page.id ? { ...node, parentId: input.parentId } : node)),
       );

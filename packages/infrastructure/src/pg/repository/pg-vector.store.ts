@@ -88,6 +88,14 @@ export class PgVectorStore extends BaseRepository implements VectorStore {
       );
   }
 
+  // A transaction-scoped advisory lock on the pair, hashed to the one bigint key. It holds
+  // when the source has no chunks yet, which a row lock could not.
+  public async lockSource(organizationId: OrganizationId, sourceId: string): Promise<void> {
+    await this.db.execute(
+      sql`select pg_advisory_xact_lock(hashtextextended(${`chunks:${organizationId}:${sourceId}`}, 0))`,
+    );
+  }
+
   // Any one chunk answers: every chunk of a source is written in one transaction, with one
   // goal and one version. `document_chunks_source_idx` serves it.
   public async sourceOf(

@@ -144,6 +144,7 @@ export {
   type RelayedActivityStore,
   type RenderedMarkdown,
   type RenderedSection,
+  type RoleDetails,
   type RolePage,
   type RoleRecord,
   type RoleRepository,

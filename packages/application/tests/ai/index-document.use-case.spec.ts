@@ -44,6 +44,15 @@ class RecordingVectorStore implements VectorStore {
     return Promise.resolve();
   }
 
+  // Where a newer job commits while this one waits for the lock.
+  public onLock: (() => void) | null = null;
+
+  public lockSource(): Promise<void> {
+    this.calls.push("lock");
+    this.onLock?.();
+    return Promise.resolve();
+  }
+
   public search(): Promise<readonly never[]> {
     return Promise.resolve([]);
   }
@@ -139,7 +148,7 @@ describe("IndexDocumentUseCase", () => {
 
     expect(result.chunks).toBeGreaterThan(1);
     expect(vectors.upserted).toHaveLength(result.chunks);
-    expect(vectors.calls).toEqual(["delete", "upsert"]);
+    expect(vectors.calls).toEqual(["lock", "delete", "upsert"]);
     expect(activity.actions).toEqual(["ai.document.indexed"]);
   });
 
@@ -278,6 +287,26 @@ describe("IndexDocumentUseCase — versions", () => {
     expect(vectors.calls).toEqual([]);
   });
 
+  // The unlocked check passed, then a newer job committed while this one queued for the
+  // lock: the check after the lock must see it and write nothing.
+  it("writes nothing when a newer job commits while it waits for the lock", async () => {
+    const vectors = new RecordingVectorStore();
+    vectors.indexed = { goalId: null, version: 50 };
+    vectors.onLock = () => {
+      vectors.indexed = { goalId: null, version: 200 };
+    };
+    const { useCase } = build(one, vectors);
+
+    const result = await useCase.execute(actor, {
+      documentId: DOCUMENT,
+      text: "old",
+      version: 100,
+    });
+
+    expect(result.chunks).toBe(0);
+    expect(vectors.calls).toEqual(["lock"]);
+  });
+
   it("indexes its own retry, and anything newer, and stamps the version", async () => {
     const vectors = new RecordingVectorStore();
     vectors.indexed = { goalId: null, version: 100 };
@@ -290,7 +319,7 @@ describe("IndexDocumentUseCase — versions", () => {
     });
 
     expect(result.chunks).toBe(1);
-    expect(vectors.calls).toEqual(["delete", "upsert"]);
+    expect(vectors.calls).toEqual(["lock", "delete", "upsert"]);
     expect((vectors.upserted[0] as unknown as { metadata: unknown }).metadata).toMatchObject({
       version: 100,
     });

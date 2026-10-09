@@ -1,4 +1,4 @@
-import { eq, type OrganizationId, type Placement, sql, type UserId } from "../../import.js";
+import { asc, eq, type OrganizationId, type Placement, sql, type UserId } from "../../import.js";
 import { BaseRepository, type DatabaseCluster } from "../primitive/index.js";
 import { memberships, users } from "../schema/index.js";
 import type { ShardScope, TransactionScope } from "../transaction/index.js";
@@ -42,15 +42,22 @@ export class PgPersonalOrganizationEnroller extends BaseRepository {
 
         // Idempotent, and checked inside the lock: a retried request must return the
         // organization the first attempt created rather than create a second one.
-        const [existing] = await this.db
-          .select({ organizationId: memberships.organizationId })
+        const held = await this.db
+          .select({
+            organizationId: memberships.organizationId,
+            deactivatedAt: memberships.deactivatedAt,
+          })
           .from(memberships)
           .where(eq(memberships.userId, userId))
-          .limit(1);
+          .orderBy(asc(memberships.createdAt));
 
-        // Cast for the same reason `PgMembershipReader` casts: `memberships` declares
-        // its FK as a plain `uuid`, and the brand lives on `organizations.id`.
-        if (existing) return existing.organizationId as OrganizationId;
+        // Active only, cast as `PgMembershipReader` does. The hook asks after
+        // `activeOrganizationFor` found none; a deactivated tenant pinned the session.
+        const active = held.find((row) => row.deactivatedAt === null);
+        if (active) return active.organizationId as OrganizationId;
+
+        // Removed from every tenant they had: no second organization, and no session pin.
+        if (held.length > 0) return null;
 
         const [user] = await this.db
           .select({ name: users.name })

@@ -19,6 +19,11 @@ export interface RoleRecord {
   readonly membersWithExceptions?: number;
 }
 
+export interface RoleDetails {
+  readonly name: string;
+  readonly description: string | null;
+}
+
 export interface RolePage {
   readonly items: readonly RoleRecord[];
   readonly total: number;
@@ -49,6 +54,14 @@ export abstract class RoleRepository {
   // narrower methods would let a caller rename a role and leave its grants behind.
   public abstract save(organizationId: OrganizationId, role: RoleRecord): Promise<void>;
 
+  // The name and description alone, with the grants untouched. A rename through `save`
+  // reconciled `role_permissions` to a list read before the transaction and undid a grant.
+  public abstract saveDetails(
+    organizationId: OrganizationId,
+    roleId: RoleId,
+    details: RoleDetails,
+  ): Promise<void>;
+
   // One grant, not the whole set. `save` reconciles against a list read before the
   // transaction, so two concurrent grants each wrote the set the other had not seen.
   public abstract savePermission(
@@ -63,9 +76,10 @@ export abstract class RoleRepository {
     permission: string,
   ): Promise<void>;
 
+  // Throws `ConflictError("role", "inUse")` when a holder appeared since the count.
   public abstract delete(organizationId: OrganizationId, roleId: RoleId): Promise<void>;
 
-  // Memberships and goal memberships both reference `roles` with `on delete no action`,
-  // so a delete of a role somebody holds is a driver error rather than a refusal.
+  // Memberships, goal memberships and invitations all reference `roles` with `on delete
+  // no action`, so a delete of a role any of them names is a driver error otherwise.
   public abstract countAssignments(organizationId: OrganizationId, roleId: RoleId): Promise<number>;
 }

@@ -43,6 +43,9 @@ function role(overrides: Partial<RoleRecord> = {}): RoleRecord {
 // Answers for one tenant only, which is what the "another tenant's id" cases pin.
 class RecordingRoles implements RoleRepository {
   public readonly saved: RoleRecord[] = [];
+  public readonly detailed: { roleId: RoleId; name: string; description: string | null }[] = [];
+  // Runs between the use-case's read and its write: where a concurrent grant lands.
+  public beforeDetails: (() => void) | null = null;
   public readonly deleted: RoleId[] = [];
   public readonly granted: { roleId: RoleId; permission: string }[] = [];
   public readonly revoked: { roleId: RoleId; permission: string }[] = [];
@@ -68,6 +71,17 @@ class RecordingRoles implements RoleRepository {
 
   public save(_org: OrganizationId, row: RoleRecord): Promise<void> {
     this.saved.push(row);
+    return Promise.resolve();
+  }
+
+  public saveDetails(
+    _org: OrganizationId,
+    roleId: RoleId,
+    details: { name: string; description: string | null },
+  ): Promise<void> {
+    this.beforeDetails?.();
+    this.detailed.push({ roleId, ...details });
+    this.rows = this.rows.map((row) => (row.id === roleId ? { ...row, ...details } : row));
     return Promise.resolve();
   }
 
@@ -258,6 +272,24 @@ describe("UpdateRoleUseCase", () => {
     expect(result.name).toBe("Auditor");
     expect(result.permissions).toEqual(["member.read"]);
     expect(activity.records.map((r) => r.action)).toEqual(["role.updated"]);
+    expect(roles.saved).toEqual([]);
+  });
+
+  // The lost update: `save` reconciled the grants to the list read before the write.
+  it("keeps a grant that landed between the read and the write", async () => {
+    reset([role({ permissions: ["member.read"] })]);
+    roles.beforeDetails = () => {
+      void roles.savePermission(ORG, EDITABLE, "member.remove");
+    };
+
+    const result = await update().execute(actorHolding("rbac.role.manage"), {
+      roleId: EDITABLE,
+      name: "Auditor",
+      description: null,
+    });
+
+    expect(roles.saved).toEqual([]);
+    expect([...result.permissions].sort()).toEqual(["member.read", "member.remove"]);
   });
 
   it("does not find a role in another tenant", async () => {

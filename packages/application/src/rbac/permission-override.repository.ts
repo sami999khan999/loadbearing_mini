@@ -45,6 +45,10 @@ export abstract class PermissionOverrideRepository {
 
   public abstract delete(organizationId: OrganizationId, id: string): Promise<void>;
 
-  // Every org's grants at or past `now`, for the worker's sweep.
-  public abstract findExpired(now: Date): Promise<readonly PermissionOverrideRecord[]>;
+  // Up to `limit` of every org's grants at or past `now`, oldest first, for the worker's
+  // sweep. A full page means there may be more.
+  public abstract findExpired(
+    now: Date,
+    limit: number,
+  ): Promise<readonly PermissionOverrideRecord[]>;
 }

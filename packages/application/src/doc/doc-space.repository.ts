@@ -73,5 +73,9 @@ export abstract class DocSpaceRepository {
     nav: readonly DocNavNodeDto[],
   ): Promise<number>;
 
+  // Holds the space's row until the transaction ends, so a second structural edit waits
+  // here and then reads the tree the first one left rather than its own snapshot.
+  public abstract lock(organizationId: OrganizationId, spaceId: DocSpaceId): Promise<void>;
+
   public abstract delete(organizationId: OrganizationId, spaceId: DocSpaceId): Promise<void>;
 }

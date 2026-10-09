@@ -118,7 +118,7 @@ describe("PgPermissionOverrideRepository", () => {
     });
 
     expect(await overrides.findFor(organizationId, userId)).toEqual([]);
-    const expired = (await overrides.findExpired(new Date())).filter(
+    const expired = (await overrides.findExpired(new Date(), 10_000)).filter(
       (row) => row.userId === userId,
     );
     expect(expired.map((row) => row.permission)).toEqual(["apikey.read"]);
@@ -130,6 +130,26 @@ describe("PgPermissionOverrideRepository", () => {
         .from(permissionOverrides)
         .where(eq(permissionOverrides.userId, userId)),
     ).toEqual([]);
+  });
+
+  // The sweep pages by this limit, so a backlog is read a bounded slice at a time.
+  it("returns no more expired rows than the limit asks for", async () => {
+    const organizationId = await seedOrganizationId(database);
+    const userId = await makeUser();
+    await database.client.insert(permissionOverrides).values(
+      ["member.read", "member.invite", "member.remove"].map((permission) => ({
+        id: Uuid.v7(),
+        organizationId,
+        userId,
+        goalId: null,
+        permission,
+        effect: "grant" as const,
+        reason: "trial",
+        expiresAt: new Date(Date.now() - 60_000),
+      })),
+    );
+
+    expect(await overrides.findExpired(new Date(), 2)).toHaveLength(2);
   });
 
   it("finds a row by id only inside its own tenant", async () => {
