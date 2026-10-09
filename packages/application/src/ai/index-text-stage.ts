@@ -8,9 +8,6 @@ type Decoder = new () => { decode(input: Uint8Array): string };
 export class IndexTextStage {
   public static readonly PREFIX = "embedding/";
 
-  // One listing is at most a thousand keys; this bounds the walk if deletes stop landing.
-  private static readonly MAX_PASSES = 100;
-
   public constructor(private readonly storage: StorageGateway) {}
 
   public static tenantPrefix(organizationId: string): string {
@@ -51,18 +48,17 @@ export class IndexTextStage {
     await this.storage.delete(key);
   }
 
-  // Deletes keys staged before `before`. A first page holding only fresh keys ends the
-  // walk, so a stale key behind it waits until those age out too: late, never kept.
+  // Deletes keys staged before `before`, walking every page so a full first page of fresh
+  // keys cannot hide a stale one behind it.
   public async sweepStale(before: Date): Promise<number> {
     let deleted = 0;
-    for (let pass = 0; pass < IndexTextStage.MAX_PASSES; pass += 1) {
-      const stale = (await this.storage.list(IndexTextStage.PREFIX)).filter((key) => {
+    for await (const page of this.storage.listPages(IndexTextStage.PREFIX)) {
+      for (const key of page) {
         const version = IndexTextStage.versionOf(key);
-        return version !== null && version < before.getTime();
-      });
-      if (stale.length === 0) break;
-      for (const key of stale) await this.storage.delete(key);
-      deleted += stale.length;
+        if (version === null || version >= before.getTime()) continue;
+        await this.storage.delete(key);
+        deleted += 1;
+      }
     }
     return deleted;
   }

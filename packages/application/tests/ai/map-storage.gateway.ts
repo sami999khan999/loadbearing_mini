@@ -1,4 +1,4 @@
-import { StorageGateway, type StoredObject } from "../../src/port/index.js";
+import { type PresignedPost, StorageGateway, type StoredObject } from "../../src/port/index.js";
 
 // Bytes in a Map; only what the staging specs touch is real.
 export class MapStorageGateway extends StorageGateway {
@@ -27,6 +27,11 @@ export class MapStorageGateway extends StorageGateway {
     return Promise.resolve([...this.objects.keys()].filter((key) => key.startsWith(prefix)).sort());
   }
 
+  public async *listPages(prefix: string, pageSize = 1000): AsyncGenerator<readonly string[]> {
+    const keys = await this.list(prefix);
+    for (let at = 0; at < keys.length; at += pageSize) yield keys.slice(at, at + pageSize);
+  }
+
   public sizeOf(key: string): Promise<number | null> {
     return Promise.resolve(this.objects.get(key)?.byteLength ?? null);
   }
@@ -39,7 +44,7 @@ export class MapStorageGateway extends StorageGateway {
     throw new Error("not under test");
   }
 
-  public presignUpload(): Promise<string> {
+  public presignPost(): Promise<PresignedPost> {
     throw new Error("not under test");
   }
 
