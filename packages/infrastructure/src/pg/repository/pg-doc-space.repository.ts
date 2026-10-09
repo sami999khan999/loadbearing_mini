@@ -128,6 +128,14 @@ export class PgDocSpaceRepository extends BaseRepository implements DocSpaceRepo
     return row?.version ?? 0;
   }
 
+  public async lock(organizationId: OrganizationId, spaceId: DocSpaceId): Promise<void> {
+    await this.db
+      .select({ id: docSpaces.id })
+      .from(docSpaces)
+      .where(and(eq(docSpaces.organizationId, organizationId), eq(docSpaces.id, spaceId)))
+      .for("update");
+  }
+
   public async delete(organizationId: OrganizationId, spaceId: DocSpaceId): Promise<void> {
     await this.db
       .delete(docSpaces)

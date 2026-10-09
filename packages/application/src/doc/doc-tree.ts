@@ -11,6 +11,12 @@ export class DocTree {
     private readonly spaces: DocSpaceRepository,
   ) {}
 
+  // First in every transaction that reads the tree to change its shape. Without it two
+  // edits validate against the same snapshot and the second one's nav drops the first's.
+  public async lock(organizationId: OrganizationId, spaceId: DocSpaceId): Promise<void> {
+    await this.spaces.lock(organizationId, spaceId);
+  }
+
   public async rebuild(organizationId: OrganizationId, spaceId: DocSpaceId): Promise<number> {
     const nodes = await this.pages.listBySpace(organizationId, spaceId);
     return this.spaces.saveNav(organizationId, spaceId, DocRules.buildNav(nodes));

@@ -54,6 +54,7 @@ class OneSpace extends DocSpaceRepository {
   public create = () => Promise.reject(new Error("unused"));
   public save = () => Promise.reject(new Error("unused"));
   public saveNav = () => Promise.reject(new Error("unused"));
+  public lock = () => Promise.reject(new Error("unused"));
   public delete = () => Promise.reject(new Error("unused"));
 }
 

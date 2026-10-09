@@ -53,6 +53,9 @@ export class SaveDocPageUseCase {
         current.slug !== input.slug ||
         current.icon !== input.icon ||
         JSON.stringify(current.access) !== JSON.stringify(access);
+      // Only a structural save: a body edit is guarded by the draft version and must not
+      // queue behind every other editor of the space.
+      if (structural) await this.tree.lock(organizationId, current.spaceId);
       if (current.slug !== input.slug) {
         const nodes = await this.pages.listBySpace(organizationId, current.spaceId);
         DocRules.assertTree(

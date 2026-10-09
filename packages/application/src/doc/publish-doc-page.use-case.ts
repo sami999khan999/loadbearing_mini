@@ -58,6 +58,8 @@ export class PublishDocPageUseCase {
     const sections = [{ anchor: null, heading: draft.title, body: draft.description ?? "" }];
 
     const { slug, page } = await this.unitOfWork.run(async () => {
+      // First, so the nav rebuilt below is from the tree as the last edit left it.
+      await this.tree.lock(organizationId, draft.spaceId);
       const revisionNo = await this.pages.publish(
         organizationId,
         input.pageId,

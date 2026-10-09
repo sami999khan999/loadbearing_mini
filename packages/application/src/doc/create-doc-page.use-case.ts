@@ -45,6 +45,8 @@ export class CreateDocPageUseCase {
         input.spaceId,
       );
 
+      // Before the tree is read: a concurrent edit waits here and sees this page.
+      await this.tree.lock(organizationId, input.spaceId);
       const nodes = await this.pages.listBySpace(organizationId, input.spaceId);
       const position = nodes.filter((node) => node.parentId === input.parentId).length;
       const now = new Date();

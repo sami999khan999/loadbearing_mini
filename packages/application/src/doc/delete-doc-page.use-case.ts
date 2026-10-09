@@ -34,7 +34,12 @@ export class DeleteDocPageUseCase {
         input.pageId,
       );
 
+      // Before the tree is read, so a concurrent edit waits and then sees this delete.
+      await this.tree.lock(organizationId, page.spaceId);
       const nodes = await this.pages.listBySpace(organizationId, page.spaceId);
+      if (!nodes.some((node) => node.id === page.id)) {
+        throw new NotFoundError("doc.page", input.pageId);
+      }
       const ids = DocRules.subtree(nodes, page.id);
 
       await this.pages.delete(organizationId, ids);
