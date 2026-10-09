@@ -35,6 +35,9 @@ interface PurgeJob {
 // The consumer whose absence meant `cleanup-daily` registered every boot and never ran,
 // accumulating silently. See docs/reference/consumers.md.
 export class MaintenanceConsumer {
+  // The failed-job retention in `BullMqQueuePublisher`: a week.
+  private static readonly FAILED_KEEP_MS = 7 * 24 * 60 * 60 * 1000;
+
   // A count of partitions per run, not months of runway: three is the current month and
   // the next two, so two consecutive missed runs survive and the third is an outage.
   private static readonly MONTHS_PER_RUN = 3;
@@ -208,6 +211,8 @@ export class MaintenanceConsumer {
   // `24.1` moved this guarantee out of the database and into a job. Silence is the
   // healthy answer; a line here is a tenant delete that did not finish.
   private async orphans(): Promise<void> {
+    await this.sweepIndexText();
+
     await this.container.eachShard(async (node) => {
       const orphaned = await this.container.maintenance.orphanedTenants();
       if (orphaned.length === 0) return;
@@ -220,6 +225,16 @@ export class MaintenanceConsumer {
         organizationIds: orphaned.join(","),
       });
     });
+  }
+
+  // Index text whose job failed stays for `queue:replay`; once the failed job itself is
+  // gone (a week, `FAILED_KEEP`) nothing can read it. Not shard-routed: it is the bucket.
+  private async sweepIndexText(): Promise<void> {
+    const before = new Date(
+      this.container.clock.now().getTime() - MaintenanceConsumer.FAILED_KEEP_MS,
+    );
+    const swept = await this.container.ai.indexText.sweepStale(before);
+    if (swept > 0) this.container.logger.emit("maintenance.index_text.swept", { objects: swept });
   }
 
   private async cleanup(): Promise<void> {

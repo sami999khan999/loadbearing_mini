@@ -1,3 +1,4 @@
+import { IndexTextStage } from "../ai/index.js";
 import { DocImageKey, type DocImageSweep } from "../doc/index.js";
 import { CapabilitySet, type OrganizationId, type UserId } from "../import.js";
 import type {
@@ -63,6 +64,9 @@ export class PurgeOrganizationUseCase {
     // level, so the partition drop above never reaches its rows.
     const outboxRows = await this.outbox.deleteFor(input.organizationId);
     const images = (await this.images?.sweep(DocImageKey.tenantPrefix(input.organizationId))) ?? 0;
+    // The same prefix walk for index text a job has not consumed yet, which nothing else
+    // would delete until the nightly sweep a week later.
+    await this.images?.sweep(IndexTextStage.tenantPrefix(input.organizationId));
 
     // `system`, and with no capabilities: this actor authorizes nothing, it only names
     // who asked. The permission was asserted when the job was queued.

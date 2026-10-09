@@ -134,6 +134,9 @@ export interface EventShape {
     readonly tenants: number;
     readonly organizationIds: string;
   };
+  readonly "maintenance.index_text.swept": {
+    readonly objects: number;
+  };
 
   // No recipient: the address is what the failing send was about, and a log line is
   // not where it belongs. The reason is truncated at the call site.

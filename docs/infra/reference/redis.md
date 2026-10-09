@@ -69,7 +69,8 @@ failed request, where a silently evicted job surfaces as a customer asking why n
 **That is why both job sets are capped.** A completed job is kept an hour and at most a thousand
 per queue; a failed one a week and at most ten thousand. The failed set is the dead letter —
 `pnpm queue:replay <queue>` puts its jobs back — and the cap is what stops a day-long failure storm
-filling a `noeviction` instance, which would then refuse every enqueue.
+filling a `noeviction` instance, which would then refuse every enqueue. For the same reason an
+embedding job carries the key of its text in the bucket, never the text (up to 100 KB a job).
 
 > **AOF covers a crash. It does not cover `FLUSHALL`.** That is why the queue also wants a nightly
 > sweep that re-enqueues unprocessed work, reconciling against Postgres rather than against BullMQ's

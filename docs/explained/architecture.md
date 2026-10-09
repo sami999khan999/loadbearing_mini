@@ -414,7 +414,9 @@ published into the app's docs with `pnpm guide:publish`, through the normal API.
 
 Documents can be indexed and searched by meaning.
 
-1. Indexing a document puts a job on the embedding queue and returns at once.
+1. Indexing a document stores its text in the bucket (`embedding/<org>/<document>/<version>.txt`), puts
+   a job holding only that key on the embedding queue, and returns at once. The text stays out of
+   Redis; the worker deletes it after indexing, and the nightly orphans job sweeps any a week old.
 2. The worker splits the text into chunks, asks the AI provider for a vector per chunk (in batches),
    and replaces the document's old chunks in one transaction.
 3. Searching turns the question into a vector and finds the closest chunks with **pgvector**, inside
