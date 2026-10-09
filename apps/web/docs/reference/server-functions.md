@@ -110,13 +110,14 @@ the connection pool.
 ## Streams: one procedure that is not a request
 
 `realtime.stream` is an oRPC event iterator — an `async function*` handler whose output contract is
-`eventIterator(RealtimeContract.message)` — and `RPCHandler` serves it as `text/event-stream` on the
-existing `/api/rpc` route. There is no second route and no second handler.
+`eventIterator(RealtimeContract.message)` — and `apps/realtime` serves it as `text/event-stream` on
+`/api/realtime`. The web app's `/api/rpc` does not mount the `realtime` namespace; `rpc-client.ts`
+adds it back only so the in-process client fits `AppClient`, and SSR never opens a stream.
 
 **It is a POST, whatever the contract's `route` says.** Every procedure in `contracts` carries a
 `.route({ method, path })` for consistency and for an OpenAPI handler that may exist one day.
 `RPCHandler` reads none of it: it dispatches on the procedure path, so the stream is a POST to
-`/api/rpc/realtime/stream` whose response body happens to stream. Trying to `curl -N` the `GET` in
+`/api/realtime/realtime/stream` whose response body happens to stream. Trying to `curl -N` the `GET` in
 the contract will find nothing, and the `StrictGetMethodPlugin` — on by default — is a second
 reason not to reach for one.
 
@@ -134,7 +135,7 @@ a `resync` when the log no longer reaches back (`26.5`). Every event frame goes 
 what `ClientRetryPlugin` reads for its delay.
 
 **Keep-alive is set, not enabled.** `RPCHandler` sends a comment every 5 s by default; the handler
-here sets 15 s, inside every proxy idle timeout worth worrying about and a third of the traffic. It
+in `apps/realtime`'s listener sets 15 s, inside every proxy idle timeout worth worrying about and a third of the traffic. It
 also sends an initial comment on stream open by default, which flushes headers before the first
 frame — the reason a dev-server proxy establishes the connection immediately rather than appearing
 to hang.

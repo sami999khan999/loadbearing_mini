@@ -84,7 +84,19 @@ export default async function setup({
   });
   booted.push(web as Booted);
 
+  // Streams are this process's alone: `/api/rpc` no longer serves `realtime.*`. Its own
+  // port, as in production, where the proxy is what puts both behind one origin.
+  const realtimePort = (await freePort()) as number;
+  const realtime = await bootApp({
+    entry: `${ROOT}apps/realtime/dist/main.js`,
+    ready: async () => (await fetch(`http://127.0.0.1:${realtimePort}/healthz`)).ok,
+    cwd: ROOT,
+    env: { ...childEnv(port), REALTIME_PORT: String(realtimePort) },
+  });
+  booted.push(realtime as Booted);
+
   provide("baseUrl", `http://127.0.0.1:${port}`);
+  provide("realtimeUrl", `http://127.0.0.1:${realtimePort}`);
 
   return async () => {
     for (const each of booted) each.stop();

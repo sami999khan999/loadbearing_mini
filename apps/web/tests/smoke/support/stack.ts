@@ -13,5 +13,7 @@ declare module "vitest" {
     // From `globalSetup`, not from the config: the port is one the kernel handed out
     // at boot, so nothing before that can name it.
     baseUrl: string;
+    // The stream process, booted beside the web server on a port of its own.
+    realtimeUrl: string;
   }
 }

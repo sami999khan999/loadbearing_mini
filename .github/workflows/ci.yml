@@ -205,11 +205,13 @@ jobs:
       # test the fake.
       - run: pnpm smoke
 
-      # Both built, because the web smoke boots the artefacts rather than the sources:
+      # All three built, because the web smoke boots the artefacts rather than the sources:
       # a missing environment variable is a module-load throw, and only a real process
-      # finds it. `smoke:web` needs the worker too — every mail is a job.
+      # finds it. `smoke:web` needs the worker too — every mail is a job — and the stream
+      # process, which alone serves `realtime.*`.
       - run: pnpm --filter @loadbearing/worker build
       - run: pnpm --filter @loadbearing/web build
+      - run: pnpm --filter @loadbearing/realtime build
 
       # Here rather than in a job of its own: this is the only one with Mailpit up, and
       # the sign-up leg is not worth having without it.

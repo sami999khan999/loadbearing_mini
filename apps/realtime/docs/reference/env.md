@@ -20,9 +20,10 @@ does not.
 is signed by the web app and read here. A different secret reads every cookie as forged, and every
 stream answers `UNAUTHORIZED` — which the browser, correctly, does not retry.
 
-`REALTIME_MAX_STREAMS_PER_USER` and `REALTIME_STREAM_MAX_AGE_SECONDS` are read here and, for one
-release, by the web app too: it still mounts the stream router so tabs opened before the deploy keep
-working. The cap is per process and counts every stream a person opens.
+`REALTIME_MAX_STREAMS_PER_USER` and `REALTIME_STREAM_MAX_AGE_SECONDS` are read here, where every
+stream is served. The web app still parses them because `ContainerConfig.realtime` is required, but
+`/api/rpc` no longer serves `realtime.*`. The cap is per process and counts every stream a person
+opens.
 
 **Five is sized for hundreds of streams, not thousands.** Each open stream is revalidated every
 minute, one membership query each (`CR.4`). That is about 170 queries a
