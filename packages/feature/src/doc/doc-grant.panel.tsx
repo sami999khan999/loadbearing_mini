@@ -91,6 +91,7 @@ export function DocGrantPanel({ spaceId }: DocGrantPanelProps) {
               </span>
               <Button
                 variant="ghost"
+                aria-label={t("doc.grant.revokeFor", { label: grant.label })}
                 disabled={revoke.isPending}
                 onClick={() => revoke.mutate({ grantId: grant.id })}
               >

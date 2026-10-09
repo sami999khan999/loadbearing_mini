@@ -63,12 +63,33 @@ describe("DocRevisionList compare", () => {
       client(revision),
     );
 
-    const compare = await screen.findByRole("button", { name: "Compare" });
+    const compare = await screen.findByRole("button", {
+      name: "Compare revision 2 with the draft",
+    });
     expect(revision).not.toHaveBeenCalled();
     fireEvent.click(compare);
 
     await waitFor(() => expect(screen.getByText("three")).toBeDefined());
     expect(revision).toHaveBeenCalledTimes(1);
     expect(screen.getByText("two")).toBeDefined();
+  });
+
+  it("gives each row's Restore its own revision number", async () => {
+    await renderWithFakes(
+      <DocRevisionList
+        pageId={PAGE}
+        draftVersion={1}
+        draftMarkdown=""
+        onRestored={() => undefined}
+      />,
+      capabilitiesWith([]),
+      undefined,
+      ["doc", "common"],
+      client(vi.fn()),
+    );
+
+    expect(
+      await screen.findByRole("button", { name: "Restore revision 2 to the draft" }),
+    ).toBeDefined();
   });
 });
