@@ -59,6 +59,8 @@ import {
   GrantPermissionOverrideUseCase,
   GrantPermissionUseCase,
   IndexDocumentUseCase,
+  IndexQueuedDocumentUseCase,
+  IndexTextStage,
   InspectEffectivePermissionsUseCase,
   InspectPlatformStatusUseCase,
   type InvitationClaimer,
@@ -388,6 +390,8 @@ export class Container {
   // docs/reference/container.md.
   public readonly ai: {
     readonly indexDocument: IndexDocumentUseCase;
+    readonly indexQueued: IndexQueuedDocumentUseCase;
+    readonly indexText: IndexTextStage;
     readonly queueIndex: QueueDocumentIndexUseCase;
     readonly searchDocuments: SearchDocumentsUseCase;
     readonly reembed: ReembedChunksUseCase;
@@ -1184,20 +1188,26 @@ export class Container {
       ),
     };
 
+    const indexText = new IndexTextStage(this.storage);
+    const indexDocument = new IndexDocumentUseCase(
+      this.authorizer,
+      this.searchMode,
+      this.vectors,
+      this.activity,
+      this.routedUnitOfWork,
+    );
+
     this.ai = {
       // Run by the worker's consumer, off the queue the two below feed.
-      indexDocument: new IndexDocumentUseCase(
-        this.authorizer,
-        this.searchMode,
-        this.vectors,
-        this.activity,
-        this.routedUnitOfWork,
-      ),
+      indexDocument,
+      indexQueued: new IndexQueuedDocumentUseCase(indexDocument, indexText),
+      indexText,
       queueIndex: new QueueDocumentIndexUseCase(
         this.authorizer,
         this.queuePublisher,
         this.vectors,
         this.clock,
+        indexText,
       ),
       searchDocuments: new SearchDocumentsUseCase(
         this.authorizer,
