@@ -39,7 +39,7 @@ const build = (events: string[]) => {
         return Promise.resolve();
       },
     } as never,
-    { rebuild: () => Promise.resolve() } as never,
+    { lock: () => Promise.resolve(), rebuild: () => Promise.resolve() } as never,
     { forget: () => Promise.resolve() } as never,
     { record: () => Promise.resolve() } as never,
     {

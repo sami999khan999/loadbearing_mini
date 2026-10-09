@@ -25,7 +25,7 @@ export function DocCopyButton({ markdown }: DocCopyButtonProps) {
   const copy = () => {
     setFailed(false);
     const write = navigator.clipboard?.writeText(markdown);
-    if (!write) return setFailed(true);
+    if (write === undefined) return setFailed(true);
     write.then(
       () => setCopied(true),
       () => setFailed(true),
