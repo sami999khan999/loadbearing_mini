@@ -1,5 +1,11 @@
-import { RealtimeChannels, type RealtimeMessage, withEventMeta } from "../import.js";
+import {
+  type Container,
+  RealtimeChannels,
+  type RealtimeMessage,
+  withEventMeta,
+} from "../import.js";
 import { authed } from "./base.js";
+import { HeldStreamCheck } from "./held-stream.check.js";
 import { StreamRevalidation } from "./stream-revalidation.js";
 
 // Reconnect delay the client honours through `ClientRetryPlugin`, whose `retryDelay`
@@ -9,6 +15,21 @@ const RETRY_MS = 2_000;
 // How often an open stream asks again whether its principal may still hold it. A minute
 // of frames after a removal, where there were thirty (`CR.4`).
 const REVALIDATE_MS = 60_000;
+
+// One registry a container, which is one a process: every open stream registers into it,
+// and its single interval asks once per tenant (`RV.4`).
+const registries = new WeakMap<Container, StreamRevalidation>();
+
+function revalidationOf(container: Container): StreamRevalidation {
+  const existing = registries.get(container);
+  if (existing) return existing;
+
+  const created = new StreamRevalidation(REVALIDATE_MS, (organizationId, held) =>
+    HeldStreamCheck.answer(container, organizationId, held),
+  );
+  registries.set(container, created);
+  return created;
+}
 
 // The stream, and nothing else. One namespace is one process: `apps/realtime` mounts this
 // router and the browser sends every `realtime.*` path to it.
@@ -36,15 +57,9 @@ export class RealtimeRouter {
     let frames = 0;
     context.log.emit("realtime.stream.opened", { resumed: lastEventId !== undefined });
     // A deactivated member's stream ends; the reopen is refused, and the client stops.
-    const watched = StreamRevalidation.watch(
-      signal as AbortSignal,
-      () =>
-        context.container.memberships.isActive(
-          context.principal.userId,
-          context.principal.organizationId,
-        ),
-      REVALIDATE_MS,
-    );
+    const watched = revalidationOf(context.container).watch(signal as AbortSignal, {
+      principal: context.principal,
+    });
 
     try {
       for await (const message of context.container.realtimeSubscriber.subscribe(

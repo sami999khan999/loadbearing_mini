@@ -17,7 +17,13 @@ export type { Container } from "@loadbearing/composition";
 // ── @loadbearing/contracts ───────────────────────────────────────────────────
 // `contract` is the shape every router mirrors, and `ProcedurePermissions` is the second
 // of the four enforcement surfaces.
-export { contract, ProcedurePermissions, type RealtimeMessage } from "@loadbearing/contracts";
+export {
+  contract,
+  type OrganizationId,
+  ProcedurePermissions,
+  type RealtimeMessage,
+  type UserId,
+} from "@loadbearing/contracts";
 
 // ── @loadbearing/errors ──────────────────────────────────────────────────────
 // `HTTP_STATUS` is a transport concern, and this package is the transport's router half.
