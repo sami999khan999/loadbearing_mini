@@ -26,8 +26,8 @@
 }
 
 a.ui-card:hover {
-  border-color: color-mix(in oklch, var(--border) 60%, var(--fg));
-  background: color-mix(in oklch, var(--surface) 70%, var(--muted));
+  border-color: color-mix(in oklab, var(--border) 60%, var(--fg));
+  background: color-mix(in oklab, var(--surface) 70%, var(--muted));
 }
 
 .ui-card__icon {

@@ -118,12 +118,12 @@
 /* A diff's added line cannot be green text on this palette, so it is marked by weight
    and a tinted fill rather than by hue. */
 .hljs-addition {
-  background: color-mix(in oklch, var(--success) 12%, var(--surface));
+  background: color-mix(in oklab, var(--success) 12%, var(--surface));
   color: var(--fg);
 }
 
 .hljs-deletion {
-  background: color-mix(in oklch, var(--danger) 8%, var(--surface));
+  background: color-mix(in oklab, var(--danger) 8%, var(--surface));
 }
 
 .hljs-emphasis {

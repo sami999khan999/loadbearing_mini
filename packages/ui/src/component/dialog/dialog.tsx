@@ -5,7 +5,7 @@ import { buttonClassName } from "../button/index.js";
 
 // The page dimmed with --bg rather than black: in a dark theme a light scrim would read as
 // a panel rather than as a shade.
-const BACKDROP = "fixed inset-0 z-50 bg-[color-mix(in_oklch,var(--bg)_60%,transparent)]";
+const BACKDROP = "fixed inset-0 z-50 bg-[color-mix(in_oklab,var(--bg)_60%,transparent)]";
 const POPUP =
   "fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100dvh-4rem)] w-[min(32rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 flex-col gap-4 overflow-y-auto rounded-lg border border-border bg-surface p-6 text-fg shadow-lg outline-none";
 const TITLE = "ui-dialog__title m-0 font-semibold text-fg text-lg leading-tight";

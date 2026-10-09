@@ -3,10 +3,10 @@ import { GlassScroll, type GlassScrollTheme, type ReactNode } from "../../import
 // Every colour is a mix of the twelve, so the bar follows the theme and the mode with no
 // dark twin: the tokens already change with `data-mode`. See docs/reference/scrollbar.md.
 const THEME: GlassScrollTheme = {
-  thumbBg: "color-mix(in oklch, var(--fg-muted) 45%, transparent)",
-  thumbBgHover: "color-mix(in oklch, var(--fg-muted) 70%, transparent)",
-  thumbBgActive: "color-mix(in oklch, var(--fg) 70%, transparent)",
-  thumbShadow: "inset 0 0 0 1px color-mix(in oklch, var(--bg) 30%, transparent)",
+  thumbBg: "color-mix(in oklab, var(--fg-muted) 45%, transparent)",
+  thumbBgHover: "color-mix(in oklab, var(--fg-muted) 70%, transparent)",
+  thumbBgActive: "color-mix(in oklab, var(--fg) 70%, transparent)",
+  thumbShadow: "inset 0 0 0 1px color-mix(in oklab, var(--bg) 30%, transparent)",
   trackBg: "transparent",
 };
 

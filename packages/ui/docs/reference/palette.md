@@ -36,9 +36,10 @@ same weight — which is why `ocean`, `forest` and `plum` are `slate`'s ladder a
 inherit its contrast almost unchanged.
 
 It also makes state derivation honest. There is no `--primary-hover` token because
-`color-mix(in oklch, var(--primary) 88%, var(--fg))` darkens by a perceptually even step in every
-theme. Twelve names is a set somebody can hold in their head; twelve plus a hover and an active for
-each is not.
+`color-mix(in oklab, var(--primary) 88%, var(--fg))` darkens by a perceptually even step in every
+theme. The tokens are written in OKLCH; the mix happens in OKLab — the same space, in rectangular
+rather than polar coordinates, and the next section is why that matters. Twelve names is a set
+somebody can hold in their head; twelve plus a hover and an active for each is not.
 
 ## The gamut trap
 
@@ -63,14 +64,26 @@ clip lands somewhere nobody chose.
 channel leaves `[0, 1]`. That check caught three colours on the first run, including one in the
 original hand-written palette.
 
-## A grey's hue is `none`
+## Mix in `oklab`, never `oklch`
 
-**Write a colour with no chroma as `oklch(1 0 none)`, never `oklch(1 0 0)`.** Both draw the same
-white. But `0` is a real hue, red, and `color-mix(in oklch, …)` interpolates hue. So a tint over a
-`0`-hue surface is pulled toward red: a success callout at 10% green over white came out pink in
-every light theme. `none` tells the mix there is no hue to blend, so the tint keeps the other
-colour's hue. `check-contrast.mjs` accepts `none` and reads it as `0`, which is correct for
-contrast because chroma is zero.
+**Every `color-mix()` in this repository is `in oklab`.** `in oklch` interpolates hue as a number,
+and a near-grey base still has one: a dark `--surface` is `oklch(0.21 0.009 260)`, chroma close to
+nothing but hue 260. A 14% success tint over it takes 86% of that hue and lands at 245 — a blue
+badge for "success". The same happens to `--border`, which carries the theme hue in light mode too:
+a 32% warning border over slate-light came out at hue 316, magenta. `oklab` mixes the `a`/`b`
+components, so a base with almost no chroma barely moves the result. Measured over all six themes
+in both modes, a 14% tint into `--surface` stays within 38 degrees of its own hue (midnight's
+success, the worst case) where `oklch` strays by up to 270.
+
+The light `--surface` is `oklch(1 0 none)`, and `none` once mattered: under `in oklch` it told the
+mix there was no hue to blend, where `0` would have pulled a tint toward red. Under `in oklab` a
+zero-chroma colour has no hue to contribute either way, so `none` and `0` mix identically. Write a
+grey as `none` all the same — it is the honest value, and `check-contrast.mjs` reads it as `0`,
+which is correct for contrast because chroma is zero.
+
+A mix into `transparent` is written `in oklab` too, though there it makes no difference:
+`transparent` has no hue and no alpha, so the result is the colour at reduced opacity in either
+space. One spelling everywhere means nobody has to know which mixes are safe in `oklch`.
 
 ## Contrast is checked, not reviewed
 

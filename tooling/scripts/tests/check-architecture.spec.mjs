@@ -1350,7 +1350,7 @@ describe("32 — no colour outside the twelve", () => {
       run({
         "packages/ui/src/swatch/swatch.tsx":
           'export const a = "bg-surface text-fg-muted border-border";\n' +
-          'export const b = "bg-[color-mix(in_oklch,var(--primary)_88%,var(--fg))]";\n' +
+          'export const b = "bg-[color-mix(in_oklab,var(--primary)_88%,var(--fg))]";\n' +
           "export const c = { background: `var(--bg)` };\n",
         "packages/ui/src/style/token.css":
           ":root { --shadow-sm: 0 1px 2px oklch(0 0 0 / 0.05); }\n",

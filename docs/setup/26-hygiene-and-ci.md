@@ -1082,7 +1082,8 @@ widgets.
 Tailwind's palette is reset to the twelve, so `bg-red-500` generates no CSS and would at worst do
 nothing. An arbitrary value is different: `text-[#fff]` compiles to a real colour that no theme
 knows and that `check:contrast` never sees. It reviews clean and is wrong in five of six themes.
-A `color-mix` of two of the twelve passes, because that is how a state is derived.
+A `color-mix` of two of the twelve passes, because that is how a state is derived — written
+`in oklab`, because `in oklch` drags a tint toward the hue of the near-grey it is mixed into.
 `style/token.css` keeps its one exception for shadows, `oklch(0 0 0 / <alpha>)`.
 
 ## Step 26.4b — `check:contrast`, the gate that is not a grep
