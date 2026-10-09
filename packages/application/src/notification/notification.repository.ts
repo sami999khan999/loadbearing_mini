@@ -64,13 +64,14 @@ export abstract class NotificationRepository {
   // Returns how many rows were new, which is what tells the caller whom to notify.
   public abstract saveMany(records: readonly NewNotification[]): Promise<readonly UserId[]>;
 
-  // Which of these people already hold an unread one of these about this thing. One indexed
-  // query for the whole audience — what keeps a burst of ten messages to one bell item.
+  // Who already holds an unread one about this thing, other than the event's own, so a
+  // retry does not suppress itself. One indexed query for the whole audience.
   public abstract unreadSubjectHolders(
     organizationId: OrganizationId,
     userIds: readonly UserId[],
     kind: NotificationKind,
     subjectId: string,
+    exceptEventId: string,
   ): Promise<ReadonlySet<UserId>>;
 
   // `createdAt` is the partition hint. Without it Postgres has to look in every month.

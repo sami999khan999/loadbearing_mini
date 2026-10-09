@@ -15,6 +15,7 @@ import {
   type NotificationPage,
   type NotificationRecord,
   type NotificationRepository,
+  ne,
   type OrganizationId,
   type Placement,
   sql,
@@ -135,6 +136,7 @@ export class PgNotificationRepository extends BaseRepository implements Notifica
     userIds: readonly UserId[],
     kind: NotificationKind,
     subjectId: string,
+    exceptEventId: string,
   ): Promise<ReadonlySet<UserId>> {
     if (userIds.length === 0) return new Set();
 
@@ -147,6 +149,7 @@ export class PgNotificationRepository extends BaseRepository implements Notifica
           inArray(notifications.userId, [...userIds]),
           eq(notifications.kind, kind),
           eq(notifications.subjectId, subjectId),
+          ne(notifications.eventId, exceptEventId),
           isNull(notifications.readAt),
         ),
       );

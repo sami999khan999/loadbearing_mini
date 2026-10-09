@@ -250,17 +250,30 @@ describe("DeliverNotificationUseCase", () => {
     expect(notifications.saved[0]).toMatchObject({ userId: TARGET, kind: "member.role.changed" });
   });
 
-  // Delivery is at-least-once, so the second handling has to be a no-op in effect. The
-  // unique index does the work; this pins that nothing downstream fires again.
-  it("writes nothing and sends nothing when the same event is handled twice", async () => {
+  // Delivery is at-least-once: the unique index keeps the row single, and the mail carries
+  // the same dedupe key so the queue drops the repeat.
+  it("writes one row when the same event is handled twice", async () => {
     const deliver = build();
 
     await deliver.execute(system(), roleChanged());
-    const mailAfterFirst = mail.published.length;
     await deliver.execute(system(), roleChanged());
 
     expect(notifications.saved).toHaveLength(1);
-    expect(mail.published).toHaveLength(mailAfterFirst);
+    expect(new Set(mail.published.map((m) => m.dedupeKey)).size).toBe(1);
+  });
+
+  // The rows committed and the publish after them failed: the retry finds nothing new to
+  // write and must still tell the recipient.
+  it("sends the mail and the frame on a retry after the rows were written", async () => {
+    const deliver = build();
+    await deliver.execute(system(), roleChanged());
+    mail.published.length = 0;
+    realtime.frames.length = 0;
+
+    await deliver.execute(system(), roleChanged());
+
+    expect(mail.published).toHaveLength(1);
+    expect(realtime.frames).toHaveLength(1);
   });
 
   // Being told about a thing you just did is noise, and it is the single most common
