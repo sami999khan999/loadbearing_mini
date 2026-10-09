@@ -45,6 +45,7 @@ export {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 export { twMerge } from "tailwind-merge";
 
