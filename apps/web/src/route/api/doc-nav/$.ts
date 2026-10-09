@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { container } from "~/server/container.js";
+import { DocNavCache } from "~/server/doc-nav-cache.js";
 
 // `/api/doc-nav/<space>?v=<version>`: a platform space's whole tree, which a page read only
 // carries trimmed. The version is in the URL, so the answer for it never changes.
@@ -20,20 +21,10 @@ export const Route = createFileRoute("/api/doc-nav/$")({
             { replica: true },
           );
           const asked = new URL(request.url).searchParams.get("v");
-          // Immutable only for the version the reader named, and shared only when nobody is
-          // signed in: a signed-in reader may see a granted space a stranger may not.
+          // Immutable only for the version the reader named. Shared only without a credential:
+          // a signed-in reader may see a granted space a stranger may not.
           const current = asked === String(tree.version);
-          const shared = !request.headers.has("cookie") && !request.headers.has("authorization");
-          return Response.json(tree, {
-            headers: {
-              "cache-control": !current
-                ? "no-store"
-                : shared
-                  ? "public, max-age=31536000, immutable"
-                  : "private, max-age=300",
-              vary: "Cookie",
-            },
-          });
+          return Response.json(tree, { headers: DocNavCache.headers(request.headers, current) });
         } catch (error) {
           if (error instanceof Error && error.message === "NOT_FOUND") {
             return new Response("Not found", { status: 404 });
