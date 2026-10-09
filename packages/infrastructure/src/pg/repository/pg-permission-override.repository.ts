@@ -116,11 +116,13 @@ export class PgPermissionOverrideRepository
   }
 
   // On the partial expiry index. Every org's, because the sweep is one pass for all.
-  public async findExpired(now: Date): Promise<readonly PermissionOverrideRecord[]> {
+  public async findExpired(now: Date, limit: number): Promise<readonly PermissionOverrideRecord[]> {
     const rows = await this.db
       .select(PgPermissionOverrideRepository.ROW)
       .from(permissionOverrides)
-      .where(lte(permissionOverrides.expiresAt, now));
+      .where(lte(permissionOverrides.expiresAt, now))
+      .orderBy(asc(permissionOverrides.expiresAt), asc(permissionOverrides.id))
+      .limit(limit);
     return rows.map((row) => PgPermissionOverrideRepository.record(row));
   }
 

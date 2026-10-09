@@ -155,11 +155,13 @@ export class PgEntitlementRepository extends BaseRepository implements Entitleme
   }
 
   // On the partial expiry index. Every org's, because the sweep is one pass for all.
-  public async findExpired(now: Date): Promise<readonly AdjustmentRecord[]> {
+  public async findExpired(now: Date, limit: number): Promise<readonly AdjustmentRecord[]> {
     return this.db
       .select(PgEntitlementRepository.ADJUSTMENT)
       .from(entitlementAdjustments)
-      .where(lte(entitlementAdjustments.expiresAt, now));
+      .where(lte(entitlementAdjustments.expiresAt, now))
+      .orderBy(asc(entitlementAdjustments.expiresAt), asc(entitlementAdjustments.id))
+      .limit(limit);
   }
 
   public async findDisabledModules(): Promise<readonly ModuleSwitchRecord[]> {

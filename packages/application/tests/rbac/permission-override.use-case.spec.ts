@@ -122,9 +122,9 @@ class MemoryOverrides extends PermissionOverrideRepository {
     return Promise.resolve();
   }
 
-  public override findExpired(now: Date) {
+  public override findExpired(now: Date, limit: number) {
     return Promise.resolve(
-      this.rows.filter((row) => row.expiresAt !== null && row.expiresAt <= now),
+      this.rows.filter((row) => row.expiresAt !== null && row.expiresAt <= now).slice(0, limit),
     );
   }
 }
@@ -369,5 +369,32 @@ describe("ExpirePermissionOverridesUseCase", () => {
     expect(overrides.rows).toEqual([]);
     expect(recorded).toEqual([{ organizationId: ORG, action: "override.expired" }]);
     expect(flushed).toEqual([`${ORG}:${MEMBER}`]);
+  });
+
+  // One page is `BATCH` rows: a backlog past it takes more than one transaction, and the
+  // sweep keeps going until a short page.
+  it("works through a backlog larger than one page", async () => {
+    const { expire, overrides, flushed } = harness();
+    const backlog = ExpirePermissionOverridesUseCase.BATCH * 2 + 3;
+    for (let index = 0; index < backlog; index += 1) {
+      overrides.rows.push({
+        id: `expired-${index}`,
+        organizationId: ORG,
+        userId: MEMBER,
+        permission: "analytics.activity.read",
+        effect: "grant",
+        goalId: null,
+        authority: "org",
+        reason: null,
+        expiresAt: new Date(NOW.getTime() - 1),
+        createdAt: NOW,
+      });
+    }
+
+    const system = new Principal(ORG, ADMIN, CapabilitySet.empty(), "system");
+    expect(await expire.execute(system, NOW)).toEqual({ overrides: backlog });
+
+    expect(overrides.rows).toEqual([]);
+    expect(flushed).toHaveLength(backlog);
   });
 });

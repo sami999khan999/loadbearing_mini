@@ -84,7 +84,7 @@ export abstract class EntitlementRepository {
   ): Promise<boolean>;
 
   // Every org's, for the worker's sweep. At or before `now`.
-  public abstract findExpired(now: Date): Promise<readonly AdjustmentRecord[]>;
+  public abstract findExpired(now: Date, limit: number): Promise<readonly AdjustmentRecord[]>;
 
   public abstract findDisabledModules(): Promise<readonly ModuleSwitchRecord[]>;
 
