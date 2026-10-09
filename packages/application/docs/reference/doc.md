@@ -342,6 +342,7 @@ A page links `/api/doc-image/<organization>/<space>/<type>/<id>`, never the buck
 served to every reader of the page.
 
 > [!IMPORTANT]
-> A browser upload is a cross-origin `PUT`. MinIO allows every origin by default. An S3 bucket
-> needs a CORS rule allowing `PUT` from the app's origin, or every upload fails in the browser
-> with a CORS error and nothing in the app's logs.
+> A browser upload is cross-origin. MinIO allows every origin by default. An S3 or R2 bucket needs
+> a CORS rule allowing `PUT` and `POST` from the app's origin, or every upload fails in the browser
+> with a CORS error and nothing in the app's logs. See
+> [the bucket's CORS rule](../../../../docs/infra/deployment.md#the-buckets-cors-rule).
