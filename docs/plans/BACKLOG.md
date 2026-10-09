@@ -82,4 +82,29 @@ never boxes in this file, so they are recorded once here.
   `cbee47c7`.
 - [x] `CR.33` Index text is staged in the bucket and the job carries its key, so the one Redis no
   longer holds up to 100 KB a job. `639282ad..6bc83ebe`, `408392a9`.
+- [x] `RW.7`–`RW.15` The 2026-10-10 backend review: `/api/doc-nav` keeps API-key responses
+  private, a role rename leaves its grants alone, doc tree edits lock the space, a role an
+  invitation names refuses deletion as in use, a notification retry resends mail and frames, index
+  jobs serialize per document, suspended users get no notifications, nightly expiry runs in
+  batches, and enrolment never returns a deactivated membership. `1415efbf..38c1739c`.
+- [x] `RW.16`–`RW.23` The 2026-10-10 frontend review: the editor's image picker and mode toggle
+  work by keyboard, the page tree's delete confirm is announced and its moves cannot double-fire,
+  the command palette ignores Enter during IME composition, the copy button survives a missing
+  clipboard, row actions name their row, and focus stays put after revoking a key.
+  `ad6853f9..77fab190`.
 
+## 4. Open from the 2026-10-10 review
+
+Found in code both kits share; open in the big kit under the ID given, so fix it there and port it.
+
+- [ ] `BL.8` **The doc editor drops unsaved edits without a word.** Autosave runs two seconds
+  after the last key, and nothing blocks navigation or unload while the form is dirty; a restore
+  remounts the form too. **Fix:** block while dirty, and flush before a restore. Big kit: `RW.1`.
+- [ ] `BL.9` **A mail job carries a live invite, reset link or 2FA code** in its `params`, kept a
+  week after a final failure, in the one Redis. **Fix:** render in the producer, encrypt `params`,
+  or keep failed mail jobs briefly. Big kit: `RW.2`.
+- [ ] `BL.10` **The exports screen cannot hand out the doc-image copies** it now includes; only the
+  manifest names them. Big kit: `RW.4`.
+- [ ] `BL.11` **Two enrolment paths were not checked for the deactivated-membership loop**, and a
+  suspended user with an active membership still enrols. Big kit: `RW.5`.
+- [ ] `BL.12` **`VectorStore` declares `sourceOf` twice.** Big kit: `RW.6`.
