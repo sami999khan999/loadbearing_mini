@@ -2,8 +2,8 @@
 // `apps/web/src` allowed to name the server graph. See docs/reference/import-surfaces.md.
 
 // ── @loadbearing/api-server ──────────────────────────────────────────────────
-// The router half of the transport: every procedure builds on `authed`, and the stream
-// router is mounted here for one release while `apps/realtime` takes the streams over.
+// The router half of the transport: every procedure builds on `authed`. The stream
+// router only types the in-process client; `apps/realtime` serves it.
 export { authed, RealtimeRouter } from "@loadbearing/api-server";
 
 // ── @loadbearing/composition ─────────────────────────────────────────────────

@@ -59,12 +59,14 @@ export class PlatformContract {
     expiresOn: z.string().nullable(),
     description: z.string().nullable(),
     isEnabled: z.boolean(),
-    targets: z.array(PlatformContract.flagTarget),
+    targets: z.array(PlatformContract.flagTarget).readonly(),
     orphaned: z.boolean(),
     updatedAt: z.date().nullable(),
   });
 
-  public static readonly flagList = z.object({ items: z.array(PlatformContract.flag) });
+  public static readonly flagList = z.object({
+    items: z.array(PlatformContract.flag).readonly(),
+  });
 
   public static readonly flagToggle = z.object({
     key: z.string().trim().min(1).max(128),

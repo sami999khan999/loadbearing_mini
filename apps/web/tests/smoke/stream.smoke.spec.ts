@@ -3,6 +3,7 @@ import { SMOKE_DOMAIN } from "./support/server.js";
 import type {} from "./support/stack.js";
 
 const baseUrl = inject("baseUrl");
+const realtimeUrl = inject("realtimeUrl");
 const { mailpitUrl } = inject("smoke");
 
 // One address per run, so a crashed run cannot collide with the next and the sweep has
@@ -102,9 +103,9 @@ describe("the built server, end to end over HTTP", () => {
       .join("; ");
     expect(cookie).not.toBe("");
 
-    // 4. Open the stream and start reading *before* causing anything: pub/sub has no
-    //    replay, so a frame published first is not late, it is gone.
-    const stream = await fetch(`${baseUrl}/api/rpc/realtime/stream`, {
+    // 4. Open the stream on the stream process, with the web app's cookie, and read
+    //    *before* causing anything: a frame published first is not late, it is gone.
+    const stream = await fetch(`${realtimeUrl}/api/realtime/realtime/stream`, {
       method: "POST",
       headers: { "content-type": "application/json", cookie },
       body: JSON.stringify({ json: undefined }),
@@ -137,5 +138,13 @@ describe("the built server, end to end over HTTP", () => {
 
     // 6. What nothing else in this repository proves: the frame reached an HTTP client.
     expect(await frame).toContain("member.changed");
+
+    // 7. And the web app no longer answers it: every stream is the stream process's.
+    const old = await fetch(`${baseUrl}/api/rpc/realtime/stream`, {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ json: undefined }),
+    });
+    expect(old.status).toBe(404);
   });
 });

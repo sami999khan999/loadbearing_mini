@@ -209,7 +209,7 @@ The website and API server, built with TanStack Start (React, rendered on the se
 | `doc.fn.ts` | Server functions for the public docs: read a platform page, list platform spaces, search platform docs. Works signed out. |
 | `import.ts` | The only place in the web app allowed to import server-only packages (the container, the routers). Kept separate so server code cannot leak into browser bundles. |
 | `invitation.fn.ts` | Server function: what an invitation link shows before anyone signs in. |
-| `rpc-client.ts` | `createServerRpcClient`: an API client for server rendering that calls the routers in-process, with the real request's headers. |
+| `rpc-client.ts` | `createServerRpcClient`: an API client for server rendering that calls the routers in-process, with the real request's headers. Adds the stream router back only so its type matches the browser client's. |
 | `rpc-transport.ts` | `serverTransport`: the in-process transport used by that client. |
 | `session.fn.ts` | Server function: who is signed in, their organizations, active organization, permissions and flags, and whether Google sign-in is on. Loaded once per page. |
 
@@ -218,7 +218,7 @@ The website and API server, built with TanStack Start (React, rendered on the se
 | File | What it does |
 |---|---|
 | `api-key.router.ts` | Connects the API key endpoints to their use-cases. |
-| `app.router.ts` | The whole API router, merged from each area's router. Must match the shared contract exactly or it fails to compile. |
+| `app.router.ts` | The API router `/api/rpc` serves, merged from each area's router: the shared contract less live streams, which the realtime app serves. |
 | `doc-grant.router.ts` | Connects the doc grant endpoints to their use-cases. |
 | `doc-page.router.ts` | Connects the doc page endpoints to their use-cases. |
 | `doc-space.router.ts` | Connects the doc space endpoints to their use-cases. |
@@ -270,13 +270,13 @@ The website and API server, built with TanStack Start (React, rendered on the se
 
 | File | What it does |
 |---|---|
-| `stream.smoke.spec.ts` | Smoke test against a running app: sign up, open a live stream, and receive a message caused by another request. |
+| `stream.smoke.spec.ts` | Smoke test against the running apps: sign up through the web app, open a live stream on the realtime app, receive a message caused by another request, and check the web app no longer serves streams. |
 
 ### `apps/web/tests/smoke/support/`
 
 | File | What it does |
 |---|---|
-| `server.ts` | Starts the built web app for the smoke tests and cleans up the accounts they created. |
+| `server.ts` | Starts the built worker, web app and realtime app for the smoke tests and cleans up the accounts they created. |
 | `stack.ts` | The smoke run's connection details. |
 
 ### `apps/web/tests/store/`
