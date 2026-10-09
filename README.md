@@ -121,7 +121,7 @@ be wrong about. Each store comes back by its page in [`docs/scale/`](docs/scale/
   to the task router. `CLAUDE.md` `@`-imports it rather than restating it.
 - **[`docs/ai/`](docs/ai/index.md)** — everything written for agents rather than for people. This
   page is the task router, one row per thing you might be about to do.
-  [`rules/`](docs/ai/rules/index.md) is the rulebook, one file per topic and none over ~900 tokens;
+  [`rules/`](docs/ai/rules/index.md) is the rulebook, one file per topic and the longest is ~1,650 tokens and all fourteen are ~11,100;
   [`skills/`](docs/ai/skills/add-slice.md) holds the run books, surfaced in Claude Code through
   `.claude/skills/`.
 - **[`docs/setup/`](docs/setup/00-README.md)** — the build order, walked once. Thirty-one documents

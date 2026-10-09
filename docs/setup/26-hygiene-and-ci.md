@@ -627,7 +627,7 @@ It is the one assertion whose failure mode is a destructive migration rather tha
 // or if any of them routes to a path that does not exist
 ```
 
-[`docs/ai/rules/`](../ai/rules/index.md) is a digest of [`docs/opinions/`](../opinions/index.md) — the rules an agent must know *unprompted*, one file per topic, none over ~900 tokens. `AGENTS.md` at the repository root is the brief every non-Claude tool loads unprompted, and it routes into [`docs/ai/index.md`](../ai/index.md), which is the task table: one row per thing you might be about to do.
+[`docs/ai/rules/`](../ai/rules/index.md) is a digest of [`docs/opinions/`](../opinions/index.md) — the rules an agent must know *unprompted*, one file per topic, the longest is ~1,650 tokens and all fourteen are ~11,100. `AGENTS.md` at the repository root is the brief every non-Claude tool loads unprompted, and it routes into [`docs/ai/index.md`](../ai/index.md), which is the task table: one row per thing you might be about to do.
 
 A digest is a second copy of every rule it states, and the failure is not that it is wrong the day it is written. It is that a tenth opinions page lands months later, no rule file mentions it, and every agent works from a rulebook missing a chapter while nothing says so. Citing the path is the cheapest thing that cannot be forgotten silently.
 

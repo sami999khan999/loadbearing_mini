@@ -17,8 +17,8 @@ running scale stores removed and every seam kept — see [`docs/scale/`](../scal
 
 **In Claude Code you already have all of these** — `CLAUDE.md` `@`-imports every rule file, so the
 table below is a map of what is in your context, not a list of things to go and fetch. It is the
-entry point for any agent that reads `AGENTS.md` and not `CLAUDE.md`; none of the files is longer
-than ~900 tokens, so read the one or two a task needs.
+entry point for any agent that reads `AGENTS.md` and not `CLAUDE.md`; the longest file
+is ~1,650 tokens and all fourteen are ~11,100, so read the one or two a task needs.
 
 | About to | Read |
 |---|---|
@@ -74,8 +74,8 @@ AGENTS.md                       ← every other tool: the only file loaded unpro
 **The rulebook loads whole, and that is a deliberate reversal.** This file used to argue the
 opposite — nothing loads that a task does not need, under 300 tokens unprompted, ~470 for a task
 that adds a dependency. The argument was sound while context was scarce and it stopped being sound
-when the window reached seven figures: fourteen rule files is **~9,100 tokens**, and a session that
-needs *any* rule was already paying ~1,700 for this router plus 410–890 for the file it names, so
+when the window reached seven figures: fourteen rule files is **~11,100 tokens**, and a session that
+needs *any* rule was already paying ~1,700 for this router plus 430–1,650 for the file it names, so
 the true saving was never the headline number.
 
 What lazy loading actually cost is the thing the rulebook exists to prevent. Every file here is in
