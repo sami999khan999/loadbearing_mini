@@ -26,6 +26,7 @@ export const apikey = {
     "This is the only time it is shown. It is stored as a digest, so nobody — including us — can show it to you again.",
   "apikey.created.done": "I have copied it",
   "apikey.action.revoke": "Revoke",
+  "apikey.action.revokeFor": "Revoke {name}",
   "apikey.revoke.confirm": "Revoke {name}? Anything using it stops working immediately.",
   "apikey.error.escalate": "You cannot grant a scope you do not hold yourself.",
   "apikey.error.scopes": "Choose at least one scope the catalog knows.",

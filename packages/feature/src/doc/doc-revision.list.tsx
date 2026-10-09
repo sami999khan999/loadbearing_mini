@@ -62,6 +62,7 @@ export function DocRevisionList({
             <br />
             <Button
               variant="ghost"
+              aria-label={t("doc.revision.restoreFor", { revision: revision.revisionNo })}
               disabled={restore.isPending}
               onClick={() =>
                 restore.mutate(
@@ -72,7 +73,11 @@ export function DocRevisionList({
             >
               {t("doc.revision.restore")}
             </Button>
-            <Button variant="ghost" onClick={() => setComparing(revision.revisionNo)}>
+            <Button
+              variant="ghost"
+              aria-label={t("doc.revision.compareFor", { revision: revision.revisionNo })}
+              onClick={() => setComparing(revision.revisionNo)}
+            >
               {t("doc.revision.compare")}
             </Button>
           </li>

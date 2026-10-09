@@ -99,6 +99,8 @@ export function CommandDialog({
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    // Enter during composition picks a candidate; it is not a request to navigate.
+    if (event.nativeEvent.isComposing) return;
     const last = items.length - 1;
     if (event.key === "ArrowDown") {
       event.preventDefault();

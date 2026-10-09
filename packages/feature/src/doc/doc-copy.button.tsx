@@ -10,21 +10,32 @@ export interface DocCopyButtonProps {
 export function DocCopyButton({ markdown }: DocCopyButtonProps) {
   const { t } = useMessages("doc");
   const [copied, setCopied] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    if (!copied) return;
-    const timer = setTimeout(() => setCopied(false), 2_000);
+    if (!copied && !failed) return;
+    const timer = setTimeout(() => {
+      setCopied(false);
+      setFailed(false);
+    }, 2_000);
     return () => clearTimeout(timer);
-  }, [copied]);
+  }, [copied, failed]);
 
+  // The clipboard is absent on an insecure origin and rejects when permission is refused.
   const copy = () => {
-    void navigator.clipboard.writeText(markdown).then(() => setCopied(true));
+    setFailed(false);
+    const write = navigator.clipboard?.writeText(markdown);
+    if (!write) return setFailed(true);
+    write.then(
+      () => setCopied(true),
+      () => setFailed(true),
+    );
   };
 
   return (
     <Button variant="secondary" onClick={copy} aria-live="polite">
       <Icon name={copied ? "check" : "copy"} size={16} />
-      {copied ? t("doc.copy.copied") : t("doc.copy.markdown")}
+      {copied ? t("doc.copy.copied") : failed ? t("doc.copy.failed") : t("doc.copy.markdown")}
     </Button>
   );
 }
