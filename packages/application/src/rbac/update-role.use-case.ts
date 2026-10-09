@@ -27,12 +27,19 @@ export class UpdateRoleUseCase {
     if (!role) throw new NotFoundError("role", input.roleId);
     RoleRules.assertEditable(role);
 
-    const updated: RoleRecord = { ...role, name: input.name, description: input.description };
-
-    await this.unitOfWork.run(async () => {
-      await this.roles.save(actor.organizationId, updated);
+    // The two labels only. `save` would reconcile the grants to the list read above and
+    // undo a grant or revoke that landed since.
+    const updated = await this.unitOfWork.run(async () => {
+      await this.roles.saveDetails(actor.organizationId, role.id, {
+        name: input.name,
+        description: input.description,
+      });
       await this.activity.record(actor, "role.updated", { roleId: role.id, name: input.name });
+
+      // Re-read inside the transaction, so the answer carries the grants as they stand.
+      return this.roles.findById(actor.organizationId, role.id);
     });
+    if (!updated) throw new NotFoundError("role", input.roleId);
 
     // No cache invalidation: a label is not a capability, and flushing a tenant to
     // change one would make every rename cost every session a re-resolve.

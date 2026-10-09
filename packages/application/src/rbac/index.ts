@@ -44,6 +44,11 @@ export {
   type RevokePermissionInput,
   RevokePermissionUseCase,
 } from "./revoke-permission.use-case.js";
-export { type RolePage, type RoleRecord, RoleRepository } from "./role.repository.js";
+export {
+  type RoleDetails,
+  type RolePage,
+  type RoleRecord,
+  RoleRepository,
+} from "./role.repository.js";
 export { RoleRules } from "./role.rules.js";
 export { type UpdateRoleInput, UpdateRoleUseCase } from "./update-role.use-case.js";

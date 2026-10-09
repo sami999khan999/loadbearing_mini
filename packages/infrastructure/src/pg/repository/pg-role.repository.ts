@@ -5,10 +5,12 @@ import {
   count,
   eq,
   inArray,
+  NotFoundError,
   not,
   type OrganizationId,
   type PaginationQuery,
   type Placement,
+  type RoleDetails,
   type RoleId,
   type RolePage,
   type RoleRecord,
@@ -132,6 +134,21 @@ export class PgRoleRepository extends BaseRepository implements RoleRepository {
           eq(rolePermissions.permission, permission),
         ),
       );
+  }
+
+  // The labels alone: no insert, no `role_permissions` write, so a rename cannot undo a
+  // grant that committed after the caller read the role.
+  public async saveDetails(
+    organizationId: OrganizationId,
+    roleId: RoleId,
+    details: RoleDetails,
+  ): Promise<void> {
+    const updated = await this.db
+      .update(roles)
+      .set({ name: details.name, description: details.description })
+      .where(and(eq(roles.organizationId, organizationId), eq(roles.id, roleId)));
+
+    if ((updated.rowCount ?? 0) === 0) throw new NotFoundError("role", roleId);
   }
 
   // The row and its grants in one call, reconciled rather than replaced: deleting every

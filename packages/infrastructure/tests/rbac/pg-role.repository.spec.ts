@@ -1,6 +1,7 @@
 import type { RoleRecord } from "@loadbearing/application";
 import { Identifiers, type OrganizationId, type UserId } from "@loadbearing/contracts";
 import { SystemClock, Uuid } from "@loadbearing/core";
+import { NotFoundError } from "@loadbearing/errors";
 import { eq, inArray } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Database } from "../../src/pg/primitive/index.js";
@@ -114,6 +115,31 @@ describe("PgRoleRepository writes", () => {
     const read = await repository.findById(here, role.id);
     expect(read?.name).toBe("Auditor");
     expect(read?.permissions).toEqual(["rbac.role.read"]);
+  });
+
+  // `save` reconciles grants to the record it is handed; a rename holding a stale list
+  // would delete a grant that committed since. `saveDetails` never reads the list at all.
+  it("renames without touching grants a stale record does not know about", async () => {
+    const role = draft({ permissions: ["member.read"] });
+    await repository.save(here, role);
+    await repository.savePermission(here, role.id, "rbac.role.read");
+
+    await repository.saveDetails(here, role.id, { name: "Auditor", description: "Reads" });
+
+    const read = await repository.findById(here, role.id);
+    expect(read?.name).toBe("Auditor");
+    expect(read?.description).toBe("Reads");
+    expect(read?.permissions).toEqual(["member.read", "rbac.role.read"]);
+  });
+
+  it("refuses to rename a role through another tenant", async () => {
+    const role = draft();
+    await repository.save(here, role);
+
+    await expect(
+      repository.saveDetails(elsewhere, role.id, { name: "Hijacked", description: null }),
+    ).rejects.toBeInstanceOf(NotFoundError);
+    expect((await repository.findById(here, role.id))?.name).toBe("Reviewer");
   });
 
   it("empties a role's grants when the record carries none", async () => {

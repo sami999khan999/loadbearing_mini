@@ -19,6 +19,11 @@ export interface RoleRecord {
   readonly membersWithExceptions?: number;
 }
 
+export interface RoleDetails {
+  readonly name: string;
+  readonly description: string | null;
+}
+
 export interface RolePage {
   readonly items: readonly RoleRecord[];
   readonly total: number;
@@ -48,6 +53,14 @@ export abstract class RoleRepository {
   // One write for the row *and* its grants, reconciled to `role.permissions`. Four
   // narrower methods would let a caller rename a role and leave its grants behind.
   public abstract save(organizationId: OrganizationId, role: RoleRecord): Promise<void>;
+
+  // The name and description alone, with the grants untouched. A rename through `save`
+  // reconciled `role_permissions` to a list read before the transaction and undid a grant.
+  public abstract saveDetails(
+    organizationId: OrganizationId,
+    roleId: RoleId,
+    details: RoleDetails,
+  ): Promise<void>;
 
   // One grant, not the whole set. `save` reconciles against a list read before the
   // transaction, so two concurrent grants each wrote the set the other had not seen.
