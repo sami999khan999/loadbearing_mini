@@ -2,6 +2,7 @@ import { Identifiers } from "@loadbearing/contracts";
 import { ForbiddenError, UnavailableError, ValidationError } from "@loadbearing/errors";
 import { CapabilitySet, type PermissionKey, PermissionRegistry } from "@loadbearing/permissions";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { IndexTextStage } from "../../src/ai/index-text-stage.js";
 import { QueueDocumentIndexUseCase } from "../../src/ai/queue-document-index.use-case.js";
 import { SearchDocumentsUseCase } from "../../src/ai/search-documents.use-case.js";
 import type {
@@ -14,6 +15,7 @@ import type {
 } from "../../src/port/index.js";
 import { Authorizer } from "../../src/primitive/authorizer.js";
 import { Principal } from "../../src/primitive/principal.js";
+import { MapStorageGateway } from "./map-storage.gateway.js";
 
 const ORG = Identifiers.organizationId.parse("018f8c00-0000-7000-8000-000000000010");
 const ACTOR = Identifiers.userId.parse("018f8c00-0000-7000-8000-000000000011");
@@ -127,11 +129,19 @@ beforeEach(() => {
 
 describe("QueueDocumentIndexUseCase", () => {
   let vectors = new RecordingVectors();
+  let storage = new MapStorageGateway();
   const useCase = () =>
-    new QueueDocumentIndexUseCase(new Authorizer(), queue, vectors, { now: () => NOW });
+    new QueueDocumentIndexUseCase(
+      new Authorizer(),
+      queue,
+      vectors,
+      { now: () => NOW },
+      new IndexTextStage(storage),
+    );
 
   beforeEach(() => {
     vectors = new RecordingVectors();
+    storage = new MapStorageGateway();
   });
 
   // `CR.8`. The key is org-scoped today, so the goal is asked of the key as a goal-scoped
@@ -169,6 +179,18 @@ describe("QueueDocumentIndexUseCase", () => {
     expect(queue.published).toEqual([]);
   });
 
+  // `CR.33`: a hundred jobs of 100 KB is 10 MB of `noeviction` Redis.
+  it("stages the text in the bucket and publishes only its key", async () => {
+    const result = await useCase().execute(actorHolding("ai.embedding.write"), {
+      text: "a document",
+    });
+
+    const payload = queue.published[0]?.payload as { textKey: string; text?: string };
+    expect(payload.text).toBeUndefined();
+    expect(payload.textKey).toBe(`embedding/${ORG}/${result.documentId}/${NOW.getTime()}.txt`);
+    expect(new TextDecoder().decode(storage.objects.get(payload.textKey))).toBe("a document");
+  });
+
   it("publishes to the embedding queue with the tenant on the payload", async () => {
     const result = await useCase().execute(actorHolding("ai.embedding.write"), {
       text: "a document",
@@ -179,7 +201,6 @@ describe("QueueDocumentIndexUseCase", () => {
     expect(queue.published[0]?.payload).toMatchObject({
       organizationId: ORG,
       documentId: result.documentId,
-      text: "a document",
     });
   });
 

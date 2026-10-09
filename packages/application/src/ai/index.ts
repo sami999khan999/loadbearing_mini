@@ -4,7 +4,10 @@ export {
   type IndexDocumentResult,
   IndexDocumentUseCase,
 } from "./index-document.use-case.js";
+export { IndexQueuedDocumentUseCase } from "./index-queued-document.use-case.js";
+export { IndexTextStage } from "./index-text-stage.js";
 export {
+  type IndexDocumentJob,
   type QueueDocumentIndexInput,
   QueueDocumentIndexUseCase,
   type QueuedDocumentIndex,
