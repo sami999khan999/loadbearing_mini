@@ -76,9 +76,10 @@ export abstract class RoleRepository {
     permission: string,
   ): Promise<void>;
 
+  // Throws `ConflictError("role", "inUse")` when a holder appeared since the count.
   public abstract delete(organizationId: OrganizationId, roleId: RoleId): Promise<void>;
 
-  // Memberships and goal memberships both reference `roles` with `on delete no action`,
-  // so a delete of a role somebody holds is a driver error rather than a refusal.
+  // Memberships, goal memberships and invitations all reference `roles` with `on delete
+  // no action`, so a delete of a role any of them names is a driver error otherwise.
   public abstract countAssignments(organizationId: OrganizationId, roleId: RoleId): Promise<number>;
 }

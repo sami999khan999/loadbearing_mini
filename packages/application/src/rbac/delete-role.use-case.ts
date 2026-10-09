@@ -23,12 +23,12 @@ export class DeleteRoleUseCase {
     if (!role) throw new NotFoundError("role", input.roleId);
     RoleRules.assertEditable(role);
 
-    // Checked rather than left to the foreign key: `memberships.role_id` and
-    // `goal_members.role_id` are `no action`, so the alternative is a driver error.
-    const held = await this.roles.countAssignments(actor.organizationId, role.id);
-    if (held > 0) throw new ConflictError("role", "inUse");
-
+    // Counted and deleted in one transaction. Checked rather than left to the `no action`
+    // foreign keys, whose alternative is a driver error.
     await this.unitOfWork.run(async () => {
+      const held = await this.roles.countAssignments(actor.organizationId, role.id);
+      if (held > 0) throw new ConflictError("role", "inUse");
+
       await this.roles.delete(actor.organizationId, role.id);
       await this.activity.record(actor, "role.deleted", { roleId: role.id, key: role.key });
     });
