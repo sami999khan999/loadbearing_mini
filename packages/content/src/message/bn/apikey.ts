@@ -27,6 +27,7 @@ export const apikey: NamespaceBundle<"apikey"> = {
     "এটি কেবল এখনই দেখানো হচ্ছে। এটি ডাইজেস্ট হিসেবে সংরক্ষিত, তাই আমরা সহ কেউই আপনাকে এটি আর দেখাতে পারবে না।",
   "apikey.created.done": "আমি কপি করেছি",
   "apikey.action.revoke": "বাতিল করুন",
+  "apikey.action.revokeFor": "{name} বাতিল করুন",
   "apikey.revoke.confirm": "{name} বাতিল করবেন? এটি ব্যবহার করা সবকিছু সঙ্গে সঙ্গে কাজ করা বন্ধ করবে।",
   "apikey.error.escalate": "আপনি নিজে যে স্কোপ রাখেন না, তা দিতে পারবেন না।",
   "apikey.error.scopes": "ক্যাটালগ চেনে এমন অন্তত একটি স্কোপ বেছে নিন।",
