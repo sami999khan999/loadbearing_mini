@@ -98,10 +98,8 @@ declare module "@tanstack/react-router" {
     router: ReturnType<typeof getRouter>;
   }
 
-  // The serializer validates `dehydrate`'s return structurally and refuses a type it
-  // does not know. This is global, which is the one judgement in the change: nothing
-  // ──
-  // else may then declare `DehydratedState` as something the wire cannot carry.
+  // The serializer refuses a type it does not know. Global, so nothing else may declare
+  // `DehydratedState` as something the wire cannot carry.
   interface SerializableExtensions {
     DehydratedState: DehydratedState;
   }

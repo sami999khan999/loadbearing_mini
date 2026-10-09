@@ -5,10 +5,8 @@ import type { LifecycleRule } from "../port/index.js";
 const EXPORT_PREFIX = "export/";
 const EXPORT_DAYS = 7;
 
-// Pure. Every rule the bucket receives is composed here, so the worker's converger and
-// anything that reads the bucket back compare the same thing. Lite has no retention
-// ──
-// rows and no colder class; the big kit composes a rule per table from both.
+// Pure: every rule the bucket receives is composed here, so the converger and anything reading
+// it back compare the same thing. Lite has no retention rows or colder class; the big kit does.
 export class RetentionRules {
   private constructor() {}
 

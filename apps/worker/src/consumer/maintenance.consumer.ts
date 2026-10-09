@@ -74,11 +74,8 @@ export class MaintenanceConsumer {
       {
         connection: this.connection,
         concurrency: this.concurrency,
-        // Five minutes, not BullMQ's 30 s. `partitions-boot` logs nothing for its first
-        // half-minute at 78 tenants, so the lock expired, the job was re-delivered and
-        // ──
-        // ran a second time. Idempotent, so it was waste rather than damage — but the
-        // default is sized for short jobs and these are the opposite.
+        // Five minutes, not BullMQ's 30 s: `partitions-boot` is silent for half a minute at 78
+        // tenants, and an expired lock re-delivers the job to run a second time.
         lockDuration: MaintenanceConsumer.LOCK_DURATION_MS,
       },
     );

@@ -115,10 +115,8 @@ describe("the built server, end to end over HTTP", () => {
     const frame = readFrame(stream.body as ReadableStream<Uint8Array>, Date.now() + 20_000);
     await new Promise((resolve) => setTimeout(resolve, 500));
 
-    // 5. A second request, on a different connection, publishing to this user's channel.
-    //    An invitation is the cheapest one an owner can cause alone, and its role id
-    //    ──
-    //    comes from `SystemRoleSeed`, which ran when the organization was founded.
+    // 5. A second request, on another connection, publishing to this user's channel: an
+    //    invitation, whose role id comes from the `SystemRoleSeed` run at founding.
     const roles = (await json(
       await fetch(`${baseUrl}/api/rpc/role/list`, {
         method: "POST",

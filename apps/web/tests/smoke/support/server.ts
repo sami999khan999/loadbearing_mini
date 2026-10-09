@@ -16,11 +16,8 @@ interface Booted {
 
 const booted: Booted[] = [];
 
-// **These override the ambient environment rather than filling gaps in it**, and that
-// is the whole point: the suite's behaviour is its own, not whatever `.env` happens to
-// ──
-// say on the machine running it. A developer with `AUTH_ENROLMENT_MODE=bootstrap` set
-// would otherwise get a member of the seeded tenant where the specs expect a founder.
+// These override the ambient environment, not fill gaps in it: a `.env` that sets
+// `AUTH_ENROLMENT_MODE=bootstrap` would otherwise turn the expected founder into a member.
 const DECIDED = {
   AUTH_SECRET: "web-smoke-secret-at-least-thirty-two-characters",
   AUTH_SESSION_MAX_AGE_SECONDS: "604800",
@@ -74,10 +71,8 @@ export default async function setup({
 
   const web = await bootApp({
     entry: `${ROOT}apps/web/.output/server/index.mjs`,
-    // The socket, not Nitro's "Listening on:" line. Under vitest the child's pipes
-    // deliver nothing to this process, and a page that answers is the better signal
-    // ──
-    // anyway: `boot-smoke.mjs` watches the line because it also asserts the line.
+    // The socket, not Nitro's "Listening on:" line: under vitest the child's pipes deliver
+    // nothing here, and a page that answers is the better signal anyway.
     ready: async () => (await fetch(`http://127.0.0.1:${port}/`)).ok,
     cwd: ROOT,
     env: childEnv(port),
@@ -101,15 +96,8 @@ async function sweep(): Promise<void> {
   try {
     await client.connect();
 
-    // **Tenants first, and this is the half that is easy to leave out.** `personal`
-    // enrolment founds an organization per sign-up, and one left behind is exactly what
-    // ──
-    // `23.21` found aborting the projection every five minutes.
-    // ──
-    // Bounded by this run's own start rather than by a membership join: an organization
-    // whose members have already gone is invisible to a join, and no tenant holding a
-    // ──
-    // non-smoke member is ever in range, so the seeded one cannot be reached.
+    // Tenants first, or a leftover `personal` organization aborts the projection. By start
+    // time, not a membership join: a join cannot see one whose members are already gone.
     const orphaned = await client.query<{ id: string }>(
       `select o.id from organizations o
          where o.created_at >= $2

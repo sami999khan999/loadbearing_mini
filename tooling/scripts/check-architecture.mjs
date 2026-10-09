@@ -19,6 +19,7 @@ import {
   indexesOf,
   lineOf,
   outsideFences,
+  primaryKeysOf,
   specifiers,
   topLevelAwait,
   withoutComments,
@@ -729,6 +730,11 @@ const COMMENT_EXEMPT = /^\/\/\s*(──|biome-ignore|eslint-disable|eslint-enabl
 
 const COMMENT_CEILING = 2;
 
+// A separator ends a run only where a sentence ends. Splitting one mid-thought is a
+// four-line comment with a ruler through it.
+const SEPARATOR = /^\/\/\s*──/;
+const SENTENCE_END = /[.?!:][`'")\]]*$/;
+
 assert("no comment block over two lines", (failures) => {
   for (const dir of sourceDirs()) {
     for (const file of sourceFiles(dir)) {
@@ -745,6 +751,17 @@ assert("no comment block over two lines", (failures) => {
 
       lines.forEach((line, index) => {
         const trimmed = line.trim();
+        const above = lines[index - 1]?.trim() ?? "";
+        const below = lines[index + 1]?.trim() ?? "";
+
+        if (
+          SEPARATOR.test(trimmed) &&
+          run > 0 &&
+          below.startsWith("//") &&
+          !SENTENCE_END.test(above.replace(/^\/\/\s*/, "") || ".")
+        ) {
+          failures.push(`${rel(file)}:${index + 1} a separator splits a sentence`);
+        }
 
         if (!trimmed.startsWith("//") || COMMENT_EXEMPT.test(trimmed)) {
           close();
@@ -1001,9 +1018,10 @@ assert("every foreign key column has an index leading with it", (failures) => {
   if (!blocks) return "packages/infrastructure has no schema files yet";
 
   for (const block of blocks) {
+    // A primary key is a unique index, so one leading with the column serves the cascade.
     const leading = new Set(
-      indexesOf(block)
-        .map((index) => index.columns[0])
+      [...indexesOf(block).map((index) => index.columns), ...primaryKeysOf(block)]
+        .map((columns) => columns[0])
         .filter(Boolean),
     );
 
