@@ -107,4 +107,3 @@ Found in code both kits share; open in the big kit under the ID given, so fix it
   manifest names them. Big kit: `RW.4`.
 - [ ] `BL.11` **Two enrolment paths were not checked for the deactivated-membership loop**, and a
   suspended user with an active membership still enrols. Big kit: `RW.5`.
-- [ ] `BL.12` **`VectorStore` declares `sourceOf` twice.** Big kit: `RW.6`.
