@@ -19,14 +19,17 @@ const MESSAGES = ["doc"] as const satisfies readonly ClientNamespace[];
 export const Route = createFileRoute("/(app)/doc/$space/$")({
   beforeLoad: RouteGuard.requirePermission("doc.page.read"),
   staticData: { messages: MESSAGES },
-  loader: ({ context, params }) =>
-    Promise.all([
+  // Returns nothing: loader data is serialised whole, and the cache's copy of the reading
+  // is the one `ArticleHtmlStore` strips the page HTML from.
+  loader: async ({ context, params }) => {
+    await Promise.all([
       context.messages.ensure(MESSAGES),
       context.queryClient.ensureQueryData(
         DocQueries.reading(context.api, params.space, params._splat ?? ""),
       ),
       context.queryClient.ensureQueryData(DocQueries.spaces(context.api)),
-    ]),
+    ]);
+  },
   component: DocPage,
 });
 
