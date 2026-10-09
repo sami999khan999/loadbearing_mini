@@ -52,6 +52,8 @@ export const coreEvents = {
   "tenant.spares.replenished": { level: "info" },
   // Pages an older renderer wrote, written again. Silent when there were none.
   "doc.pages.rerendered": { level: "info" },
+  // Images no text linked, deleted from one space. Silent when there were none.
+  "doc.images.swept": { level: "info" },
   // `warn`, not `info`: a non-zero count is a tenant delete that did not finish, and
   // since `24.1` the database will not say so on its own.
   "maintenance.orphans.found": { level: "warn" },

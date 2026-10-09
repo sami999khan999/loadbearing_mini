@@ -84,6 +84,22 @@ describe("S3StorageGateway against the running object store", () => {
     expect(await storage.exists(key)).toBe(false);
   });
 
+  it("lists every key under a prefix across pages, and nothing outside it", async () => {
+    const stem = `smoke/paged-${Date.now()}`;
+    const inside = [1, 2, 3, 4, 5].map((n) => `${stem}/${n}.txt`);
+    const outside = `${stem}x/other.txt`;
+    keys.push(...inside, outside);
+    for (const key of [...inside, outside]) {
+      await storage.put(key, new Uint8Array([1]), "text/plain");
+    }
+
+    const pages: (readonly string[])[] = [];
+    for await (const page of storage.listPages(`${stem}/`, 2)) pages.push(page);
+
+    expect(pages.map((page) => page.length)).toEqual([2, 2, 1]);
+    expect(pages.flat()).toEqual(inside);
+  });
+
   it("signs a URL that expires, and says so in the query it carries", async () => {
     const key = probe();
 

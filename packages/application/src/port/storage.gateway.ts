@@ -36,8 +36,10 @@ export abstract class StorageGateway {
   public abstract sizeOf(key: string): Promise<number | null>;
 
   // One page, and the caller picks a prefix narrow enough that one page is the answer.
-  // Paging this would be a second method for a case no reader in this system has.
   public abstract list(prefix: string): Promise<readonly string[]>;
+
+  // Every key under the prefix, a page at a time, for a prefix that can outgrow one page.
+  public abstract listPages(prefix: string, pageSize?: number): AsyncIterable<readonly string[]>;
 
   // In the port because "the browser uploads directly" is an architectural choice: the
   // use-case authorizes, then signs a policy storage enforces, length and type included.

@@ -175,6 +175,19 @@ describe("InMemoryStorageGateway", () => {
     await storage.delete(key);
     expect(await storage.exists(key)).toBe(false);
   });
+
+  it("pages a prefix the way the real listing does, and signs a post carrying its policy", async () => {
+    const storage = new InMemoryStorageGateway();
+    for (const n of [1, 2, 3]) await storage.put(`p/${n}`, new Uint8Array([n]), "text/plain");
+    await storage.put("q/1", new Uint8Array([1]), "text/plain");
+
+    const pages: (readonly string[])[] = [];
+    for await (const page of storage.listPages("p/", 2)) pages.push(page);
+    expect(pages).toEqual([["p/1", "p/2"], ["p/3"]]);
+
+    const post = await storage.presignPost("p/9", "image/png", 10, 60);
+    expect(post.fields).toMatchObject({ key: "p/9", "Content-Type": "image/png", maxBytes: "10" });
+  });
 });
 
 describe("StubEmbeddingProvider", () => {

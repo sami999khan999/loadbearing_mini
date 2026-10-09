@@ -45,6 +45,7 @@ export {
   type DocGrantRecord,
   DocGrantRepository,
   DocImageKey,
+  DocImageOrphans,
   DocImageSweep,
   type DocPageDraftRecord,
   type DocPageNodeRecord,

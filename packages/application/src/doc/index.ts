@@ -13,6 +13,7 @@ export {
   type NewDocGrant,
 } from "./doc-grant.repository.js";
 export { DocImageKey } from "./doc-image-key.js";
+export { DocImageOrphans } from "./doc-image-orphans.js";
 export { DocImageSweep } from "./doc-image-sweep.js";
 export {
   type DocDraftFields,

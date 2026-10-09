@@ -79,6 +79,14 @@ export class InMemoryStorageGateway extends StorageGateway {
     return Promise.resolve([...this.objects.keys()].filter((key) => key.startsWith(prefix)).sort());
   }
 
+  public override async *listPages(
+    prefix: string,
+    pageSize = 1000,
+  ): AsyncGenerator<readonly string[]> {
+    const keys = await this.list(prefix);
+    for (let at = 0; at < keys.length; at += pageSize) yield keys.slice(at, at + pageSize);
+  }
+
   // The policy rides in the fields, so a test can assert what a use-case signed.
   public override presignPost(
     key: string,

@@ -320,8 +320,22 @@ is no table of images to keep in step:
 |---|---|
 | A space is deleted | its prefix, after the commit |
 | A tenant is purged | its prefix, beside the partition drop |
+| A page is deleted | the space's unlinked images, an hour later, by `doc-image-orphans` |
 
-A page deleted on its own leaves its images in place, because another page may link them.
+**A page's delete does not delete its images**, because another page may link them. It queues
+one `doc-image-orphans` job for the space instead, held back an hour and deduplicated while it
+waits. The worker places the job on the tenant's node and `DocImageOrphans` does the rest:
+
+- it reads every image link the space's text holds, in drafts, published pages and all revisions,
+  as a short list of links rather than the bodies;
+- it lists the space's prefix a page at a time and deletes each image nothing links;
+- it **skips anything uploaded in the last hour**, read off the version 7 id in the file name,
+  because an upload is signed before the text that links it is saved. An unsaved draft keeps its
+  images.
+
+A restored revision's images are safe for the same reason: revisions are searched too. A key
+the class would not have written is never deleted. A finished job logs `doc.images.swept` with the
+count, and nothing when every image was still linked.
 
 A page links `/api/doc-image/<organization>/<space>/<type>/<id>`, never the bucket.
 

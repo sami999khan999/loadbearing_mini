@@ -46,6 +46,26 @@ export class DocImageKey {
     return match ? (TYPES.get(match[1] ?? "") ?? null) : null;
   }
 
+  // What every link to a space's images starts with. A page's text holds these, never a key.
+  public static urlPrefix(organizationId: OrganizationId, spaceId: DocSpaceId): string {
+    return `/api/doc-image/${organizationId}/${spaceId}/`;
+  }
+
+  // `<type>/<id>` off the end of a link, back into the file name it names. Null for
+  // anything that is not a link this class would have written.
+  public static fileOfLink(link: string): string | null {
+    const [extension, id] = link.split("/").slice(-2);
+    return DocImageKey.fileOf(extension ?? "", id ?? "");
+  }
+
+  // The moment the file was named, which is when it was uploaded: the id is a version 7
+  // uuid, whose first 48 bits are milliseconds. Null when the name holds no such id.
+  public static uploadedAt(file: string): Date | null {
+    const hex = file.slice(0, 13).replace("-", "");
+    if (!/^[0-9a-f]{12}$/.test(hex) || file[14] !== "7") return null;
+    return new Date(Number.parseInt(hex, 16));
+  }
+
   public static tenantPrefix(organizationId: OrganizationId): string {
     return `doc/${organizationId}/`;
   }

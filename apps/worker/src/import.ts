@@ -26,6 +26,7 @@ export { Container } from "@loadbearing/composition";
 // into a typed event rather than trusted.
 export {
   type ActivityAction,
+  type DocSpaceId,
   DomainEvents,
   type OrganizationId,
   type UserId,

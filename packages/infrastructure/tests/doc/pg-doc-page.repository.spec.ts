@@ -221,6 +221,51 @@ describe("PgDocPageRepository", () => {
     expect((await pages().findRevision(organizationId, id, 2))?.markdown).toBe("v2");
   });
 
+  // The three places a link can live, and the one thing that must not count: a link to
+  // another space's image.
+  it("finds the image links of a space in drafts, published text and revisions", async () => {
+    const prefix = `/api/doc-image/${organizationId}/${spaceId}/`;
+    const link = () => `${prefix}png/${Uuid.v7()}`;
+    const [inDraft, inPublished, inRevision, inBoth] = [link(), link(), link(), link()];
+    const foreign = `/api/doc-image/${organizationId}/${Uuid.v7()}/png/${Uuid.v7()}`;
+
+    const id = await newPage(`img-${Uuid.v7().slice(-8)}`);
+    await pages().saveDraft(
+      organizationId,
+      id,
+      1,
+      {
+        slug: `img-${Uuid.v7().slice(-8)}`,
+        title: "Images",
+        description: null,
+        icon: null,
+        markdown: `![a](${inDraft}) ![b](${inBoth}) ![c](${foreign})`,
+        url: null,
+        access: null,
+      },
+      author,
+    );
+    await pages().publish(
+      organizationId,
+      id,
+      2,
+      { ...PUBLICATION, markdown: `![p](${inPublished}) ![b](${inBoth})` },
+      author,
+    );
+    await pages().saveRevision(
+      organizationId,
+      spaceId,
+      id,
+      7,
+      { ...PUBLICATION, markdown: `![r](${inRevision})` },
+      author,
+    );
+
+    const links = await pages().listImageLinks(organizationId, spaceId, prefix);
+
+    expect([...links].sort()).toEqual([inDraft, inPublished, inRevision, inBoth].sort());
+  });
+
   // A fixed count whatever the page's length or the number of siblings: an N+1 here is
   // invisible at five rows and a timeout at five hundred.
   it("replaces a page's sections and reorders siblings in a fixed number of statements", async () => {
