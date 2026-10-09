@@ -309,8 +309,9 @@ own name, in the order the server ranked them.
 ## Images
 
 An image is uploaded straight from the browser to storage. `docPage.upload` checks the key,
-the type and the size, then signs one `PUT`, which is good for five minutes. The app never
-holds the bytes.
+the type and the declared size, then signs one `POST` policy, which is good for five minutes.
+Storage enforces the policy: the length range and the content type are conditions of the signature,
+so a client that declares one size and sends another is refused. The app never holds the bytes.
 
 **The key is the index.** An image lives at `doc/<organization>/<space>/<id>.<type>`, so there
 is no table of images to keep in step:
@@ -336,6 +337,6 @@ A page links `/api/doc-image/<organization>/<space>/<type>/<id>`, never the buck
 served to every reader of the page.
 
 > [!IMPORTANT]
-> A browser upload is a cross-origin `PUT`. MinIO allows every origin by default. An S3 bucket
-> needs a CORS rule allowing `PUT` from the app's origin, or every upload fails in the browser
+> A browser upload is a cross-origin `POST`. MinIO allows every origin by default. An S3 bucket
+> needs a CORS rule allowing `POST` from the app's origin, or every upload fails in the browser
 > with a CORS error and nothing in the app's logs.

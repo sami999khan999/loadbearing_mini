@@ -256,6 +256,7 @@ export {
   OutboxGateway,
   PartitionArchiveGateway,
   type PartitionEstimate,
+  type PresignedPost,
   type QueuedJob,
   QueuePublisher,
   RateLimitStore,

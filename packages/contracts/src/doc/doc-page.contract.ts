@@ -65,6 +65,9 @@ const revisionRef = z.object({
 export class DocPageContract {
   private constructor() {}
 
+  // Five megabytes: the declared size is held to it here, the sent size by the signed policy.
+  public static readonly MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+
   public static readonly kind = DocNav.kind;
   public static readonly status = status;
   public static readonly tocEntry = tocEntry;
@@ -195,18 +198,15 @@ export class DocPageContract {
   public static readonly upload = z.object({
     spaceId: Identifiers.docSpaceId,
     contentType: DocPageContract.imageType,
-    // Five megabytes. The browser uploads straight to storage, so this is checked here,
-    // before a URL is signed, and the URL is only good for five minutes.
-    size: z
-      .number()
-      .int()
-      .positive()
-      .max(5 * 1024 * 1024),
+    // Five megabytes, declared. It only fails a too-big file early: the signed policy is what
+    // stops the bytes, because a client can declare one size and send another.
+    size: z.number().int().positive().max(DocPageContract.MAX_IMAGE_BYTES),
   });
 
-  // `uploadUrl` takes one PUT with the same content type; `url` is what the Markdown links.
+  // `post` is a form for one multipart POST: every field in order, the file last. `url` is
+  // what the Markdown links.
   public static readonly uploaded = z.object({
-    uploadUrl: z.string(),
+    post: z.object({ url: z.string(), fields: z.record(z.string(), z.string()) }),
     url: z.string(),
   });
 

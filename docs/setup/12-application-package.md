@@ -296,12 +296,14 @@ export abstract class StorageGateway {
   public abstract delete(key: string): Promise<void>;
   public abstract exists(key: string): Promise<boolean>;
 
-  // A time-limited URL the browser can upload to directly, bypassing the app server.
-  public abstract presignUpload(
+  // A time-limited form the browser can POST to directly, bypassing the app server. The
+  // signed policy bounds the length and the type, which a presigned PUT cannot.
+  public abstract presignPost(
     key: string,
     contentType: string,
+    maxBytes: number,
     expiresInSeconds: number,
-  ): Promise<string>;
+  ): Promise<PresignedPost>;
 
   // A time-limited URL for reading. Never return a permanent public URL.
   public abstract presignDownload(key: string, expiresInSeconds: number): Promise<string>;

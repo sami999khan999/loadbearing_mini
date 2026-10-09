@@ -1,12 +1,14 @@
 import {
   Buffer,
   createHash,
+  createPresignedPost,
   DeleteObjectCommand,
   GetObjectCommand,
   getSignedUrl,
   HeadObjectCommand,
   ListObjectsV2Command,
   NotFoundError,
+  type PresignedPost,
   PutObjectCommand,
   Readable,
   type S3Client,
@@ -154,16 +156,25 @@ export class S3StorageGateway extends StorageGateway {
 
   // Expiry is the caller's, not the gateway's: a link in an email needs longer than
   // one rendered in a live UI, and that is a use-case decision.
-  public override async presignUpload(
+  public override async presignPost(
     key: string,
     contentType: string,
+    maxBytes: number,
     expiresInSeconds: number,
-  ): Promise<string> {
-    return getSignedUrl(
-      this.s3,
-      new PutObjectCommand({ Bucket: this.config.bucket, Key: key, ContentType: contentType }),
-      { expiresIn: expiresInSeconds },
-    );
+  ): Promise<PresignedPost> {
+    // The length range is the reason this is a POST: a presigned PUT signs no length, so a
+    // client could declare five megabytes and send five gigabytes.
+    const { url, fields } = await createPresignedPost(this.s3, {
+      Bucket: this.config.bucket,
+      Key: key,
+      Conditions: [
+        ["content-length-range", 1, maxBytes],
+        ["eq", "$Content-Type", contentType],
+      ],
+      Fields: { "Content-Type": contentType },
+      Expires: expiresInSeconds,
+    });
+    return { url, fields };
   }
 
   public override async presignDownload(key: string, expiresInSeconds: number): Promise<string> {

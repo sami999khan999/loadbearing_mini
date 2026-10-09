@@ -5,6 +5,12 @@ export interface StoredObject {
   readonly checksum: string;
 }
 
+// A form the browser posts straight to storage: every field, then the file, last.
+export interface PresignedPost {
+  readonly url: string;
+  readonly fields: Readonly<Record<string, string>>;
+}
+
 // No bucket, no region, no endpoint — those are adapter configuration. Key layout is
 // `<subject>/<yyyy>/<mm>/<uuid>.<ext>`, because lifecycle rules work on prefixes.
 export abstract class StorageGateway {
@@ -34,12 +40,13 @@ export abstract class StorageGateway {
   public abstract list(prefix: string): Promise<readonly string[]>;
 
   // In the port because "the browser uploads directly" is an architectural choice: the
-  // use-case authorizes, then issues the URL.
-  public abstract presignUpload(
+  // use-case authorizes, then signs a policy storage enforces, length and type included.
+  public abstract presignPost(
     key: string,
     contentType: string,
+    maxBytes: number,
     expiresInSeconds: number,
-  ): Promise<string>;
+  ): Promise<PresignedPost>;
 
   // Time-limited. Never a permanent public URL.
   public abstract presignDownload(key: string, expiresInSeconds: number): Promise<string>;
