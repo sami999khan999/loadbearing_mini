@@ -120,6 +120,7 @@ export {
   type CommandGroup,
   DataTable,
   DateFormat,
+  Dialog,
   dataTableClassName,
   EmptyState,
   Field,
@@ -151,6 +152,9 @@ export {
   Toc,
   useHotkey,
 } from "@loadbearing/ui";
+
+// ── diff ─────────────────────────────────────────────────────────────────────
+export { diffLines } from "diff";
 
 // ── react ────────────────────────────────────────────────────────────────────
 export {

@@ -272,6 +272,12 @@ month level.
 A restore writes the revision's text into the **draft**. Making it live again is a publish, which
 is a second, deliberate step.
 
+A revision can be compared with the draft before restoring it. The editor's history list opens a
+dialog that fetches the revision lazily, on the first Compare, and diffs its Markdown against the
+saved draft line by line in the browser (`diff`). Long unchanged runs fold to three lines of
+context. The server holds no diff: the revision is cached forever, so a second Compare costs
+nothing. Unsaved edits in the editor are not part of the comparison.
+
 ## Structure is live, content is published
 
 A page's text reaches readers only when it is published. Its **slug, icon and position are
@@ -336,6 +342,7 @@ A page links `/api/doc-image/<organization>/<space>/<type>/<id>`, never the buck
 served to every reader of the page.
 
 > [!IMPORTANT]
-> A browser upload is a cross-origin `PUT`. MinIO allows every origin by default. An S3 bucket
-> needs a CORS rule allowing `PUT` from the app's origin, or every upload fails in the browser
-> with a CORS error and nothing in the app's logs.
+> A browser upload is cross-origin. MinIO allows every origin by default. An S3 or R2 bucket needs
+> a CORS rule allowing `PUT` and `POST` from the app's origin, or every upload fails in the browser
+> with a CORS error and nothing in the app's logs. See
+> [the bucket's CORS rule](../../../../docs/infra/deployment.md#the-buckets-cors-rule).

@@ -68,6 +68,7 @@ function DocEdit() {
         <DocRevisionList
           pageId={page.id}
           draftVersion={page.draftVersion}
+          draftMarkdown={page.markdown}
           onRestored={() => setGeneration((value) => value + 1)}
         />
       </aside>

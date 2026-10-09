@@ -93,6 +93,9 @@ catalog:
   # conflicting pair, so a caller's `className` overrides a component's default.
   clsx: ^2.1.1
   tailwind-merge: ^3.7.0
+  # Line diffs for comparing a doc revision with its draft. Ships its own types, and is
+  # Myers' algorithm with a time bound, so a page rewritten end to end gives up, not hangs.
+  diff: ^8.0.4
 
   # ── node-only, framework-neutral — behind a port, never imported by the domain ──
   drizzle-orm: ^0.44.7

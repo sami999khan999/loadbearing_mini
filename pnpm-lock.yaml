@@ -334,6 +334,9 @@ catalogs:
     clsx:
       specifier: ^2.1.1
       version: 2.1.1
+    diff:
+      specifier: ^8.0.4
+      version: 8.0.4
     drizzle-kit:
       specifier: ^0.31.0
       version: 0.31.10
@@ -1041,6 +1044,9 @@ importers:
       '@loadbearing/ui':
         specifier: workspace:*
         version: link:../ui
+      diff:
+        specifier: 'catalog:'
+        version: 8.0.4
     devDependencies:
       '@loadbearing/api-client':
         specifier: workspace:*
