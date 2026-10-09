@@ -719,6 +719,34 @@ describe("18 — every foreign key column has an index leading with it", () => {
       "every foreign key column has an index leading with it",
     );
   });
+  // Postgres backs a primary key with a unique index, so one leading with the column
+  // serves the cascade. One where the column is second serves it no better than an index.
+  const keyed = (extras) =>
+    schema(
+      'export const tasks = pgTable("tasks", {\n' +
+        '  goalId: uuid("goal_id").references(() => goals.id, { onDelete: "cascade" }),\n' +
+        '  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),\n' +
+        `}, (t) => [${extras}]);\n`,
+    );
+
+  it("accepts a primary key leading with it", () => {
+    passes(
+      run(
+        keyed(
+          'primaryKey({ columns: [t.goalId, t.userId] }), index("tasks_user_fk_idx").on(t.userId)',
+        ),
+      ),
+      "every foreign key column has an index leading with it",
+    );
+  });
+
+  it("is not satisfied by a primary key where it is the second column", () => {
+    fails(
+      run(keyed("primaryKey({ columns: [t.goalId, t.userId] })")),
+      "every foreign key column has an index leading with it",
+      "user_id",
+    );
+  });
 });
 
 describe("21 — every partitioned table is on the allowlist, with the same keys", () => {

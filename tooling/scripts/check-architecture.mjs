@@ -19,6 +19,7 @@ import {
   indexesOf,
   lineOf,
   outsideFences,
+  primaryKeysOf,
   specifiers,
   topLevelAwait,
   withoutComments,
@@ -1001,9 +1002,10 @@ assert("every foreign key column has an index leading with it", (failures) => {
   if (!blocks) return "packages/infrastructure has no schema files yet";
 
   for (const block of blocks) {
+    // A primary key is a unique index, so one leading with the column serves the cascade.
     const leading = new Set(
-      indexesOf(block)
-        .map((index) => index.columns[0])
+      [...indexesOf(block).map((index) => index.columns), ...primaryKeysOf(block)]
+        .map((columns) => columns[0])
         .filter(Boolean),
     );
 

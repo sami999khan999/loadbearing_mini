@@ -14,6 +14,7 @@ import {
   indexesOf,
   lineOf,
   outsideFences,
+  primaryKeysOf,
   specifiers,
   topLevelAwait,
   withoutComments,
@@ -178,6 +179,25 @@ describe("indexesOf", () => {
     };
 
     expect(indexesOf(block).map((index) => index.name)).toEqual(["a_idx", "b_idx"]);
+  });
+});
+
+describe("primaryKeysOf", () => {
+  it("reads each composite primary key's columns, the leading one first", () => {
+    const block = {
+      columns: "{}",
+      extras:
+        ", (t) => [\n" +
+        '  primaryKey({ name: "pair_pk", columns: [t.goalId, t.userId] }),\n' +
+        '  index("pair_user_idx").on(t.userId),\n' +
+        "]",
+    };
+
+    expect(primaryKeysOf(block)).toEqual([["goalId", "userId"]]);
+  });
+
+  it("reads nothing from a column-level `.primaryKey()` or a table with none", () => {
+    expect(primaryKeysOf(BLOCK)).toEqual([]);
   });
 });
 
