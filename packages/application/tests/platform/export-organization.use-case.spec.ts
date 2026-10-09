@@ -57,9 +57,10 @@ class FakeStorage implements Partial<StorageGateway> {
 
   public constructor(private readonly keys: readonly string[] = []) {}
 
-  public list(prefix: string): Promise<readonly string[]> {
+  public async *listPages(prefix: string): AsyncGenerator<readonly string[]> {
     this.prefixes.push(prefix);
-    return Promise.resolve(this.keys);
+    // Two to a page, so the walk across pages is exercised by every case.
+    for (let at = 0; at < this.keys.length; at += 2) yield this.keys.slice(at, at + 2);
   }
 
   public presignDownload(key: string, expiresInSeconds: number): Promise<string> {
@@ -171,5 +172,25 @@ describe("ListTenantExportsUseCase", () => {
     expect(storage.prefixes).toEqual([`export/${TENANT}/`]);
     expect(objects.map((object) => object.day)).toEqual(["2026-08-15", "2026-08-15"]);
     expect(objects[0]?.url).toContain("expires=900");
+  });
+
+  // The copied images sit two levels deeper than the tables; the day is still the third
+  // segment, and a thousand of them must not bury the files an operator came for.
+  it("keeps the day of a nested key and leaves the copied images to the manifest", async () => {
+    const storage = new FakeStorage([
+      `export/${TENANT}/2026-08-15/doc-image/${PLATFORM}/a.png`,
+      `export/${TENANT}/2026-08-15/doc-image/${PLATFORM}/b.png`,
+      `export/${TENANT}/2026-08-15/doc-image/${PLATFORM}/c.png`,
+      `export/${TENANT}/2026-08-15/manifest.json`,
+    ]);
+
+    const objects = await useCase(storage).execute(actor("platform.tenant.manage"), {
+      organizationId: TENANT,
+    });
+
+    expect(objects.map((object) => object.key)).toEqual([
+      `export/${TENANT}/2026-08-15/manifest.json`,
+    ]);
+    expect(objects[0]?.day).toBe("2026-08-15");
   });
 });

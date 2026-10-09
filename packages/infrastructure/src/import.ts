@@ -57,6 +57,7 @@ export {
   type DocGrantee,
   type DocGrantRecord,
   type DocGrantRepository,
+  DocImageKey,
   type DocPageDraftRecord,
   type DocPageNodeRecord,
   type DocPagePublishedRecord,
