@@ -425,9 +425,30 @@ describe("14 — no comment block over two lines", () => {
     );
     passes(
       run({
-        "packages/application/src/index.ts": "// one\n// two\n// ── x ──\n// three\nexport {};\n",
+        "packages/application/src/index.ts": "// one\n// two.\n// ── x ──\n// three\nexport {};\n",
       }),
       "no comment block over two lines",
+    );
+  });
+
+  it("lets a separator end a run only where a sentence ends", () => {
+    for (const end of [".", "?", "!", ":", ".`", '.")']) {
+      passes(
+        run({
+          "packages/application/src/index.ts": `// one\n// two${end}\n// ──\n// three\nexport {};\n`,
+        }),
+        "no comment block over two lines",
+      );
+    }
+  });
+
+  it("catches a separator splitting a sentence", () => {
+    fails(
+      run({
+        "packages/application/src/index.ts": "// one\n// two, and\n// ──\n// three.\nexport {};\n",
+      }),
+      "no comment block over two lines",
+      "index.ts:3 a separator splits a sentence",
     );
   });
 });

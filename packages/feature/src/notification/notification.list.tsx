@@ -88,10 +88,8 @@ export function NotificationList({ limit = 25 }: NotificationListProps) {
     [t, markRead],
   );
 
-  // The controls sit above every state, never inside one. Two ways this trapped a
-  // reader: the empty state replaced the whole tree, and so did the pending skeleton —
-  // ──
-  // and toggling the filter re-enters pending, so the button removed itself on click.
+  // The controls sit above every state, never inside one: the filter toggle re-enters
+  // pending, and a skeleton that replaced them would remove the button on click.
   const body = () => {
     if (inbox.isPending) return <DataTable.Skeleton columns={3} rows={5} />;
     if (inbox.isError) {

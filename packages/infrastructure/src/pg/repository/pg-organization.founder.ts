@@ -74,10 +74,8 @@ export class PgOrganizationFounder extends BaseRepository {
           .values({ shardKey: organizationId, node: 0 })
           .onConflictDoNothing();
 
-        // Before anything writes a tenant-owned row: `activity.record` below writes into
-        // one of those partitioned tables inside this same transaction. One read for a
-        // ──
-        // spare, which still needs it: a spare made last month may be a month short.
+        // Before any tenant-owned write: `activity.record` below writes a partitioned table
+        // in this transaction. A reused spare needs it too, as it may be a month short.
         await this.partitions.run(organizationId);
 
         // Reused, not reimplemented, so an organization created here holds exactly the

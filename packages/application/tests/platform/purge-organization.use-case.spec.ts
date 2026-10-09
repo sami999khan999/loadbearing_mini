@@ -101,10 +101,8 @@ class FakeInvalidator implements Partial<CapabilityInvalidator> {
   }
 }
 
-// Records the keys it was asked to forget. The placement cache has a deliberately long
-// TTL, so "was it invalidated" is the whole behaviour and a double that shrugged would
-// ──
-// let a deleted tenant keep resolving to a node for minutes.
+// Records the keys it was asked to forget. The placement cache's TTL is long, so a double
+// that shrugged would let a deleted tenant keep resolving to a node for minutes.
 class FakeShards {
   public readonly invalidated: string[] = [];
 

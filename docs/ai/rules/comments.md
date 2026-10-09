@@ -11,7 +11,8 @@ description: Line comments only, two lines maximum, and where the reasoning goes
   (§5), so no inline comment can silence it.
 - **Two lines is the ceiling, and it is checked (§14).** Three consecutive `//` lines fail the
   build. A `// ──` separator and a `biome-ignore` / `eslint-disable` / `@ts-` pragma end a run
-  rather than extending it; generated `*.gen.ts` is skipped. Both assertions cover `{src,tests}`
+  rather than extending it, but a separator under a line that does not end a sentence fails: it
+  splits one comment, not two. Generated `*.gen.ts` is skipped. Both assertions cover `{src,tests}`
   under `packages/*` **and** `apps/*`.
 - **A comment's job is to stop the *next* reader misreading the line under it.** That is the test
   for keeping one. The long-form argument goes in `packages/<name>/docs/reference/`, registered in

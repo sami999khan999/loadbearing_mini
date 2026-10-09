@@ -16,11 +16,8 @@ export class StaticContentSource extends ContentSource {
     super();
   }
 
-  // One bundle, and `base` stays empty. English used to load beneath every locale as a
-  // fallback; `NamespaceBundle` is a total `Record`, so no shipped bundle can have the
-  // ──
-  // gap that layer covered, and a Bengali page carried 3 471 characters it could not read.
-  // A CMS source is free to fill `base` — that is what the port is for. See `23.15`.
+  // One bundle, and `base` stays empty: `NamespaceBundle` is a total `Record`, so no shipped
+  // bundle has a gap to fall back over. A CMS source is free to fill `base`. See `23.15`.
   public override async messages(
     locale: Locale,
     namespaces: readonly Namespace[],

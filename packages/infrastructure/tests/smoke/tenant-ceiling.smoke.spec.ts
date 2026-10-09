@@ -311,11 +311,8 @@ afterAll(
     // and the row delete after it another, so a dying process commits the second alone.
     await dropOrphans();
 
-    // **Rows first, partitions second**, which is backwards from how it reads and is the
-    // whole of why this is minutes rather than hours. Since `24.1` no key crosses from a
-    // ──
-    // partition to `organizations`, so this delete is one statement rather than a cascade
-    // per tenant — and it makes every partition an orphan, which `dropOrphans` batches.
+    // Rows first, partitions second: no key crosses from a partition to `organizations`, so
+    // this is one delete rather than a cascade per tenant, and `dropOrphans` batches the rest.
     await database.client
       .delete(organizations)
       .where(sql`${organizations.slug} like ${`${SLUG}%`}`);

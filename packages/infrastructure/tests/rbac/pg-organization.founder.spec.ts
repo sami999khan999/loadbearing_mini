@@ -260,11 +260,8 @@ class MapCache extends CacheStore {
   }
 }
 
-// **Found by signing up against the two-node stack, 2026-09-25.** On more than one node the
-// audit row asks where its tenant lives, and the resolver reads the directory through
-// ──
-// its own pool — which cannot see the row this uncommitted transaction just wrote. Every
-// signup failed with "No shard assignment". One physical database, indexed twice, is two.
+// On more than one node the audit row's resolver reads the directory through its own pool,
+// which cannot see this uncommitted transaction's row. One database indexed twice is two.
 describe("PgOrganizationFounder on a cluster of more than one node", () => {
   const twoNodes = () =>
     DatabaseCluster.of(

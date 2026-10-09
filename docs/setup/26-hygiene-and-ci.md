@@ -662,7 +662,7 @@ Cheap, and it caught three gaps the moment it was written: `docs/` itself, `docs
 
 The other half of [Opinions · Comments](../opinions/comments.md), and the half nothing checked. The two-line ceiling was a convention for as long as it was unenforced, and the tree answered accordingly: 524 blocks over it across seventeen packages, one of them twenty-four blocks in a single file.
 
-**A run ends rather than extends at anything carrying no prose** — a `// ──` separator, and a `// biome-ignore`, `// eslint-disable` or `// @ts-` pragma. That is what lets an `import.ts` keep a one-line header above each of its separators without the whole file reading as one enormous block, and it is why the exemption is a property of the *line* rather than a per-file opt-out. There is no way to silence this assertion from inside a file, which is the point.
+**A run ends rather than extends at anything carrying no prose** — a `// ──` separator, and a `// biome-ignore`, `// eslint-disable` or `// @ts-` pragma. That is what lets an `import.ts` keep a one-line header above each of its separators without the whole file reading as one enormous block, and it is why the exemption is a property of the *line* rather than a per-file opt-out. A separator only ends a run where a sentence ends, though: one sitting between two comment lines, under a line that does not end in `.`, `?`, `!` or `:` (a closing backtick, quote or paren may follow), fails as a sentence split to dodge the ceiling. There is no way to silence this assertion from inside a file, which is the point.
 
 Scope is the same as §5: `{src,tests}` under `packages/*` and `apps/*`, generated files skipped.
 
