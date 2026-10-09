@@ -76,6 +76,10 @@ class RecordingVectors implements VectorStore {
     throw new Error("not under test");
   }
 
+  public lockSource(): Promise<void> {
+    throw new Error("not under test");
+  }
+
   public indexed: { goalId: string | null; version: number | null } | null = null;
 
   public sourceOf(): Promise<{ goalId: string | null; version: number | null } | null> {

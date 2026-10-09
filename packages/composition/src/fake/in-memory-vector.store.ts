@@ -38,6 +38,11 @@ export class InMemoryVectorStore extends VectorStore {
     return Promise.resolve();
   }
 
+  // One process and no await between the check and the write, so there is nothing to queue.
+  public override lockSource(): Promise<void> {
+    return Promise.resolve();
+  }
+
   public override sourceOf(
     organizationId: OrganizationId,
     sourceId: string,
