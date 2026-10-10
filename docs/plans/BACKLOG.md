@@ -139,21 +139,21 @@ landed there first under `FC.<n>` and were ported; `FC.11` and `FC.12` are this 
 - [x] `FC.12` **`ai:reindex` jobs ran once, and a rerun after a failure did nothing.** It
   publishes through `BullMqQueuePublisher`, with its retries and an in-flight id. `fe62daab`.
 
-Left open. The first three are shared: fix in the big kit and port.
+Then the six left from it, fixed on the same day. The first three are shared and came from the big
+kit's `FC.13`–`FC.15`.
 
-- [ ] `BL.12` **No security headers** (CSP, `frame-ancestors`, `X-Content-Type-Options`, HSTS).
-  Big kit: `FC.13`.
-- [ ] `BL.13` **Web processes times `DATABASE_POOL_MAX` is not checked against
-  `max_connections`.** Big kit: `FC.14`.
-- [ ] `BL.14` **Production boots on an `http` `AUTH_URL`**, and the cookie drops `Secure`. Big
-  kit: `FC.15`.
-- [ ] `BL.15` **An `owner` space outlives its author.** Only the author can read, rename or delete
-  it, so once they leave, its slug, pages and images stay until the tenant is purged. **Fix:** an
-  ownership rule: transfer on removal, or let an admin delete a space unseen.
-- [ ] `BL.16` **A slug taken by someone's private space says so.** Creating or renaming a space to
-  that slug answers `slug: taken`, so a member can probe for a colleague's private space. **Fix:**
-  per-author slugs for `owner` spaces, or one generic refusal.
-- [ ] `BL.17` **`deletePrefix` scans the one Redis, queue keys included.**
-  `SCAN MATCH app:<prefix>*` walks every BullMQ key too, on each role or grant change. **Measure** under a backlogged queue
-  first; a key set per prefix would replace the scan.
-
+- [x] `BL.12` **No security headers.** Every page and `/api` route now carries
+  `frame-ancestors 'none'`, `X-Frame-Options`, `nosniff`, a referrer policy and, over https, HSTS.
+  No `script-src` yet: Start's inline scripts need nonces. `5dc02d50`.
+- [x] `BL.13` **Web processes times the pool was not checked.** `cluster.mjs` keeps inside
+  `WEB_DATABASE_CONNECTIONS`, 100 here, half of Postgres's 200. `90348dd3`, `76762252`.
+- [x] `BL.14` **Production booted on an `http` `AUTH_URL`.** Refused, except on a loopback host.
+  `f009512f`.
+- [x] `BL.15` **An `owner` space outlived its author.** Once the author is no longer an active
+  member, a manager sees the space by slug on the manage page and may delete it, unread.
+  `doc-orphaned-space.spec`. `9187d5eb`.
+- [x] `BL.16` **A slug taken by someone's private space said so.** A private space's address ends
+  in six random characters, so a manager's `notes` never meets it. `doc.rules.spec`. `4724f37d`.
+- [x] `BL.17` **`deletePrefix` scanned the queue's keys too.** Measured: 250 round trips beside
+  50,000 queue keys, twice per role change. The cache moves to Redis database 1, and a SCAN walks
+  one database. `202d11f7`.
