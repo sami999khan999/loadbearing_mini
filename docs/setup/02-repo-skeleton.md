@@ -107,7 +107,9 @@ S3_SECRET_KEY=ratchetsecret
 S3_FORCE_PATH_STYLE=true
 
 # ── Auth ─────────────────────────────────────────────────
-AUTH_SECRET=change-me-generate-with-openssl-rand-base64-32
+# Deliberately too short for the schema's `min(32)`: a placeholder that boots is one
+# that reaches production. `openssl rand -base64 32` is the replacement.
+AUTH_SECRET=change-me
 AUTH_URL=http://localhost:23000
 # Both Tauri origins from the first deployment — the webview scheme differs by
 # platform (tauri://localhost on macOS/Linux, http://tauri.localhost on Windows),
