@@ -337,8 +337,9 @@ is no table of images to keep in step:
 one `doc-image-orphans` job for the space instead, held back an hour and deduplicated while it
 waits. The worker places the job on the tenant's node and `DocImageOrphans` does the rest:
 
-- it reads every image link the space's text holds, in drafts, published pages and all revisions,
-  as a short list of links rather than the bodies;
+- it reads every link to the space's images from any page in the tenant, in drafts, published
+  pages and all revisions, as a short list of links rather than the bodies. Any space's page may
+  link the image, since it is served to whoever may read its own space;
 - it lists the space's prefix a page at a time and deletes each image nothing links;
 - it **skips anything uploaded in the last hour**, read off the version 7 id in the file name,
   because an upload is signed before the text that links it is saved. An unsaved draft keeps its

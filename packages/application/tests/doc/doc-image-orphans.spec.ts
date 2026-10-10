@@ -30,7 +30,7 @@ const harness = (
   ]);
   const deleted: string[] = [];
   const pages = {
-    listImageLinks: (_org: unknown, _space: unknown, prefix: string) =>
+    listImageLinks: (_org: unknown, prefix: string) =>
       Promise.resolve(
         texts.flatMap((text) => text.match(new RegExp(`${prefix}[a-z]+/[0-9a-f-]{36}`, "g")) ?? []),
       ),

@@ -23,7 +23,6 @@ export class DocImageOrphans {
       (
         await this.pages.listImageLinks(
           organizationId,
-          spaceId,
           DocImageKey.urlPrefix(organizationId, spaceId),
         )
       ).map((link) => DocImageKey.fileOfLink(link)),

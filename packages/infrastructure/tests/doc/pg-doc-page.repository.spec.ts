@@ -261,9 +261,67 @@ describe("PgDocPageRepository", () => {
       author,
     );
 
-    const links = await pages().listImageLinks(organizationId, spaceId, prefix);
+    const links = await pages().listImageLinks(organizationId, prefix);
 
     expect([...links].sort()).toEqual([inDraft, inPublished, inRevision, inBoth].sort());
+  });
+
+  // An image is served to whoever may read its space, so another space's page can link it.
+  // Read only from the swept space, that link did not count and the sweep deleted it.
+  it("finds a space's image linked from a page in another space", async () => {
+    const prefix = `/api/doc-image/${organizationId}/${spaceId}/`;
+    const borrowed = `${prefix}png/${Uuid.v7()}`;
+    const other = Identifiers.docSpaceId.parse(Uuid.v7()) as DocSpaceId;
+    await spaces().create(
+      organizationId,
+      other,
+      {
+        slug: `other-${other.slice(-12)}`,
+        title: "Other",
+        description: null,
+        icon: null,
+        audience: "members",
+        theme: null,
+        access: null,
+        repositoryUrl: null,
+      },
+      author,
+    );
+    try {
+      const id = page();
+      await pages().create(organizationId, {
+        id,
+        spaceId: other,
+        parentId: null,
+        kind: "page",
+        slug: "borrows",
+        title: "Borrows",
+        icon: null,
+        url: null,
+        position: 0,
+        createdBy: author,
+      });
+      await pages().saveDraft(
+        organizationId,
+        id,
+        1,
+        {
+          slug: "borrows",
+          title: "Borrows",
+          description: null,
+          icon: null,
+          markdown: `![x](${borrowed})`,
+          url: null,
+          access: null,
+        },
+        author,
+      );
+
+      expect(await pages().listImageLinks(organizationId, prefix)).toContain(borrowed);
+    } finally {
+      await pages().deleteBySpace(organizationId, other);
+      await spaces().delete(organizationId, other);
+    }
   });
 
   // A fixed count whatever the page's length or the number of siblings: an N+1 here is

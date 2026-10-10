@@ -221,23 +221,24 @@ export class PgDocPageRepository extends BaseRepository implements DocPageReposi
 
   // The pattern is the prefix, escaped, then `<type>/<uuid>`; `regexp_matches` with `g`
   // returns each match in the text, so the bodies never leave the database.
+  // ──
+  // Every page in the tenant, not only the space's: an image is served to whoever may read
+  // its space, so another space's page may link it. The prefix still names the one space.
   public async listImageLinks(
     organizationId: OrganizationId,
-    spaceId: DocSpaceId,
     linkPrefix: string,
   ): Promise<readonly string[]> {
     const pattern = `${linkPrefix.replace(/[\\^$.*+?()[\]{}|/]/g, "\\$&")}[a-z]+/[0-9a-f-]{36}`;
     const { rows } = await this.db.execute<{ link: string }>(sql`
       select distinct m[1] as link from (
         select markdown as body from doc_pages
-          where organization_id = ${organizationId}::uuid and space_id = ${spaceId}::uuid
+          where organization_id = ${organizationId}::uuid
         union all
         select published_markdown from doc_pages
-          where organization_id = ${organizationId}::uuid and space_id = ${spaceId}::uuid
-            and published_markdown is not null
+          where organization_id = ${organizationId}::uuid and published_markdown is not null
         union all
         select markdown from doc_revision
-          where organization_id = ${organizationId}::uuid and space_id = ${spaceId}::uuid
+          where organization_id = ${organizationId}::uuid
       ) b, regexp_matches(b.body, ${`(${pattern})`}, 'g') as m`);
     return rows.map((row) => row.link);
   }

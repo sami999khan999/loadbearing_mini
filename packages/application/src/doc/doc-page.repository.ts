@@ -220,10 +220,9 @@ export abstract class DocPageRepository {
   ): Promise<void>;
 
   // The distinct image links under `linkPrefix` in any draft, published page or revision
-  // of the space: a short list of links, never every page's body.
+  // of the tenant, since any space's page may link an image: a short list, never a body.
   public abstract listImageLinks(
     organizationId: OrganizationId,
-    spaceId: DocSpaceId,
     linkPrefix: string,
   ): Promise<readonly string[]>;
 
