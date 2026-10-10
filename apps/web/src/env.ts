@@ -113,9 +113,21 @@ const Schema = z
     // finish after SIGTERM. Read here so the container is disposed only once that is over.
     SERVER_SHUTDOWN_TIMEOUT: z.coerce.number().int().positive().default(5),
   })
-  // Two cross-field rules, and each earns the exception: `bootstrap` with no slug enrols
-  // nobody, and an embedding provider with no key fails on the first document.
+  // Cross-field rules, and each earns the exception: production on http, `bootstrap` with
+  // no slug, and an embedding provider with no key.
   .superRefine((env, ctx) => {
+    // The session cookie is `Secure` only under https, so production on http would ship it
+    // in the clear. A loopback host is a production build tried locally, and is allowed.
+    const auth = new URL(env.AUTH_URL);
+    const loopback = ["localhost", "127.0.0.1", "[::1]"].includes(auth.hostname);
+    if (env.NODE_ENV === "production" && auth.protocol === "http:" && !loopback) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["AUTH_URL"],
+        message: "Use an https AUTH_URL in production: on http the session cookie is not Secure.",
+      });
+    }
+
     // A provider with no key would fail on the first document, long after the deploy.
     if (env.EMBEDDING_PROVIDER !== "none" && !env.EMBEDDING_API_KEY) {
       ctx.addIssue({
@@ -175,6 +187,9 @@ export class Env {
   // At module load, not on first access: a missing `AUTH_SECRET` should crash at boot
   // with a field path, not 500 on the first sign-in an hour later.
   private static readonly parsed = Schema.parse(process.env);
+
+  // The rules themselves, so a spec can try values without changing `process.env`.
+  public static readonly schema = Schema;
 
   public static get isProduction(): boolean {
     return Env.parsed.NODE_ENV === "production";

@@ -251,6 +251,7 @@ The website and API server, built with TanStack Start (React, rendered on the se
 | File | What it does |
 |---|---|
 | `endpoint.spec.ts` | Tests `endpoint.ts`. |
+| `env.spec.ts` | Tests the cross-field rules in `env.ts`. |
 
 ### `apps/web/tests/route/`
 

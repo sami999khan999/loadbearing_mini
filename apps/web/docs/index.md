@@ -55,6 +55,7 @@ apps/web/
 │       └── appearance.store.ts       → AppearanceStore
 └── tests/
     ├── endpoint.spec.ts
+    ├── env.spec.ts
     ├── route/redirect.spec.ts
     ├── server/{cors,error.interceptor,security-headers}.spec.ts
     └── store/{appearance,session}.store.spec.ts
