@@ -26,7 +26,7 @@ export class DocSearch {
     const allowed = new Map(spaces.map((space) => [space.id, space]));
     if (allowed.size === 0) return [];
 
-    const matches = await this.pages.search(organizationId, query, limit * 2);
+    const matches = await this.pages.search(organizationId, query, [...allowed.keys()], limit * 2);
     const hits: DocSearchHitDto[] = [];
     const seen = new Set<string>();
     // Each space's tree as this reader may see it, filtered once per search, so a page the

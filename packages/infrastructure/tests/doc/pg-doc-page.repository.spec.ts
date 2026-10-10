@@ -378,18 +378,22 @@ describe("PgDocPageRepository", () => {
     ]);
 
     counter.count = 0;
-    const byWord = await pages(counted).search(organizationId, word, 5);
+    const byWord = await pages(counted).search(organizationId, word, [spaceId], 5);
     expect(counter.count).toBe(1);
     expect(byWord.map((match) => [match.pageId, match.anchor])).toContainEqual([id, "setup"]);
     expect(byWord.find((match) => match.anchor === "setup")?.excerpt).toContain(word);
 
     // Half a word, as the palette sees it while it is still being typed.
-    const byPrefix = await pages().search(organizationId, word.slice(0, 9), 5);
+    const byPrefix = await pages().search(organizationId, word.slice(0, 9), [spaceId], 5);
     expect(byPrefix.map((match) => match.anchor)).toContain("setup");
 
     // A letter dropped and one doubled, which full-text search would never match.
-    const byTypo = await pages().search(organizationId, "quokaflux", 5);
+    const byTypo = await pages().search(organizationId, "quokaflux", [spaceId], 5);
     expect(byTypo.map((match) => match.pageId)).toContain(id);
+
+    // A space the reader cannot see never takes a place in the window (`FC.10`).
+    const elsewhere = Identifiers.docSpaceId.parse(Uuid.v7()) as DocSpaceId;
+    expect(await pages().search(organizationId, word, [elsewhere], 5)).toEqual([]);
   });
 
   it("deletes a subtree with its revisions and sections", async () => {

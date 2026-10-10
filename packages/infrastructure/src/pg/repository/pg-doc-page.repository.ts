@@ -323,11 +323,14 @@ export class PgDocPageRepository extends BaseRepository implements DocPageReposi
   public async search(
     organizationId: OrganizationId,
     query: string,
+    spaceIds: readonly DocSpaceId[],
     limit: number,
   ): Promise<readonly DocSearchMatch[]> {
     // Nothing searchable left once punctuation is gone: a lone symbol, say. Asking Postgres
     // for an empty tsquery only earns a notice.
-    if (PgDocPageRepository.prefixQuery(query).length === 0) return [];
+    if (PgDocPageRepository.prefixQuery(query).length === 0 || spaceIds.length === 0) return [];
+    // A list drizzle sends as a row constructor, `($1, $2)`, which is what `in` takes.
+    const spaces = [...spaceIds];
     const result = await (await this.reader()).execute<{
       page_id: DocPageId;
       space_id: DocSpaceId;
@@ -343,7 +346,8 @@ export class PgDocPageRepository extends BaseRepository implements DocPageReposi
             'StartSel="", StopSel="", MaxWords=24, MinWords=8, MaxFragments=1') as excerpt,
           ts_rank(s.search, q.tsq)::float8 as rank
         from ${docSections} s, q
-        where s.organization_id = ${organizationId} and s.search @@ q.tsq
+        where s.organization_id = ${organizationId} and s.space_id in ${spaces}
+          and s.search @@ q.tsq
         order by rank desc
         limit ${limit}
       )
@@ -353,7 +357,7 @@ export class PgDocPageRepository extends BaseRepository implements DocPageReposi
           coalesce(p.published_description, ''),
           word_similarity(${query}, p.published_title)::float8 as rank
         from ${docPages} p
-        where p.organization_id = ${organizationId}
+        where p.organization_id = ${organizationId} and p.space_id in ${spaces}
           and p.published_at is not null
           and ${query} <% p.published_title
         order by rank desc

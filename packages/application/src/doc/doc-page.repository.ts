@@ -194,10 +194,12 @@ export abstract class DocPageRepository {
   ): Promise<void>;
 
   // Full text over the published sections, and published titles by prefix and typo, in
-  // one statement. Tenant-scoped like everything else; the caller narrows by space.
+  // one statement. Only `spaceIds`, which must not be empty: ranked across the tenant, a
+  // space the reader cannot see took the window and left them fewer hits or none.
   public abstract search(
     organizationId: OrganizationId,
     query: string,
+    spaceIds: readonly DocSpaceId[],
     limit: number,
   ): Promise<readonly DocSearchMatch[]>;
 

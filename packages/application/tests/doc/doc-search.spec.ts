@@ -53,9 +53,12 @@ const match = (page: number, spaceId: number): DocSearchMatch => ({
 });
 
 const noCache = {} as CacheStore;
-const search = () => {
+const search = (asked: unknown[][] = []) => {
   const pages = {
-    search: () => Promise.resolve([match(1, 100), match(2, 200), match(3, 200), match(4, 300)]),
+    search: (_org: unknown, _query: string, spaceIds: readonly unknown[]) => {
+      asked.push([...spaceIds]);
+      return Promise.resolve([match(1, 100), match(2, 200), match(3, 200), match(4, 300)]);
+    },
   } as unknown as DocPageRepository;
   const cache = {
     space: (_org: unknown, slug: string) =>
@@ -86,5 +89,19 @@ describe("DocSearch across the whole docs", () => {
       "guide/install",
       "api/keys",
     ]);
+  });
+
+  // `FC.10`. Ranked across the tenant, a hidden space's matches took the window first.
+  it("asks the index for the allowed spaces only", async () => {
+    const asked: unknown[][] = [];
+    const { features, search: docs } = search(asked);
+    await docs.run(
+      ORG,
+      "x",
+      [guide, api] as unknown as DocSpaceSummary[],
+      10,
+      features.scope(reader),
+    );
+    expect(asked).toEqual([[guide.id, api.id]]);
   });
 });
