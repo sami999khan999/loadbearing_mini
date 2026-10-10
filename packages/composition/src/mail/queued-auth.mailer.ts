@@ -33,6 +33,7 @@ export class QueuedAuthMailer extends AuthMailer {
       organizationId: null,
       userId: to.userId,
       priority: "high",
+      credential: true,
     });
   }
 
@@ -52,6 +53,7 @@ export class QueuedAuthMailer extends AuthMailer {
       organizationId: null,
       userId: to.userId,
       priority: "high",
+      credential: true,
     });
   }
 }

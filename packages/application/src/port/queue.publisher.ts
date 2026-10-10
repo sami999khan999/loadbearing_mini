@@ -19,6 +19,9 @@ export interface JobOptions {
   // How long a completed job stays keyed, as an upper bound only: the adapter also caps
   // the set by count, and any job completing on the queue trims it. See consumers.md.
   readonly removeOnCompleteAgeSeconds?: number;
+  // How long a failed job is kept, where a week is too long: a job whose payload is a
+  // credential is a dead letter nobody should be able to read once it has stopped mattering.
+  readonly removeOnFailAgeSeconds?: number;
 }
 
 export interface QueuedJob<T> {

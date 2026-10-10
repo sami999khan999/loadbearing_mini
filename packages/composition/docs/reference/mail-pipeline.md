@@ -38,6 +38,13 @@ attempts wait about forty minutes and `normal`'s eight about ten, so a provider 
 minutes delays mail rather than losing it. A message that runs out anyway stays in the failed set
 for a week, and `pnpm queue:replay mail` sends it again.
 
+**Mail that carries a credential is kept for an hour, not a week.** A verification, reset or
+email-change link, a 2FA code and an invitation link are each live in the job's `params`, and
+`invitations` stores only a token's digest. So those mailers set `credential: true`, and the job is
+dropped a minute after it sends and an hour after its last failure (`RW.2`). An hour is long enough
+to see the failure and replay it; past that, the person asks again and gets a fresh token anyway.
+While the job waits or retries, the link is in the queue instance, like any other payload.
+
 **Batches go as one enqueue.** `MailPublisher.publishMany` sends a digest page or a notification's
 recipients as one `addBulk` round trip, each job keeping the priority, attempts and dedupe key a
 single `publish` would have given it.

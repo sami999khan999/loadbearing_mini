@@ -200,6 +200,27 @@ describe("QueuePublisher against the running queue instance", () => {
     }
   });
 
+  // `RW.2`: a job holding a credential is kept an hour after failing, not a week.
+  it("shortens a failed job's keep when the caller asks", async () => {
+    const publisher = new BullMqQueuePublisher(redis.queueClient());
+    const reader = queue();
+
+    try {
+      await publisher.publish(
+        SMOKE_QUEUE,
+        { probe: true },
+        { jobId: "smoke-short", removeOnFailAgeSeconds: 3_600 },
+      );
+      const job = await reader.getJob("smoke-short");
+
+      expect(job?.opts.removeOnFail).toMatchObject({ age: 3_600, count: 10_000 });
+    } finally {
+      await (await reader.getJob("smoke-short"))?.remove();
+      await reader.close();
+      await publisher.close();
+    }
+  });
+
   // `CP4.1`: a fan-out's jobs go in one `addBulk`, and each keeps its own id and options.
   it("publishes many jobs at once, each under its own id", async () => {
     const publisher = new BullMqQueuePublisher(redis.queueClient());
