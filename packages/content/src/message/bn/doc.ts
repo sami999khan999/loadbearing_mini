@@ -55,6 +55,8 @@ export const doc: NamespaceBundle<"doc"> = {
   "doc.manage.pages": "পাতা",
   "doc.space.slug": "ঠিকানা",
   "doc.space.slugHint": "ছোট হাতের অক্ষর, সংখ্যা ও হাইফেন। এটিই স্পেসের URL হবে।",
+  "doc.space.privateSlugHint":
+    "ছোট হাতের অক্ষর, সংখ্যা ও হাইফেন। ব্যক্তিগত স্পেসের ঠিকানার শেষে একটি এলোমেলো অংশ যোগ হয়, যাতে কেউ তা অনুমান করতে না পারে।",
   "doc.space.title": "শিরোনাম",
   "doc.space.description": "বিবরণ",
   "doc.space.icon": "আইকন",

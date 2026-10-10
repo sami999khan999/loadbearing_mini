@@ -83,6 +83,11 @@ any grant. So an owner space never reaches `/llms.txt` or the public reader. A g
 refused (`error.field.private`), and only the author may switch a space to `owner`
 (`DocRules.assertAudienceChange`). `doc_spaces_owner_idx` covers the author's lookup.
 
+**A private space's address ends in six random characters** (`BL.16`). Slugs are unique per
+organization, so a manager creating `notes` used to be told `slug: taken` by someone's private
+`notes`, which said that it existed. `DocRules.storedSlug` adds the ending whenever a space becomes
+`owner` or a private one is renamed, and keeps it while the address is unchanged; the form says so.
+
 | Viewer | `members` | `public` | `granted` | `owner` |
 |---|---|---|---|---|
 | the author, a member | reads | reads | reads | reads |

@@ -98,7 +98,7 @@ export function DocSpaceForm({ space, platform, onSaved, onDeleted }: DocSpaceFo
       <Field
         label={t("doc.space.slug")}
         htmlFor={`doc-space-slug-${id}`}
-        hint={t("doc.space.slugHint")}
+        hint={audience === "owner" ? t("doc.space.privateSlugHint") : t("doc.space.slugHint")}
       >
         <Input
           id={`doc-space-slug-${id}`}

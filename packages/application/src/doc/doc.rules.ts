@@ -6,6 +6,7 @@ import {
   ForbiddenError,
   NotFoundError,
   type UserId,
+  Uuid,
   ValidationError,
 } from "../import.js";
 import type { Principal } from "../primitive/index.js";
@@ -34,6 +35,25 @@ export class DocRules {
     if (RESERVED_SPACE_SLUGS.has(slug)) {
       throw new ValidationError([{ field: "slug", rule: "invalid" }]);
     }
+  }
+
+  // A private space's address ends in six random characters, so "taken" cannot probe for
+  // one: a manager trying `notes` never meets someone's private `notes` (`BL.16`).
+  public static privateSlug(slug: string, random: string = Uuid.v7()): string {
+    const tail = random.replace(/-/g, "").slice(-6);
+    return `${slug.slice(0, 53).replace(/-+$/, "")}-${tail}`;
+  }
+
+  // The address to store: the one asked for, or a fresh private one when the space is
+  // becoming `owner` or a private space is being renamed. An unchanged private one stays.
+  public static storedSlug(
+    asked: string,
+    audience: DocSpaceAudience,
+    current?: { readonly slug: string; readonly audience: DocSpaceAudience },
+  ): string {
+    if (audience !== "owner") return asked;
+    if (current?.audience === "owner" && current.slug === asked) return asked;
+    return DocRules.privateSlug(asked);
   }
 
   // `public` and `granted` put a space in front of people outside its organization, which

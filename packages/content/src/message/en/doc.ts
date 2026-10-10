@@ -57,6 +57,8 @@ export const doc = {
   "doc.manage.pages": "Pages",
   "doc.space.slug": "Address",
   "doc.space.slugHint": "Lower-case letters, numbers and hyphens. It becomes the space's URL.",
+  "doc.space.privateSlugHint":
+    "Lower-case letters, numbers and hyphens. A private space's address gets a random ending, so nobody can guess it.",
   "doc.space.title": "Title",
   "doc.space.description": "Description",
   "doc.space.icon": "Icon",
