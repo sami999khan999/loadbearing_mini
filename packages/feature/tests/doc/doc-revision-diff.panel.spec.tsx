@@ -92,4 +92,25 @@ describe("DocRevisionList compare", () => {
       await screen.findByRole("button", { name: "Restore revision 2 to the draft" }),
     ).toBeDefined();
   });
+
+  // `RW.1`. A restore remounts the editor, so it waits until the editor has saved.
+  it("holds Restore while the editor has unsaved edits", async () => {
+    await renderWithFakes(
+      <DocRevisionList
+        pageId={PAGE}
+        draftVersion={1}
+        draftMarkdown=""
+        onRestored={() => undefined}
+        unsaved
+      />,
+      capabilitiesWith([]),
+      undefined,
+      ["doc", "common"],
+      client(vi.fn()),
+    );
+
+    const restore = await screen.findByRole("button", { name: "Restore revision 2 to the draft" });
+    expect((restore as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText("Save the draft before restoring a revision.")).toBeDefined();
+  });
 });

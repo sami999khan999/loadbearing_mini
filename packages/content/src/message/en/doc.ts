@@ -127,6 +127,10 @@ export const doc = {
   "doc.editor.imageTooLarge": "Images can be at most 5 MB.",
   "doc.editor.imageType": "Use a PNG, JPEG, WebP, GIF or AVIF image.",
   "doc.editor.back": "All pages",
+  "doc.editor.leaveTitle": "Leave with unsaved changes?",
+  "doc.editor.leaveDescription": "What you typed since the last save will be lost.",
+  "doc.editor.leave": "Leave",
+  "doc.editor.stay": "Keep editing",
 
   // ── private access ──
   "doc.grant.title": "Who can read it",
@@ -159,6 +163,7 @@ export const doc = {
   "doc.revision.restore": "Restore to draft",
   "doc.revision.restoreFor": "Restore revision {revision} to the draft",
   "doc.revision.restored": "Revision {revision} is now the draft. Publish it to make it live.",
+  "doc.revision.restoreUnsaved": "Save the draft before restoring a revision.",
   "doc.revision.compare": "Compare",
   "doc.revision.compareFor": "Compare revision {revision} with the draft",
   "doc.revision.compareTitle": "Revision {revision} against the draft",

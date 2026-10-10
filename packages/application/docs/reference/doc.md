@@ -270,7 +270,12 @@ The revision number is a counter on the page row, moved under the same lock. It 
 month level.
 
 A restore writes the revision's text into the **draft**. Making it live again is a publish, which
-is a second, deliberate step.
+is a second, deliberate step. A restore remounts the editor, so Restore stays disabled while the
+editor holds unsaved edits; autosave clears them within two seconds.
+
+The editor saves two seconds after the last key. Leaving the page inside that window, by a link or
+by closing the tab, asks first: the route holds a router blocker and `beforeunload` while the form
+reports unsaved edits.
 
 A revision can be compared with the draft before restoring it. The editor's history list opens a
 dialog that fetches the revision lazily, on the first Compare, and diffs its Markdown against the

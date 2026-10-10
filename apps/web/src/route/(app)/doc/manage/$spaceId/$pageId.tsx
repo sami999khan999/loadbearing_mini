@@ -1,5 +1,6 @@
-import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { createFileRoute, Link, notFound, useBlocker } from "@tanstack/react-router";
 import {
+  AlertDialog,
   type ClientNamespace,
   cn,
   DocEditorForm,
@@ -47,6 +48,14 @@ function DocEdit() {
   // A restore replaces the draft underneath the form, so the form is remounted over it
   // rather than asked to reconcile its own unsaved state with the server's.
   const [generation, setGeneration] = useState(0);
+  // Autosave waits two seconds after the last key, so leaving inside them asks first.
+  const [dirty, setDirty] = useState(false);
+  const blocker = useBlocker({
+    shouldBlockFn: () => true,
+    disabled: !dirty,
+    enableBeforeUnload: dirty,
+    withResolver: true,
+  });
 
   if (!draft.data) return null;
   const page: DocPageDraftDto = draft.data;
@@ -62,7 +71,7 @@ function DocEdit() {
         <header className={readerClassName.header}>
           <h1 className={readerClassName.title}>{t("doc.editor.title")}</h1>
         </header>
-        <DocEditorForm key={`${page.id}:${generation}`} draft={page} />
+        <DocEditorForm key={`${page.id}:${generation}`} draft={page} onDirtyChange={setDirty} />
       </div>
       <aside className={readerClassName.aside}>
         <DocRevisionList
@@ -70,8 +79,20 @@ function DocEdit() {
           draftVersion={page.draftVersion}
           draftMarkdown={page.markdown}
           onRestored={() => setGeneration((value) => value + 1)}
+          unsaved={dirty}
         />
       </aside>
+      <AlertDialog
+        open={blocker.status === "blocked"}
+        onOpenChange={(open) => {
+          if (!open) blocker.reset?.();
+        }}
+        title={t("doc.editor.leaveTitle")}
+        description={t("doc.editor.leaveDescription")}
+        confirmLabel={t("doc.editor.leave")}
+        cancelLabel={t("doc.editor.stay")}
+        onConfirm={() => blocker.proceed?.()}
+      />
     </main>
   );
 }

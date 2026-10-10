@@ -22,6 +22,8 @@ export interface DocRevisionListProps {
   readonly draftMarkdown: string;
   // Called with the restored draft, so the shell can remount the editor over it.
   readonly onRestored: () => void;
+  // The editor holds unsaved edits. A restore would remount it over them, so it waits.
+  readonly unsaved?: boolean;
 }
 
 // Every publish, newest first. A restore puts that text back into the draft and nothing
@@ -31,6 +33,7 @@ export function DocRevisionList({
   draftVersion,
   draftMarkdown,
   onRestored,
+  unsaved = false,
 }: DocRevisionListProps) {
   const { t } = useMessages("doc");
   const describe = useErrorMessage();
@@ -51,6 +54,9 @@ export function DocRevisionList({
         {t("doc.revision.title")}
       </h2>
       {items.length === 0 ? <p className={fieldClassName.hint}>{t("doc.revision.none")}</p> : null}
+      {items.length > 0 && unsaved ? (
+        <p className={fieldClassName.hint}>{t("doc.revision.restoreUnsaved")}</p>
+      ) : null}
       <ol className="ui-stack flex flex-col gap-3">
         {items.map((revision) => (
           <li key={revision.revisionNo}>
@@ -63,7 +69,7 @@ export function DocRevisionList({
             <Button
               variant="ghost"
               aria-label={t("doc.revision.restoreFor", { revision: revision.revisionNo })}
-              disabled={restore.isPending}
+              disabled={restore.isPending || unsaved}
               onClick={() =>
                 restore.mutate(
                   { pageId, revisionNo: revision.revisionNo, draftVersion },

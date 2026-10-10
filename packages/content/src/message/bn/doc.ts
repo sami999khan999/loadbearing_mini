@@ -120,6 +120,10 @@ export const doc: NamespaceBundle<"doc"> = {
   "doc.editor.imageTooLarge": "ছবি সর্বোচ্চ ৫ MB হতে পারে।",
   "doc.editor.imageType": "PNG, JPEG, WebP, GIF বা AVIF ছবি ব্যবহার করুন।",
   "doc.editor.back": "সব পাতা",
+  "doc.editor.leaveTitle": "অসংরক্ষিত পরিবর্তন রেখে চলে যাবেন?",
+  "doc.editor.leaveDescription": "শেষ সংরক্ষণের পর যা লিখেছেন তা হারিয়ে যাবে।",
+  "doc.editor.leave": "চলে যান",
+  "doc.editor.stay": "সম্পাদনা চালিয়ে যান",
 
   "doc.grant.title": "কারা পড়তে পারবে",
   "doc.grant.description":
@@ -150,6 +154,7 @@ export const doc: NamespaceBundle<"doc"> = {
   "doc.revision.restore": "খসড়ায় ফিরিয়ে আনুন",
   "doc.revision.restoreFor": "সংস্করণ {revision} খসড়ায় ফিরিয়ে আনুন",
   "doc.revision.restored": "সংস্করণ {revision} এখন খসড়া। প্রকাশ করলে এটি চালু হবে।",
+  "doc.revision.restoreUnsaved": "সংস্করণ ফিরিয়ে আনার আগে খসড়া সংরক্ষণ করুন।",
   "doc.revision.compare": "তুলনা করুন",
   "doc.revision.compareFor": "খসড়ার সঙ্গে সংস্করণ {revision} তুলনা করুন",
   "doc.revision.compareTitle": "খসড়ার সঙ্গে সংস্করণ {revision}",

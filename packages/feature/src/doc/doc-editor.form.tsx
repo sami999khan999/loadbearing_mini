@@ -30,6 +30,8 @@ export interface DocEditorFormProps {
   readonly draft: DocPageDraftDto;
   // The live page, once there is one to open.
   readonly viewLink?: ReactNode;
+  // Told whenever the form gains or loses unsaved edits, so the shell can hold navigation.
+  readonly onDirtyChange?: (dirty: boolean) => void;
 }
 
 // Long enough that a pause mid-sentence is not a save; short enough that closing the tab
@@ -50,7 +52,7 @@ const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 
 // One page's draft and its two writes. Each names the version it read, so of two authors
 // the second is told rather than silently overwriting the first.
-export function DocEditorForm({ draft, viewLink }: DocEditorFormProps) {
+export function DocEditorForm({ draft, viewLink, onDirtyChange }: DocEditorFormProps) {
   const { t } = useMessages("doc");
   const describe = useErrorMessage();
   const client = useApiClient();
@@ -144,6 +146,8 @@ export function DocEditorForm({ draft, viewLink }: DocEditorFormProps) {
     const timer = setTimeout(() => latest.current(), AUTOSAVE_MS);
     return () => clearTimeout(timer);
   }, [dirty, save.isPending, save.isError, title, slug, description, icon, markdown, url, access]);
+
+  useEffect(() => onDirtyChange?.(dirty), [dirty, onDirtyChange]);
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
