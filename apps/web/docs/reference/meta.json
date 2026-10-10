@@ -1,5 +1,11 @@
 {
   "title": "Reference",
   "description": "One page per decision with reasoning that outgrew a two-line comment",
-  "pages": ["import-surfaces", "server-functions", "enforcement-surfaces", "env"]
+  "pages": [
+    "import-surfaces",
+    "server-functions",
+    "enforcement-surfaces",
+    "env",
+    "security-headers"
+  ]
 }

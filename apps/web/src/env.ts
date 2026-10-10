@@ -178,6 +178,11 @@ export class Env {
     return Env.parsed.NODE_ENV === "production";
   }
 
+  // Served over https, which is what decides HSTS and the cookie's `Secure`.
+  public static get isSecure(): boolean {
+    return Env.parsed.AUTH_URL.startsWith("https://");
+  }
+
   // The absolute base Better Auth signs cookies against. The browser never needs it, and
   // asking for it from a component put this schema in the client bundle once already.
   public static get authUrl(): string {

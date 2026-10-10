@@ -39,6 +39,7 @@ The website and API server, built with TanStack Start (React, rendered on the se
 | `endpoint.ts` | `Endpoint`: the two URLs the browser calls: `/api/rpc` for the API and `/api/realtime` for live streams, both on the same origin. |
 | `env.ts` | `Env`: reads and validates every environment variable the web app needs, once, at start-up. A missing or wrong value stops the app from starting. One of only two files allowed to read `process.env`. |
 | `import.ts` | Every outside import the browser-safe part of the web app uses, written once. Must never name server-only packages. |
+| `start.ts` | Registers the one request middleware every response passes through, which adds the security headers. |
 | `router.tsx` | `getRouter`: builds the TanStack router for each request, with a fresh query cache, session, text and appearance, and sends what the server already loaded to the browser so nothing is fetched twice. |
 
 ### `apps/web/src/route/`
@@ -205,6 +206,7 @@ The website and API server, built with TanStack Start (React, rendered on the se
 |---|---|
 | `appearance.fn.ts` | Server function: reads the theme, light/dark, font and language from cookies and browser hints, so the first painted page already looks right. |
 | `container.ts` | Builds the one `Container` for the web process (kept across hot reloads) and disposes it on shutdown. |
+| `security-headers.ts` | `SecurityHeaders`: the headers every response carries: no framing, no type sniffing, a referrer policy, and HSTS over https. |
 | `cors.ts` | `Cors`: adds CORS headers for allowed origins only (the desktop app is a different origin), never reflecting an unknown one. |
 | `doc.fn.ts` | Server functions for the public docs: read a platform page, list platform spaces, search platform docs. Works signed out. |
 | `import.ts` | The only place in the web app allowed to import server-only packages (the container, the routers). Kept separate so server code cannot leak into browser bundles. |
@@ -264,6 +266,7 @@ The website and API server, built with TanStack Start (React, rendered on the se
 | File | What it does |
 |---|---|
 | `cors.spec.ts` | Tests `cors.ts`. |
+| `security-headers.spec.ts` | Tests `security-headers.ts`. |
 | `realtime.stream.spec.ts` | Tests that the live stream keeps its database placement and error handling for every frame. |
 
 ### `apps/web/tests/smoke/`
