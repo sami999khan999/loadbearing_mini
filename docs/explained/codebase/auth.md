@@ -50,6 +50,7 @@ Its main job is turning any credential (a browser cookie, a desktop bearer token
 | File | What it does |
 |---|---|
 | `auth.config.ts` | `AuthConfig`: every sign-in setting (secret, URLs, trusted origins, session lifetime, enrolment mode, Google keys), passed in from the environment. |
+| `auth-surface.ts` | `AuthSurface`: names the client a session was opened from, the desktop app or the web, from the request's exact origin. |
 | `auth.factory.ts` | `AuthFactory`: the one place Better Auth (the sign-in library) is configured: email and password, email verification, password reset, two-factor, Google sign-in, sessions stored in Postgres and cached in Redis, cookie settings, rate limits, and the hook that attaches an organization to each new session. |
 | `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
 
@@ -100,6 +101,7 @@ Its main job is turning any credential (a browser cookie, a desktop bearer token
 
 | File | What it does |
 |---|---|
+| `auth-surface.spec.ts` | Tests `auth-surface.ts`. |
 | `auth.factory.spec.ts` | Tests `auth.factory.ts`. |
 
 ### `packages/auth/tests/plugin/`
