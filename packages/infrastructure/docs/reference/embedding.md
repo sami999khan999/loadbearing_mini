@@ -58,7 +58,9 @@ So after a switch, the old chunks are unread until they are re-embedded:
 pnpm ai:reindex
 ```
 
-That queues one `reembed` job per organization on the embedding queue. The worker's
+That queues one `reembed` job per organization on the embedding queue, through the app's own
+queue publisher, so each job gets the usual eight attempts with backoff. A tenant already waiting
+or running is not queued twice, and a rerun after a failure queues it again. The worker's
 `ReembedChunksUseCase` re-embeds, a batch at a time, every chunk whose model is missing or
 different. It keeps the stored text rather than re-splitting the source, so chunk boundaries do not
 move. With `EMBEDDING_PROVIDER=none` the job does nothing, because lexical search already reads
