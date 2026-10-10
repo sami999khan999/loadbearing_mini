@@ -18,7 +18,11 @@ job that cannot lose data, the queue.
 | **Holds** | capability cache, session cache, BullMQ jobs, pub/sub frames |
 | **If flushed** | **lost work** — the queue goes with the cache |
 
-`REDIS_CACHE_URL` and `REDIS_QUEUE_URL` both point at it.
+`REDIS_CACHE_URL` and `REDIS_QUEUE_URL` both point at it, **on different databases**: the cache
+on `/1`, the queue on the default `/0`. `CacheStore.deletePrefix` runs `SCAN MATCH`, and a SCAN
+walks one database. On one shared database every role or grant change walked every BullMQ key
+too: 250 round trips beside 50,000 queue keys, twice per change (`BL.17`). Apart, it walks the
+cache alone. Live frames follow the cache URL, and pub/sub is not tied to a database.
 
 ---
 

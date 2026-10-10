@@ -160,7 +160,7 @@ jobs:
     # There is no `.env` in CI, so compose falls back to the defaults in its own file.
     env:
       DATABASE_URL: postgres://ratchet:ratchet@localhost:25432/ratchet
-      REDIS_CACHE_URL: redis://localhost:26379
+      REDIS_CACHE_URL: redis://localhost:26379/1
       REDIS_QUEUE_URL: redis://localhost:26379
       S3_ENDPOINT: http://localhost:29000
       S3_REGION: us-east-1
