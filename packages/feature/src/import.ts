@@ -43,6 +43,7 @@ export {
   type DocSpaceAudience,
   type DocSpaceDto,
   type DocSpaceId,
+  type DocSpaceOrphanListDto,
   type DocumentHitDto,
   type ExplanationDto,
   type FlagDto,

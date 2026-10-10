@@ -15,6 +15,8 @@ const slug = z
   .max(60)
   .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
 
+const orphan = z.object({ id: Identifiers.docSpaceId, slug });
+
 const TITLE_MAX = 120;
 const DESCRIPTION_MAX = 300;
 
@@ -68,9 +70,9 @@ export class DocSpaceContract {
   public static readonly list = z.object({ items: z.array(entity).readonly() });
 
   // A departed author's `owner` space, as a manager sees it: the slug, never the title.
-  public static readonly orphan = z.object({ id: Identifiers.docSpaceId, slug });
+  public static readonly orphan = orphan;
   public static readonly orphanList = z.object({
-    items: z.array(DocSpaceContract.orphan).readonly(),
+    items: z.array(orphan).readonly(),
   });
 
   // A space's whole published tree, asked for by slug. `version` is the space's, so a

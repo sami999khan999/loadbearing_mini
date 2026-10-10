@@ -6,6 +6,7 @@ import {
   DocMutations,
   DocQueries,
   type DocSpaceId,
+  type DocSpaceOrphanListDto,
   readerClassName,
   useApiClient,
   useAppQuery,
@@ -22,7 +23,7 @@ export function DocOrphanedSpaceList() {
   const remove = DocMutations.useDeleteSpace(client);
   const [confirming, setConfirming] = useState<DocSpaceId | null>(null);
 
-  const items = orphans.data?.items ?? [];
+  const items: DocSpaceOrphanListDto["items"] = orphans.data?.items ?? [];
   if (items.length === 0) return null;
 
   return (
