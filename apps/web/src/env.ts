@@ -15,6 +15,8 @@ const Schema = z
     // `platform_policy.replica_reads_enabled` is on, and only once it has caught up.
     DATABASE_REPLICA_URL: z.url().optional(),
     DATABASE_POOL_MAX: z.coerce.number().int().min(1).default(20),
+    // Read by `cluster.mjs`, before any process parses this; declared so a bad value fails here.
+    WEB_DATABASE_CONNECTIONS: z.coerce.number().int().min(1).default(100),
     DATABASE_POOL_IDLE_TIMEOUT_MS: z.coerce.number().int().min(0).default(30_000),
     // Today an unreachable Postgres hangs the request for the OS default, which is
     // longer than every timeout in front of it.

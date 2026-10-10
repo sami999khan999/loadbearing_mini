@@ -117,7 +117,8 @@ services:
     restart: unless-stopped
     # One web process per core: rendering is single-threaded, and one process leaves the
     # other cores idle. cluster.mjs forwards SIGTERM, drains each worker and restarts a
-    # crashed one. WEB_PROCESSES sets the count; processes x DATABASE_POOL_MAX < 200.
+    # crashed one. It starts no more than WEB_DATABASE_CONNECTIONS / DATABASE_POOL_MAX
+    # processes, and refuses a WEB_PROCESSES whose product is over that budget.
     command: ["node", "apps/web/cluster.mjs"]
     env_file: [.env.production]
     environment:
