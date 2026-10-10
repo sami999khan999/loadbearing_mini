@@ -93,17 +93,26 @@ never boxes in this file, so they are recorded once here.
   clipboard, row actions name their row, and focus stays put after revoking a key.
   `ad6853f9..77fab190`.
 
-## 4. Open from the 2026-10-10 review
+## 4. From the 2026-10-10 review
 
-Found in code both kits share; open in the big kit under the ID given, so fix it there and port it.
+Found in code both kits share, fixed in the big kit under the ID given and ported here.
 
-- [ ] `BL.8` **The doc editor drops unsaved edits without a word.** Autosave runs two seconds
+- [x] `BL.8` **The doc editor drops unsaved edits without a word.** Autosave runs two seconds
   after the last key, and nothing blocks navigation or unload while the form is dirty; a restore
   remounts the form too. **Fix:** block while dirty, and flush before a restore. Big kit: `RW.1`.
-- [ ] `BL.9` **A mail job carries a live invite, reset link or 2FA code** in its `params`, kept a
+  **Done 2026-10-10.** The route asks before leaving with unsaved edits, by link or by closing the
+  tab, and Restore waits until the draft is saved. `91fcb711`.
+- [x] `BL.9` **A mail job carries a live invite, reset link or 2FA code** in its `params`, kept a
   week after a final failure, in the one Redis. **Fix:** render in the producer, encrypt `params`,
   or keep failed mail jobs briefly. Big kit: `RW.2`.
-- [ ] `BL.10` **The exports screen cannot hand out the doc-image copies** it now includes; only the
+  **Done 2026-10-10.** Mail holding a link or code is marked `credential`; its job is dropped a
+  minute after sending and an hour after its last failure. `cdfe4dfd`.
+- [x] `BL.10` **The exports screen cannot hand out the doc-image copies** it now includes; only the
   manifest names them. Big kit: `RW.4`.
-- [ ] `BL.11` **Two enrolment paths were not checked for the deactivated-membership loop**, and a
+  **Done 2026-10-10.** Each export day saves its images as a file of paths and hour-long links,
+  from `platform.listExportImages`. `442dd418`.
+- [x] `BL.11` **Two enrolment paths were not checked for the deactivated-membership loop**, and a
   suspended user with an active membership still enrols. Big kit: `RW.5`.
+  **Done 2026-10-10.** Bootstrap declines a deactivated membership; the claimer skips an invitation
+  to a tenant that deactivated the user, and refuses a suspended user. The session hook already
+  refused a suspended user before enrolling. `bbd7d5c1`.
