@@ -76,6 +76,13 @@ export const doc = {
   "doc.space.saved": "Space saved.",
   "doc.space.delete": "Delete space",
   "doc.space.deleteConfirm": "Delete {title} and every page in it",
+  "doc.orphan.title": "Private spaces of former members",
+  "doc.orphan.description":
+    "Their authors are no longer active members, so nobody else can open them. Only the address is shown. Deleting one removes every page and image in it.",
+  "doc.orphan.delete": "Delete",
+  "doc.orphan.deleteFor": "Delete the private space {slug}",
+  "doc.orphan.confirm": "Delete it and every page",
+  "doc.orphan.confirmFor": "Confirm: delete the private space {slug} and every page in it",
   "doc.space.open": "Read",
   "doc.space.edit": "Pages",
 

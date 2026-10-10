@@ -36,8 +36,14 @@ export class DocSpaceProcedures {
     .input(DocSpaceContract.get)
     .output(Envelope.acknowledged);
 
+  // Spaces whose author has left, for a manager to delete. See `ListOrphanedDocSpaces`.
+  public static readonly orphans = oc
+    .route({ method: "GET", path: "/doc-orphaned-spaces" })
+    .output(DocSpaceContract.orphanList);
+
   public static readonly all = {
     list: DocSpaceProcedures.list,
+    orphans: DocSpaceProcedures.orphans,
     get: DocSpaceProcedures.get,
     nav: DocSpaceProcedures.nav,
     create: DocSpaceProcedures.create,

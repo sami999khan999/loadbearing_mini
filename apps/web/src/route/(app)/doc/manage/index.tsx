@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   type ClientNamespace,
   DocGrantPanel,
+  DocOrphanedSpaceList,
   DocQueries,
   type DocSpaceDto,
   DocSpaceForm,
@@ -80,6 +81,8 @@ function DocManage() {
             </details>
           ))}
         </section>
+
+        {manage ? <DocOrphanedSpaceList /> : null}
 
         {manage ? (
           <section className="ui-stack flex flex-col gap-3" aria-labelledby="doc-new-space">

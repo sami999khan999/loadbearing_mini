@@ -57,6 +57,7 @@ export {
   DocGrantPanel,
   type DocGrantPanelProps,
   DocNavTree,
+  DocOrphanedSpaceList,
   DocPageTreeList,
   type DocPageTreeListProps,
   DocReaderPanel,

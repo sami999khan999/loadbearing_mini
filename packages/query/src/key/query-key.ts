@@ -25,6 +25,7 @@ export class QueryKeys {
   public static readonly doc = {
     all: () => ["doc"] as const,
     spaces: () => ["doc", "space", "list"] as const,
+    orphanedSpaces: () => ["doc", "space", "orphaned"] as const,
     space: (spaceId: string) => ["doc", "space", spaceId] as const,
     readings: () => ["doc", "read"] as const,
     reading: (space: string, path: string) => ["doc", "read", space, path] as const,

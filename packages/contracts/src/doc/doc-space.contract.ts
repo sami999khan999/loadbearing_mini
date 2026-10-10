@@ -67,6 +67,12 @@ export class DocSpaceContract {
 
   public static readonly list = z.object({ items: z.array(entity).readonly() });
 
+  // A departed author's `owner` space, as a manager sees it: the slug, never the title.
+  public static readonly orphan = z.object({ id: Identifiers.docSpaceId, slug });
+  public static readonly orphanList = z.object({
+    items: z.array(DocSpaceContract.orphan).readonly(),
+  });
+
   // A space's whole published tree, asked for by slug. `version` is the space's, so a
   // reader can cache the answer until the next publish, move or delete.
   public static readonly navQuery = z.object({ slug });
@@ -97,6 +103,7 @@ export type DocSpaceAudience = z.infer<typeof audience>;
 export type DocSpaceDto = z.infer<typeof DocSpaceContract.entity>;
 export type DocSpaceViewDto = z.infer<typeof DocSpaceContract.view>;
 export type DocSpaceListDto = z.infer<typeof DocSpaceContract.list>;
+export type DocSpaceOrphanListDto = z.infer<typeof DocSpaceContract.orphanList>;
 export type DocSpaceRefInput = z.infer<typeof DocSpaceContract.get>;
 export type DocSpaceNavInput = z.infer<typeof DocSpaceContract.navQuery>;
 export type DocSpaceNavDto = z.infer<typeof DocSpaceContract.nav>;

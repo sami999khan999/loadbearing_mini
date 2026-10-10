@@ -91,7 +91,15 @@ refused (`error.field.private`), and only the author may switch a space to `owne
 | a signed-out visitor | `NOT_FOUND` | reads | `NOT_FOUND` | `NOT_FOUND` |
 
 The platform organization's `public` and `granted` spaces are read from outside through
-`DocAccess.canRead`. The table's middle two columns apply to them there.
+`DocAccess.canRead`. The table's middle two columns apply to them there. A platform `owner` space
+is read by its author only inside the platform organization (`FC.11`).
+
+**An `owner` space outlives its author only until a manager deletes it** (`BL.15`). Once the
+author is no longer an active member, `ListOrphanedDocSpacesUseCase` names the space to holders of
+`doc.space.manage`, by its slug alone, on the manage page under "Private spaces of former members".
+`DeleteDocSpaceUseCase` then deletes it unread. Nothing else changes: the title and the pages stay
+`NOT_FOUND` to everyone, and a deactivated author who is reactivated finds the space as they left
+it, unless it was deleted in between.
 
 Outside it, `DocAccess.canRead` decides. A grant reaches a viewer three ways: to them by name, to
 their active organization, or to that organization's plan. **The plan is how a private space rides

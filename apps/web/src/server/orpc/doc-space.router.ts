@@ -8,6 +8,10 @@ export class DocSpaceRouter {
     context.container.doc.listSpaces.execute(context.principal),
   );
 
+  public static readonly orphans = authed.docSpace.orphans.handler(({ context }) =>
+    context.container.doc.listOrphanedSpaces.execute(context.principal),
+  );
+
   public static readonly get = authed.docSpace.get.handler(({ input, context }) =>
     context.container.doc.getSpace.execute(context.principal, input),
   );
@@ -31,6 +35,7 @@ export class DocSpaceRouter {
 
   public static readonly all = {
     list: DocSpaceRouter.list,
+    orphans: DocSpaceRouter.orphans,
     get: DocSpaceRouter.get,
     nav: DocSpaceRouter.nav,
     create: DocSpaceRouter.create,

@@ -78,6 +78,7 @@ export {
   ListDocPagesUseCase,
   ListDocRevisionsUseCase,
   ListDocSpacesUseCase,
+  ListOrphanedDocSpacesUseCase,
   ListPlatformDocSpacesUseCase,
   MoveDocPageUseCase,
   type NewDocGrant,

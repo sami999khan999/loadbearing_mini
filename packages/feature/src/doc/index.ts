@@ -3,6 +3,7 @@ export { DocCopyButton } from "./doc-copy.button.js";
 export { DocEditorForm, type DocEditorFormProps } from "./doc-editor.form.js";
 export { DocGrantPanel, type DocGrantPanelProps } from "./doc-grant.panel.js";
 export { DocNavTree } from "./doc-nav-tree.js";
+export { DocOrphanedSpaceList } from "./doc-orphaned-space.list.js";
 export { DocPageTreeList, type DocPageTreeListProps } from "./doc-page-tree.list.js";
 export { DocReaderPanel, type DocReaderPanelProps } from "./doc-reader.panel.js";
 export { DocRevisionList, type DocRevisionListProps } from "./doc-revision.list.js";

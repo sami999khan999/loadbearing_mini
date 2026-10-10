@@ -1,5 +1,5 @@
 import type { DocSpaceRefInput } from "../import.js";
-import type { ActivityLogger, UnitOfWork } from "../port/index.js";
+import type { ActivityLogger, TenantMembershipReader, UnitOfWork } from "../port/index.js";
 import type { Authorizer, Principal } from "../primitive/index.js";
 import type { DocCache } from "./doc.cache.js";
 import { DocRules } from "./doc.rules.js";
@@ -15,6 +15,7 @@ export class DeleteDocSpaceUseCase {
   public constructor(
     private readonly authorizer: Authorizer,
     private readonly spaces: DocSpaceRepository,
+    private readonly memberships: TenantMembershipReader,
     private readonly pages: DocPageRepository,
     private readonly grants: DocGrantRepository,
     private readonly access: DocAccess,
@@ -28,12 +29,16 @@ export class DeleteDocSpaceUseCase {
     this.authorizer.assert(actor, "doc.space.manage");
 
     const space = await this.unitOfWork.run(async () => {
-      const found = DocRules.assertVisible(
-        await this.spaces.findById(actor.organizationId, input.spaceId),
-        actor.userId,
-        "doc.space",
-        input.spaceId,
-      );
+      const candidate = await this.spaces.findById(actor.organizationId, input.spaceId);
+      // Another author's `owner` space is not found, unless that author has left: then it
+      // is a manager's to delete, unread, or it would outlive them until the tenant did.
+      const orphaned =
+        candidate !== null &&
+        candidate.audience === "owner" &&
+        !(await this.memberships.isActiveMember(actor.organizationId, candidate.createdBy));
+      const found = orphaned
+        ? candidate
+        : DocRules.assertVisible(candidate, actor.userId, "doc.space", input.spaceId);
 
       await this.pages.deleteBySpace(actor.organizationId, input.spaceId);
       await this.spaces.delete(actor.organizationId, input.spaceId);

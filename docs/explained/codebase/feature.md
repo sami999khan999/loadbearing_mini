@@ -91,6 +91,7 @@ It knows nothing about routing: the app passes in links and callbacks, so the sa
 | `doc-search.panel.tsx` | `DocSearchPanel`: the docs search palette. Titles in the open space match instantly; full-text results from every readable space are grouped by space. |
 | `doc-space-switcher.button.tsx` | `DocSpaceSwitcherButton`: the switcher between doc spaces at the top of the sidebar, hidden when there is only one. |
 | `doc-space.form.tsx` | `DocSpaceForm`: create or edit a space: title, slug, description, icon, audience, theme, GitHub link, access link, and delete. |
+| `doc-orphaned-space.list.tsx` | `DocOrphanedSpaceList`: on the manage page, the private spaces of former members, by address, each with a two-step Delete. |
 | `doc-space.list.tsx` | `DocSpaceList`: a grid of cards, one per space, shown before a space is chosen. |
 | `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
 

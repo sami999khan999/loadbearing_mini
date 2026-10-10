@@ -44,6 +44,7 @@ export {
   type DocSpaceListDto,
   type DocSpaceNavDto,
   type DocSpaceNavInput,
+  type DocSpaceOrphanListDto,
   DocSpaceProcedures,
   type DocSpaceRefInput,
   type DocSpaceViewDto,
@@ -144,9 +145,9 @@ export {
   type ReplicaDto,
   type ReplicaToggleInput,
   type TenantDeleteInput,
-  type TenantExportInput,
   type TenantExportDayInput,
   type TenantExportImageDto,
+  type TenantExportInput,
   type TenantExportObjectDto,
 } from "./platform/index.js";
 export {

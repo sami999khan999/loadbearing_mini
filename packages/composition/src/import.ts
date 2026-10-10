@@ -84,6 +84,7 @@ export {
   ListMembersUseCase,
   ListModuleSwitchesUseCase,
   ListNotificationsUseCase,
+  ListOrphanedDocSpacesUseCase,
   ListPermissionOverridesUseCase,
   ListPlansUseCase,
   ListPlatformDocSpacesUseCase,

@@ -106,7 +106,17 @@ const WRITES: readonly { name: string; key: PermissionKey; finds: boolean; run: 
     run: (actor, fake) =>
       new DeleteDocSpaceUseCase(
         new Authorizer(),
-        ...(DEPENDENCIES(8, fake) as [never, never, never, never, never, never, never, never]),
+        ...(DEPENDENCIES(9, fake) as [
+          never,
+          never,
+          never,
+          never,
+          never,
+          never,
+          never,
+          never,
+          never,
+        ]),
       ).execute(actor, { spaceId: SPACE }),
   },
   {

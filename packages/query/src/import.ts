@@ -50,6 +50,7 @@ export type {
   DocSpaceId,
   DocSpaceListDto,
   DocSpaceNavDto,
+  DocSpaceOrphanListDto,
   DocSpaceRefInput,
   DocumentHitDto,
   ExportRequestedDto,

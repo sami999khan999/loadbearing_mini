@@ -67,7 +67,7 @@ Folders by subject: `ai`, `apikey`, `doc`, `flag`, `mail`, `member`, `notificati
 | `create-doc-page.use-case.ts` | Creates a page, section heading or outside link in a doc space. A page starts as an empty draft and reaches readers only when published. |
 | `create-doc-space.use-case.ts` | Creates a doc space (a docs section with its own sidebar, audience, theme and slug). |
 | `delete-doc-page.use-case.ts` | Deletes a page and everything under it, rebuilds the space's sidebar, then queues a sweep of the space's unlinked images. |
-| `delete-doc-space.use-case.ts` | Deletes a space with every page and revision in one transaction, then its grants and finally its stored images. |
+| `delete-doc-space.use-case.ts` | Deletes a space with every page and revision in one transaction, then its grants and finally its stored images. Another author's private space can be deleted only once that author has left. |
 | `doc-access.ts` | `DocAccess`: who may read one of the platform organization's spaces from outside it, based on its audience (public, granted, members, owner) and its grants. A space you may not read answers "not found", so private names cannot be discovered. |
 | `doc-feature.policy.ts` | `DocFeaturePolicy`: checks a doc's access links. A space or page tied to a module, permission, flag or plan is shown only to readers who pass every link. Remembers what it has read within one request, so a big tree costs at most one flag read and one plan read. |
 | `doc-grant.repository.ts` | `DocGrantRepository`: the interface for storing doc grants (who outside the platform may read a granted space), and for turning a typed name, slug or email into the organization, person or plan it names. |
@@ -90,6 +90,7 @@ Folders by subject: `ai`, `apikey`, `doc`, `flag`, `mail`, `member`, `notificati
 | `list-doc-grants.use-case.ts` | Lists who a granted space is open to, expired grants included. |
 | `list-doc-pages.use-case.ts` | Lists every page in a space for the editor's tree, drafts included, without page bodies. |
 | `list-doc-revisions.use-case.ts` | Lists a page's published versions, newest first, as summaries. |
+| `list-orphaned-doc-spaces.use-case.ts` | Lists the private (`owner`) spaces whose author is no longer an active member, by slug only, for a manager to delete. |
 | `list-doc-spaces.use-case.ts` | Lists the person's own organization's spaces, except other authors' private (`owner`) spaces. |
 | `list-platform-doc-spaces.use-case.ts` | Lists the platform's spaces a viewer may open on `/docs`: public ones for anyone, granted ones for those with a grant. |
 | `move-doc-page.use-case.ts` | Moves a page to a new parent or position, checking that every path under it is still valid afterwards. |
@@ -305,6 +306,7 @@ Folders by subject: `ai`, `apikey`, `doc`, `flag`, `mail`, `member`, `notificati
 | File | What it does |
 |---|---|
 | `doc-access.spec.ts` | Tests `doc-access.ts`. |
+| `doc-orphaned-space.spec.ts` | Tests listing and deleting the private spaces of former members. |
 | `doc-feature.policy.spec.ts` | Tests `doc-feature.policy.ts`. |
 | `delete-doc-page.use-case.spec.ts` | Tests that deleting a page queues one image sweep for its space. |
 | `doc-image-orphans.spec.ts` | Tests which images the sweep deletes and which it keeps. |

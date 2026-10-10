@@ -9,6 +9,7 @@ export const docProcedurePermissions = {
   "docSpace.create": "doc.space.manage",
   "docSpace.update": "doc.space.manage",
   "docSpace.remove": "doc.space.manage",
+  "docSpace.orphans": "doc.space.manage",
   "docPage.read": "doc.page.read",
   "docPage.search": "doc.page.read",
   // The editor's views show drafts, which a reader never sees.

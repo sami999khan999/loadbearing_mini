@@ -47,6 +47,7 @@ export { ListDocGrantsUseCase } from "./list-doc-grants.use-case.js";
 export { ListDocPagesUseCase } from "./list-doc-pages.use-case.js";
 export { ListDocRevisionsUseCase } from "./list-doc-revisions.use-case.js";
 export { ListDocSpacesUseCase } from "./list-doc-spaces.use-case.js";
+export { ListOrphanedDocSpacesUseCase } from "./list-orphaned-doc-spaces.use-case.js";
 export { ListPlatformDocSpacesUseCase } from "./list-platform-doc-spaces.use-case.js";
 export { MoveDocPageUseCase } from "./move-doc-page.use-case.js";
 export {
