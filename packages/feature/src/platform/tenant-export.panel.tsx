@@ -46,7 +46,9 @@ export function TenantExportPanel() {
           anchor.href = href;
           anchor.download = `doc-images-${organizationId}-${day}.tsv`;
           anchor.click();
-          URL.revokeObjectURL(href);
+          // After the click has handed the URL over: revoked in the same task, some browsers
+          // cancel the download before it starts.
+          setTimeout(() => URL.revokeObjectURL(href), 0);
         },
       },
     );
