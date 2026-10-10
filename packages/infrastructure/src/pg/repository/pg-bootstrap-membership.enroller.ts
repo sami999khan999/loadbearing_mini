@@ -71,7 +71,10 @@ export class PgBootstrapMembershipEnroller extends BaseRepository {
         // Scoped to *this* organization, and checked inside the lock: unscoped, a user who
         // already belongs to any other tenant is handed that one back instead.
         const [existing] = await this.db
-          .select({ organizationId: memberships.organizationId })
+          .select({
+            organizationId: memberships.organizationId,
+            deactivatedAt: memberships.deactivatedAt,
+          })
           .from(memberships)
           .where(
             and(eq(memberships.userId, userId), eq(memberships.organizationId, organizationId)),
@@ -80,7 +83,12 @@ export class PgBootstrapMembershipEnroller extends BaseRepository {
 
         // Cast for the same reason `PgMembershipReader` casts: `memberships` declares
         // its FK as a plain `uuid`, and the brand lives on `organizations.id`.
-        if (existing) return existing.organizationId as OrganizationId;
+        if (existing && existing.deactivatedAt === null) {
+          return existing.organizationId as OrganizationId;
+        }
+        // Locked out of this tenant by its admin. Returning it would pin the session to a
+        // tenant every request then refuses; declining refuses the sign-in once, clearly.
+        if (existing) return null;
 
         const [occupant] = await this.db
           .select({ id: memberships.id })

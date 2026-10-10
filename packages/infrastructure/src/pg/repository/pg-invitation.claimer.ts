@@ -88,7 +88,11 @@ export class PgInvitationClaimer extends BaseRepository {
         );
 
         const [user] = await this.db
-          .select({ email: users.email, emailVerified: users.emailVerified })
+          .select({
+            email: users.email,
+            emailVerified: users.emailVerified,
+            suspendedAt: users.suspendedAt,
+          })
           .from(users)
           .where(eq(users.id, userId))
           .limit(1);
@@ -96,6 +100,9 @@ export class PgInvitationClaimer extends BaseRepository {
         // The security property, and the only one: the mailbox is the credential and the
         // token a lookup key. Under `AUTH_REQUIRE_EMAIL_VERIFICATION=false` it fails closed.
         if (!user?.emailVerified) return null;
+        // The session hook refuses a suspended user first; this keeps the accept endpoint,
+        // which needs only a session, from binding one that outlived the suspension.
+        if (user.suspendedAt !== null) return null;
 
         const [invitation] = await this.db
           .select({
@@ -110,6 +117,13 @@ export class PgInvitationClaimer extends BaseRepository {
               // lowercased, and wrapping it makes `invitations_email_idx` unusable.
               eq(invitations.email, user.email.toLowerCase()),
               gt(invitations.expiresAt, sql`now()`),
+              // Not a tenant that locked this person out: the insert below would keep the
+              // lock, consume the invitation, and pin the session to a tenant it cannot use.
+              sql`not exists (
+                select 1 from ${memberships}
+                where ${memberships.organizationId} = ${invitations.organizationId}
+                  and ${memberships.userId} = ${userId}
+                  and ${memberships.deactivatedAt} is not null)`,
               match,
             ),
           )

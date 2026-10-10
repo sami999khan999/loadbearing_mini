@@ -231,6 +231,34 @@ describe("PgInvitationClaimer", () => {
     expect(await invitationById(second.id)).toHaveLength(0);
   });
 
+  // `RW.5`. A re-invitation does not lift a tenant admin's lock, so it is not claimable:
+  // consumed, it would leave the lock and pin the session to a tenant that refuses it.
+  it("refuses a tenant that deactivated this person, and leaves the invitation pending", async () => {
+    const userId = await makeUser();
+    await withScope().claimer.claimByToken(userId, (await invite(emailOf(userId))).token);
+    await database.client
+      .update(memberships)
+      .set({ deactivatedAt: new Date() })
+      .where(eq(memberships.userId, userId));
+    const again = await invite(emailOf(userId));
+
+    expect(await withScope().claimer.claimByToken(userId, again.token)).toBeNull();
+    expect(await withScope().claimer.claimPending(userId)).toBeNull();
+    expect(await invitationById(again.id)).toHaveLength(1);
+  });
+
+  it("refuses a suspended user", async () => {
+    const userId = await makeUser();
+    const { id, token } = await invite(emailOf(userId));
+    await database.client
+      .update(users)
+      .set({ suspendedAt: new Date() })
+      .where(eq(users.id, userId));
+
+    expect(await withScope().claimer.claimByToken(userId, token)).toBeNull();
+    expect(await invitationById(id)).toHaveLength(1);
+  });
+
   // The enrolment path: no token in hand, oldest invitation wins.
   it("claimPending takes the oldest pending invitation for the address", async () => {
     const userId = await makeUser();

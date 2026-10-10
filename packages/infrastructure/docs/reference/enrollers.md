@@ -159,6 +159,21 @@ Expiry is compared against database time, the same clock the row was written by.
 idempotent under `memberships_uq (organization_id, user_id)`: someone who is already a member keeps
 the role they have, and the invitation is consumed either way.
 
+## A lock-out is never handed back
+
+A deactivated membership is a tenant admin's lock, and a re-invitation does not lift it: lifting
+it is `member.deactivate`'s decision, not `member.invite`'s. So none of the three hands back a
+tenant whose membership is deactivated. The session hook asks them only after
+`activeOrganizationFor` found nothing active, and a session pinned to such a tenant is refused by
+every request after it.
+
+- **Personal** returns an active membership if there is one, and `null` once every membership is
+  deactivated, rather than founding a second organization.
+- **Bootstrap** returns `null` when the user's membership of the configured tenant is deactivated.
+- **The claimer** skips an invitation to a tenant that deactivated the user, and leaves it pending.
+  It also refuses a suspended user: the session hook refuses one before enrolling, but the accept
+  endpoint needs only a session.
+
 **The address predicate compares the column, never `lower()` over it.** `InviteMemberUseCase`
 lowercases once, on the way in, which is what makes `invitations_email_uq (organization_id, email)`
 see one address as one row. Wrapping the column in the query undoes that at read time: the predicate
