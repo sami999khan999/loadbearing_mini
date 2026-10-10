@@ -216,7 +216,7 @@ describe("QueueDocumentIndexUseCase", () => {
       text: "a document",
     });
 
-    expect(queue.published[0]?.options?.jobId).toContain(`${ORG}_`);
+    expect(queue.published[0]?.options?.inFlightId).toContain(`${ORG}_`);
   });
 
   // A caller's id reaches the key, and `doc:1` is a legal `documentId` — it was a 500
@@ -227,7 +227,7 @@ describe("QueueDocumentIndexUseCase", () => {
       text: "a document",
     });
 
-    const jobId = queue.published[0]?.options?.jobId ?? "";
+    const jobId = queue.published[0]?.options?.inFlightId ?? "";
     expect(jobId).not.toContain(":");
     expect(jobId).not.toContain("doc");
   });
@@ -244,7 +244,9 @@ describe("QueueDocumentIndexUseCase", () => {
       text: "the second text",
     });
 
-    expect(queue.published[0]?.options?.jobId).not.toBe(queue.published[1]?.options?.jobId);
+    expect(queue.published[0]?.options?.inFlightId).not.toBe(
+      queue.published[1]?.options?.inFlightId,
+    );
   });
 
   // And the same text twice is still one job: the dedupe exists for a double submit.
@@ -256,7 +258,7 @@ describe("QueueDocumentIndexUseCase", () => {
       });
     }
 
-    expect(queue.published[0]?.options?.jobId).toBe(queue.published[1]?.options?.jobId);
+    expect(queue.published[0]?.options?.inFlightId).toBe(queue.published[1]?.options?.inFlightId);
   });
 
   // A `:` separator reached the queue once and BullMQ refused the job at publish time,
@@ -267,7 +269,18 @@ describe("QueueDocumentIndexUseCase", () => {
       text: "a document",
     });
 
-    expect(queue.published[0]?.options?.jobId).not.toContain(":");
+    expect(queue.published[0]?.options?.inFlightId).not.toContain(":");
+  });
+
+  // A kept job held a job id for an hour after success and a week after failure, so a
+  // revert to earlier text, or a resubmit after an outage, was accepted and never queued.
+  it("dedupes only while a job is in flight, never on a job id", async () => {
+    await useCase().execute(actorHolding("ai.embedding.write"), {
+      documentId: "doc-1",
+      text: "a document",
+    });
+
+    expect(queue.published[0]?.options).not.toHaveProperty("jobId");
   });
 
   it("refuses text that is only whitespace", async () => {

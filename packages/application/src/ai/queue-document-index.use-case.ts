@@ -89,7 +89,10 @@ export class QueueDocumentIndexUseCase {
       // ──
       // The text is in the key too: a re-index with new words returned success and
       // enqueued nothing, because the completed job still held the id.
-      { jobId: `${actor.organizationId}_${JobKey.of(documentId, input.text)}` },
+      // ──
+      // In flight only, never a job id: a kept job held it for an hour after success and a
+      // week after failure, so a revert or a resubmit after an outage was swallowed.
+      { inFlightId: `${actor.organizationId}_${JobKey.of(documentId, input.text)}` },
     );
 
     return { documentId };

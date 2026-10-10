@@ -42,8 +42,9 @@ interface PurgeJob {
 // The consumer whose absence meant `cleanup-daily` registered every boot and never ran,
 // accumulating silently. See docs/reference/consumers.md.
 export class MaintenanceConsumer {
-  // The failed-job retention in `BullMqQueuePublisher`: a week.
-  private static readonly FAILED_KEEP_MS = 7 * 24 * 60 * 60 * 1000;
+  // The failed-job retention in `BullMqQueuePublisher`: a week. It runs from the last
+  // attempt, which is minutes after the key's time, so the sweep waits an hour longer.
+  private static readonly FAILED_KEEP_MS = 7 * 24 * 60 * 60 * 1000 + 60 * 60 * 1000;
 
   // A count of partitions per run, not months of runway: three is the current month and
   // the next two, so two consecutive missed runs survive and the third is an outage.
