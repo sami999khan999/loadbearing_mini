@@ -1,5 +1,5 @@
 import { cn } from "../../class-name/index.js";
-import { BaseDialog, type ReactNode, useSyncExternalStore } from "../../import.js";
+import { BaseDialog, type ReactNode, useEffect, useSyncExternalStore } from "../../import.js";
 import { usePortalContainer } from "../../theme/index.js";
 import { buttonClassName } from "../button/index.js";
 import { Icon } from "../icon/index.js";
@@ -54,6 +54,12 @@ export function Sidebar({
 }: SidebarProps) {
   const wide = useWide();
   const container = usePortalContainer();
+
+  // Widening shows the column and ignores `open`, so a drawer left open would pop back,
+  // modal and holding focus, the next time the screen narrowed. Widening closes it.
+  useEffect(() => {
+    if (wide && open) onOpenChange?.(false);
+  }, [wide, open, onOpenChange]);
 
   const body = (
     <>

@@ -95,4 +95,33 @@ describe("Sidebar", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Close" }));
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
+
+  // The column ignores `open`, so a drawer left open came back when the screen narrowed.
+  it("closes an open drawer when the screen widens", async () => {
+    let matches = false;
+    const listeners = new Set<() => void>();
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      get matches() {
+        return matches;
+      },
+      media: query,
+      addEventListener: (_: string, listener: () => void) => listeners.add(listener),
+      removeEventListener: (_: string, listener: () => void) => listeners.delete(listener),
+    }));
+    render(<Page />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Menu" }));
+    await screen.findByRole("dialog");
+
+    act(() => {
+      matches = true;
+      for (const listener of listeners) listener();
+    });
+    act(() => {
+      matches = false;
+      for (const listener of listeners) listener();
+    });
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
 });
