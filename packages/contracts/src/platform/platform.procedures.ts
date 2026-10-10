@@ -30,6 +30,13 @@ export class PlatformProcedures {
     .input(PlatformContract.tenantExport)
     .output(z.array(PlatformContract.tenantExportObject).readonly());
 
+  // Its own read, because the list leaves the images out: a tenant's thousands of them
+  // would bury the files an operator came for.
+  public static readonly listExportImages = oc
+    .route({ method: "GET", path: "/platform/tenants/export/images" })
+    .input(PlatformContract.tenantExportDay)
+    .output(z.array(PlatformContract.tenantExportImage).readonly());
+
   public static readonly updateReplicaSwitch = oc
     .route({ method: "PUT", path: "/platform/policy/replica" })
     .input(PlatformContract.replicaToggle)
@@ -134,6 +141,7 @@ export class PlatformProcedures {
     deleteTenant: PlatformProcedures.deleteTenant,
     exportTenant: PlatformProcedures.exportTenant,
     listExports: PlatformProcedures.listExports,
+    listExportImages: PlatformProcedures.listExportImages,
     listFlags: PlatformProcedures.listFlags,
     updateFlag: PlatformProcedures.updateFlag,
     updateFlagTarget: PlatformProcedures.updateFlagTarget,

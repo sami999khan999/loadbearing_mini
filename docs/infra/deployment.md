@@ -117,7 +117,8 @@ services:
     restart: unless-stopped
     # One web process per core: rendering is single-threaded, and one process leaves the
     # other cores idle. cluster.mjs forwards SIGTERM, drains each worker and restarts a
-    # crashed one. WEB_PROCESSES sets the count; processes x DATABASE_POOL_MAX < 200.
+    # crashed one. It starts no more than WEB_DATABASE_CONNECTIONS / DATABASE_POOL_MAX
+    # processes, and refuses a WEB_PROCESSES whose product is over that budget.
     command: ["node", "apps/web/cluster.mjs"]
     env_file: [.env.production]
     environment:
@@ -375,6 +376,42 @@ mc mirror --watch local/ratchet s3/your-bucket    # runs until you stop it
 
 Then change five values and restart. `S3_FORCE_PATH_STYLE=false` is the one that is easy to miss and
 produces DNS errors that name a bucket-prefixed host.
+
+#### The bucket's CORS rule
+
+The browser uploads a doc image straight to the bucket, so the bucket must allow the app's origin.
+MinIO answers every origin by default; S3 and R2 answer none, and an upload then fails in the
+browser with a CORS error that appears in no server log. Allow `POST`: the upload is a presigned
+`POST` whose policy binds the size and type, so the bucket refuses anything larger than the limit.
+`GET` and `HEAD` are not needed: `/api/doc-image/…` answers with a redirect to
+a signed URL that an `<img>` follows, and no script fetches the bytes.
+
+```json
+{
+  "CORSRules": [
+    {
+      "AllowedOrigins": ["https://app.example.com"],
+      "AllowedMethods": ["POST"],
+      "AllowedHeaders": ["*"],
+      "ExposeHeaders": ["ETag"],
+      "MaxAgeSeconds": 3600
+    }
+  ]
+}
+```
+
+```bash
+aws s3api put-bucket-cors --bucket your-bucket --cors-configuration file://cors.json
+aws s3api get-bucket-cors --bucket your-bucket     # read it back
+```
+
+`AllowedOrigins` is the app's public origin (`APP_BASE_URL`) with no trailing slash, one entry per
+origin; add the staging one to the same rule. R2 takes the same JSON in the dashboard under the
+bucket's settings, in its own `AllowedOrigins` / `AllowedMethods` shape.
+
+The local stack cannot be given this rule: its MinIO has no bucket CORS API (`mc cors set` is
+refused as "not implemented"), so `minio-init` leaves it alone. See
+[the compose reference](reference/compose.md).
 
 **Copy the whole bucket, prefixes included.** `cold/` holds deleted tenants' archives. `export/`
 can be left behind — its objects expire in a week. The nightly `retention` job writes the `export/`

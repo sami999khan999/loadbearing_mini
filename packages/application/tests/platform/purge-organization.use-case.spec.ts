@@ -1,5 +1,6 @@
 import { Identifiers } from "@loadbearing/contracts";
 import { describe, expect, it } from "vitest";
+import type { DocImageSweep } from "../../src/doc/doc-image-sweep.js";
 import type { PlatformReader } from "../../src/platform/platform.reader.js";
 import { PurgeOrganizationUseCase } from "../../src/platform/purge-organization.use-case.js";
 import type { TenantRecord, TenantRepository } from "../../src/platform/tenant.repository.js";
@@ -101,10 +102,8 @@ class FakeInvalidator implements Partial<CapabilityInvalidator> {
   }
 }
 
-// Records the keys it was asked to forget. The placement cache has a deliberately long
-// TTL, so "was it invalidated" is the whole behaviour and a double that shrugged would
-// ──
-// let a deleted tenant keep resolving to a node for minutes.
+// Records the keys it was asked to forget. The placement cache's TTL is long, so a double
+// that shrugged would let a deleted tenant keep resolving to a node for minutes.
 class FakeShards {
   public readonly invalidated: string[] = [];
 
@@ -128,6 +127,15 @@ class FakeOutbox implements Partial<OutboxGateway> {
   }
 }
 
+class FakeSweep {
+  public readonly prefixes: string[] = [];
+
+  public sweep(prefix: string): Promise<number> {
+    this.prefixes.push(prefix);
+    return Promise.resolve(0);
+  }
+}
+
 interface Parts {
   readonly tenants: FakeTenants;
   readonly archive: FakeArchive;
@@ -136,6 +144,7 @@ interface Parts {
   readonly activity: FakeActivity;
   readonly capabilities: FakeInvalidator;
   readonly shards: FakeShards;
+  readonly sweep: FakeSweep;
 }
 
 const build = (overrides: Partial<Parts> = {}) => {
@@ -147,6 +156,7 @@ const build = (overrides: Partial<Parts> = {}) => {
     activity: new FakeActivity(),
     capabilities: new FakeInvalidator(),
     shards: new FakeShards(),
+    sweep: new FakeSweep(),
     ...overrides,
   };
 
@@ -169,6 +179,7 @@ const build = (overrides: Partial<Parts> = {}) => {
       unitOfWork,
       { now: () => NOW },
       parts.shards as unknown as ShardResolver,
+      parts.sweep as unknown as DocImageSweep,
     ),
   };
 };
@@ -205,6 +216,15 @@ describe("PurgeOrganizationUseCase", () => {
     expect(parts.maintenance.drops).toEqual([TENANT]);
     expect(parts.tenants.deleted).toEqual([TENANT]);
     expect(result.partitions).toBe(3);
+  });
+
+  // Only a prefix names either, so nothing else would ever delete them: the doc images,
+  // and the index text a job still queued for this tenant would have read.
+  it("sweeps the tenant's doc images and staged index text", async () => {
+    const { parts, useCase } = build();
+    await useCase.execute(input);
+
+    expect(parts.sweep.prefixes).toEqual([`doc/${TENANT}/`, `embedding/${TENANT}/`]);
   });
 
   // `24.1` dropped the cascade that did this, and a partition drop never reaches

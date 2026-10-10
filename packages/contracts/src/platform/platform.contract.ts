@@ -59,12 +59,14 @@ export class PlatformContract {
     expiresOn: z.string().nullable(),
     description: z.string().nullable(),
     isEnabled: z.boolean(),
-    targets: z.array(PlatformContract.flagTarget),
+    targets: z.array(PlatformContract.flagTarget).readonly(),
     orphaned: z.boolean(),
     updatedAt: z.date().nullable(),
   });
 
-  public static readonly flagList = z.object({ items: z.array(PlatformContract.flag) });
+  public static readonly flagList = z.object({
+    items: z.array(PlatformContract.flag).readonly(),
+  });
 
   public static readonly flagToggle = z.object({
     key: z.string().trim().min(1).max(128),
@@ -230,6 +232,18 @@ export class PlatformContract {
     jobId: z.string().min(1),
   });
 
+  // One export, named by its day: the third segment of every key it wrote.
+  public static readonly tenantExportDay = z.object({
+    organizationId: Identifiers.organizationId,
+    day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  });
+
+  // A copied doc image: its path below the export's day, and a presigned link to it.
+  public static readonly tenantExportImage = z.object({
+    path: z.string().min(1),
+    url: z.string().min(1),
+  });
+
   public static readonly tenantExportObject = z.object({
     key: z.string().min(1),
     day: z.string(),
@@ -275,5 +289,7 @@ export type FlagTargetToggleInput = z.infer<typeof PlatformContract.flagTargetTo
 export type TenantExportInput = z.infer<typeof PlatformContract.tenantExport>;
 export type ExportRequestedDto = z.infer<typeof PlatformContract.exportRequested>;
 export type TenantExportObjectDto = z.infer<typeof PlatformContract.tenantExportObject>;
+export type TenantExportDayInput = z.infer<typeof PlatformContract.tenantExportDay>;
+export type TenantExportImageDto = z.infer<typeof PlatformContract.tenantExportImage>;
 export type DeleteRequestedDto = z.infer<typeof PlatformContract.deleteRequested>;
 export type PlatformStatusDto = z.infer<typeof PlatformContract.status>;

@@ -75,7 +75,9 @@ export class IndexDocumentUseCase {
     // Replace rather than merge, in one transaction: a re-index of shortened text must
     // not leave the chunks it no longer has.
     const replaced = await this.unitOfWork.run(async () => {
-      // Again inside, since the embedding took a while and a newer job may have landed.
+      // The lock first, then the check again: the embedding took a while, and a newer job
+      // may have landed or may be committing right now.
+      await this.vectors.lockSource(actor.organizationId, input.documentId);
       if (await this.superseded(actor, input)) return false;
       await this.vectors.deleteBySource(actor.organizationId, input.documentId);
       await this.vectors.upsert(actor.organizationId, chunks);

@@ -50,6 +50,10 @@ export const platform = {
   "platform.tenantExport.queued":
     "Queued as {jobId}. Objects appear below once the worker finishes.",
   "platform.tenantExport.empty": "No export objects for this tenant.",
+  "platform.tenantExport.images": "Save doc image links for {day}",
+  "platform.tenantExport.imagesHint":
+    "Doc images are not listed one by one. Each export's are saved as a file of paths and links, valid for an hour.",
+  "platform.tenantExport.imagesNone": "That export holds no doc images.",
   // Two expiries, and they are not the same one: the link is minutes, the object is
   // days. Saying only the first would read as "download it whenever".
   "platform.tenantExport.expiry":

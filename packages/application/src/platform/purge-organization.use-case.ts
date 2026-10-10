@@ -1,3 +1,4 @@
+import { IndexTextStage } from "../ai/index.js";
 import { DocImageKey, type DocImageSweep } from "../doc/index.js";
 import { CapabilitySet, type OrganizationId, type UserId } from "../import.js";
 import type {
@@ -63,6 +64,9 @@ export class PurgeOrganizationUseCase {
     // level, so the partition drop above never reaches its rows.
     const outboxRows = await this.outbox.deleteFor(input.organizationId);
     const images = (await this.images?.sweep(DocImageKey.tenantPrefix(input.organizationId))) ?? 0;
+    // The same prefix walk for index text a job has not consumed yet, which nothing else
+    // would delete until the nightly sweep a week later.
+    await this.images?.sweep(IndexTextStage.tenantPrefix(input.organizationId));
 
     // `system`, and with no capabilities: this actor authorizes nothing, it only names
     // who asked. The permission was asserted when the job was queued.
@@ -95,10 +99,8 @@ export class PurgeOrganizationUseCase {
     // After the commit. A cache flushed before it would be refilled from rows the
     // transaction had not removed yet, which is the stale entry it was meant to stop.
     await this.capabilities.invalidateOrganization(input.organizationId);
-    // The `shard_assignments` row itself is left, deliberately: every reader inner-joins
-    // `organizations`, so it is invisible rather than stale. The *cache* is the problem —
-    // ──
-    // it answers from Redis without the join, for as long as its TTL holds.
+    // The `shard_assignments` row stays, since readers inner-join `organizations`; its
+    // cache does not, because Redis answers without the join until the TTL expires.
     await this.shards.invalidate(Shard.keyOf(input.organizationId));
 
     return { archived, partitions: partitions.length, outboxRows };

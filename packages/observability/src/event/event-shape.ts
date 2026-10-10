@@ -127,12 +127,20 @@ export interface EventShape {
     readonly organizationId: string;
     readonly pages: number;
   };
+  readonly "doc.images.swept": {
+    readonly organizationId: string;
+    readonly spaceId: string;
+    readonly images: number;
+  };
   // The ids, not just the count: with no foreign key left, this line is the only place
   // a leaked tenant is named, and a number alone cannot be chased.
   readonly "maintenance.orphans.found": {
     readonly node: number;
     readonly tenants: number;
     readonly organizationIds: string;
+  };
+  readonly "maintenance.index_text.swept": {
+    readonly objects: number;
   };
 
   // No recipient: the address is what the failing send was about, and a log line is

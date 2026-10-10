@@ -94,6 +94,8 @@ services:
     # restarting a container whose whole job is to finish.
     restart: "no"
     depends_on: [minio]
+    # No `mc cors set`: this server has no bucket CORS API and answers every origin. Production
+    # buckets need a rule: docs/infra/deployment.md.
     environment:
       # `mc alias set` writes config under $HOME, which is not writable in every image.
       MC_CONFIG_DIR: /tmp/.mc

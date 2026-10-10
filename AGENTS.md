@@ -12,7 +12,7 @@ seam kept.** Same packages, same `@loadbearing/*` scope, same rules. The sha it 
 
 **Start at [`docs/ai/index.md`](docs/ai/index.md).** It is a table, one row per thing you might be
 about to do, naming the one or two rule files that answer it. The whole rulebook is
-[`docs/ai/rules/index.md`](docs/ai/rules/index.md) — fourteen files, none longer than ~850 tokens.
+[`docs/ai/rules/index.md`](docs/ai/rules/index.md) — fourteen files, the longest (workflow.md) is ~1,650 tokens, ~11,100 in all.
 
 **Do not work from the surrounding code's example.** This repository's conventions are stated, and a
 convention you infer will be wrong in the ways that matter.

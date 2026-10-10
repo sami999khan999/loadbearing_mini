@@ -43,6 +43,7 @@ export {
   type DocSpaceAudience,
   type DocSpaceDto,
   type DocSpaceId,
+  type DocSpaceOrphanListDto,
   type DocumentHitDto,
   type ExplanationDto,
   type FlagDto,
@@ -120,6 +121,7 @@ export {
   type CommandGroup,
   DataTable,
   DateFormat,
+  Dialog,
   dataTableClassName,
   EmptyState,
   Field,
@@ -151,6 +153,9 @@ export {
   Toc,
   useHotkey,
 } from "@loadbearing/ui";
+
+// ── diff ─────────────────────────────────────────────────────────────────────
+export { diffLines } from "diff";
 
 // ── react ────────────────────────────────────────────────────────────────────
 export {

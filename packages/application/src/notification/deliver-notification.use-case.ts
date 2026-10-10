@@ -46,27 +46,26 @@ export class DeliverNotificationUseCase {
     const audience = await this.suppressed(event, await this.audienceFor(event, row), row);
     if (audience.length === 0) return;
 
-    // One statement for N recipients, and idempotent on `(event_id, user_id, kind)`.
-    // The rows it reports as new are the ones nobody has been told about yet.
+    // One statement for N recipients, idempotent on `(event_id, user_id, kind)`. Everything
+    // after it runs on every attempt, because a publish can fail after the commit.
     // ──
     // In a unit of work because it is routed and this is the job `24.2b`'s recheck was
     // built for: the freeze and the recheck both live in `run` (`CR.11`).
-    const written = await this.unitOfWork.run(() =>
+    await this.unitOfWork.run(() =>
       this.notifications.saveMany(
         audience.map((recipient) => DeliverNotificationUseCase.rowFor(event, row, recipient)),
       ),
     );
-    if (written.length === 0) return;
 
-    const fresh = audience.filter((recipient) => written.includes(recipient.userId));
     const modes = await this.preferences.findFor(
       event.organizationId,
-      fresh.map((recipient) => recipient.userId),
+      audience.map((recipient) => recipient.userId),
       row.category,
     );
 
-    await this.notifyInApp(event, fresh, modes, row);
-    await this.notifyByEmail(event, fresh, modes, row);
+    // Mail is deduped on the event and the recipient, so the repeat costs a frame at most.
+    await this.notifyInApp(event, audience, modes, row);
+    await this.notifyByEmail(event, audience, modes, row);
     void actor;
   }
 
@@ -111,6 +110,7 @@ export class DeliverNotificationUseCase {
       audience.map((recipient) => recipient.userId),
       row.kind,
       subjectId,
+      event.id,
     );
 
     return audience.filter((recipient) => !holding.has(recipient.userId));

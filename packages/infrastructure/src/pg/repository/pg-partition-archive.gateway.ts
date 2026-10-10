@@ -3,8 +3,10 @@ import {
   type ArchivedPartition,
   createGzip,
   type DeletedTenantSweep,
+  DocImageKey,
   type ExportedObject,
   InternalError,
+  NotFoundError,
   type OrganizationId,
   once,
   PartitionArchiveGateway,
@@ -312,6 +314,8 @@ export class PgPartitionArchiveGateway extends BaseRepository implements Partiti
       if (object) objects.push(object);
     }
 
+    objects.push(...(await this.exportDocImages(organizationId, stamp)));
+
     const manifestKey = `${EXPORT_PREFIX}/${organizationId}/${stamp}/manifest.json`;
     const manifest = await this.storage.put(
       manifestKey,
@@ -320,6 +324,41 @@ export class PgPartitionArchiveGateway extends BaseRepository implements Partiti
     );
 
     return { organizationId, day: stamp, objects, manifestKey: manifest.key };
+  }
+
+  // Every image the tenant's docs hold, copied byte for byte beside the tables. Streamed
+  // through, never held, and listed a page at a time: a tenant can have far past a thousand.
+  private async exportDocImages(
+    organizationId: OrganizationId,
+    stamp: string,
+  ): Promise<ExportedObject[]> {
+    const prefix = DocImageKey.tenantPrefix(organizationId);
+    const copied: ExportedObject[] = [];
+
+    for await (const keys of this.storage.listPages(prefix)) {
+      for (const key of keys) {
+        const rest = key.slice(prefix.length);
+        const type = DocImageKey.typeOf(rest.slice(rest.lastIndexOf("/") + 1));
+        try {
+          const stored = await this.storage.putStream(
+            `${EXPORT_PREFIX}/${organizationId}/${stamp}/doc-image/${rest}`,
+            this.storage.getStream(key),
+            type ?? "application/octet-stream",
+          );
+          copied.push({
+            table: "doc-image",
+            key: stored.key,
+            rowCount: 0,
+            bytes: stored.size,
+            checksum: stored.checksum,
+          });
+        } catch (error: unknown) {
+          // Deleted between the listing and the read, by a space delete: nothing to copy.
+          if (!(error instanceof NotFoundError)) throw error;
+        }
+      }
+    }
+    return copied;
   }
 
   // Null for a table the tenant has no rows in: an absent object is "nothing to

@@ -135,13 +135,13 @@ packages/ui/
 :root,
 [data-theme="slate"][data-mode="light"] {
   --bg: oklch(0.985 0.002 260);         /* page */
-  --surface: oklch(1 0 0);              /* cards, popovers, modals */
+  --surface: oklch(1 0 none);           /* cards, popovers, modals */
   --muted: oklch(0.960 0.004 260);      /* subtle fills, hover, inputs */
   --border: oklch(0.920 0.004 260);
   --fg: oklch(0.210 0.010 260);         /* primary text */
   --fg-muted: oklch(0.535 0.012 260);   /* secondary text, placeholders */
   --primary: oklch(0.550 0.190 260);
-  --primary-fg: oklch(0.990 0 0);
+  --primary-fg: oklch(0.990 0 none);
   --success: oklch(0.600 0.140 155);
   --warning: oklch(0.700 0.145 75);
   --danger: oklch(0.580 0.210 27);
@@ -158,7 +158,7 @@ packages/ui/
 
 **`slate`'s light block also claims `:root`.** A document with no attributes — the state of any page rendered before the cookie is read — still resolves all twelve. `:root` is `(0,1,0)` against a theme block's `(0,2,0)`, so it never interferes with a real choice.
 
-**`oklch()`, and not for taste.** Lightness tracks perceived lightness, so the other themes are this ladder at another hue and inherit its contrast. It also makes state derivation honest: there is no `--primary-hover` token because `color-mix(in oklch, var(--primary) 88%, var(--fg))` darkens by an even step in every theme.
+**`oklch()`, and not for taste.** Lightness tracks perceived lightness, so the other themes are this ladder at another hue and inherit its contrast. It also makes state derivation honest: there is no `--primary-hover` token because `color-mix(in oklab, var(--primary) 88%, var(--fg))` darkens by an even step in every theme. The mix is `in oklab`, not `in oklch`: `oklch` interpolates hue, so a 14% green tint over a dark surface at hue 260 comes out blue.
 
 > [!WARNING]
 > **sRGB does not hold the same chroma at every hue, and the browser clips silently.** At `L 0.54` blue reaches chroma 0.228 and azure only 0.094 — ask for more and the colour on screen is not the one in the file, so any contrast computed from the file is wrong. `pnpm check:contrast` converts every value to linear sRGB without clamping and fails on a channel outside `[0, 1]`.

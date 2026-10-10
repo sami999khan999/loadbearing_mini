@@ -100,8 +100,8 @@ function ratio(a, b) {
 
 // `oklch(0.985 0.002 260)` and `oklch(1 0 none)`. Nothing else is accepted, and that is the
 // point: a hex or an rgb() slipping into a theme file is a colour this script cannot
-// reason about, so it has to be a failure rather than a skip. A grey's hue is `none`: `0`
-// is a real hue (red), and `color-mix(in oklch)` turns a tint toward it.
+// reason about, so it has to be a failure rather than a skip. A grey's hue is `none`, read
+// as `0` here: its chroma is zero, so the hue cannot move its contrast.
 const OKLCH = /^oklch\(\s*([\d.]+)\s+([\d.]+)\s+([\d.]+|none)\s*\)$/;
 
 function parseColor(value) {

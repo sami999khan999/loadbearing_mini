@@ -131,4 +131,18 @@ describe("PgBootstrapMembershipEnroller", () => {
   it("declines when the slug names no organization", async () => {
     expect(await enrollerFor(`missing-${Uuid.v7()}`).enrol(await makeUser())).toBeNull();
   });
+
+  // `RW.5`. Handed back, a deactivated tenant pinned the session to one every request refused.
+  it("declines a user its organization deactivated, and enrols nobody afresh", async () => {
+    const target = await makeOrganization(`bootstrap-${Uuid.v7()}`);
+    const userId = await makeUser();
+    await enrollerFor(target.slug).enrol(userId);
+    await database.client
+      .update(memberships)
+      .set({ deactivatedAt: new Date() })
+      .where(eq(memberships.userId, userId));
+
+    expect(await enrollerFor(target.slug).enrol(userId)).toBeNull();
+    expect(await membershipsOf(userId)).toHaveLength(1);
+  });
 });

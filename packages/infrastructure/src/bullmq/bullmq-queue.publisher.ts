@@ -66,7 +66,10 @@ export class BullMqQueuePublisher extends QueuePublisher {
       // Mandatory, not tuning. BullMQ keeps completed jobs forever by default, and
       // on a `noeviction` instance that ends with everything stopping.
       removeOnComplete: { age: options?.removeOnCompleteAgeSeconds ?? 3_600, count: 1_000 },
-      removeOnFail: { ...FAILED_KEEP },
+      removeOnFail:
+        options?.removeOnFailAgeSeconds === undefined
+          ? { ...FAILED_KEEP }
+          : { ...FAILED_KEEP, age: options.removeOnFailAgeSeconds },
     };
   }
 

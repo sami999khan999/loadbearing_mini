@@ -85,11 +85,13 @@ its own tenant or claiming a surface.
 ## Desktop origins
 
 ```ts
-const DESKTOP_ORIGINS = ["tauri://localhost", "http://tauri.localhost"] as const;
+const DESKTOP_ORIGINS: readonly string[] = ["tauri://localhost", "http://tauri.localhost"];
 ```
 
 Both, because the scheme genuinely differs by platform — `tauri://localhost` on macOS and Linux,
 `http://tauri.localhost` on Windows. Shipping one produces an app that works for half the team.
+`AuthSurface.of` compares the origin exactly: an `Origin` header carries nothing after the host,
+and a prefix match let `http://tauri.localhost.example` pass as the desktop app.
 The `bearer()` plugin is not optional for the same reason: a session cookie is never sent
 cross-origin, and the Tauri webview is always cross-origin.
 

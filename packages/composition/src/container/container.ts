@@ -38,6 +38,7 @@ import {
   DocAccess,
   DocCache,
   DocFeaturePolicy,
+  DocImageOrphans,
   DocImageSweep,
   DocRerender,
   DocSearch,
@@ -59,6 +60,8 @@ import {
   GrantPermissionOverrideUseCase,
   GrantPermissionUseCase,
   IndexDocumentUseCase,
+  IndexQueuedDocumentUseCase,
+  IndexTextStage,
   InspectEffectivePermissionsUseCase,
   InspectPlatformStatusUseCase,
   type InvitationClaimer,
@@ -76,10 +79,12 @@ import {
   ListMembersUseCase,
   ListModuleSwitchesUseCase,
   ListNotificationsUseCase,
+  ListOrphanedDocSpacesUseCase,
   ListPermissionOverridesUseCase,
   ListPlansUseCase,
   ListPlatformDocSpacesUseCase,
   ListRolesUseCase,
+  ListTenantExportImagesUseCase,
   ListTenantExportsUseCase,
   type Logger,
   type MailPublisher,
@@ -388,6 +393,8 @@ export class Container {
   // docs/reference/container.md.
   public readonly ai: {
     readonly indexDocument: IndexDocumentUseCase;
+    readonly indexQueued: IndexQueuedDocumentUseCase;
+    readonly indexText: IndexTextStage;
     readonly queueIndex: QueueDocumentIndexUseCase;
     readonly searchDocuments: SearchDocumentsUseCase;
     readonly reembed: ReembedChunksUseCase;
@@ -420,6 +427,7 @@ export class Container {
     readonly purgeOrganization: PurgeOrganizationUseCase;
     readonly exportOrganization: ExportOrganizationUseCase;
     readonly listExports: ListTenantExportsUseCase;
+    readonly listExportImages: ListTenantExportImagesUseCase;
     readonly inspectStatus: InspectPlatformStatusUseCase;
     readonly toggleReplicaReads: ToggleReplicaReadsUseCase;
     readonly listFlags: ListFlagsUseCase;
@@ -452,6 +460,7 @@ export class Container {
   public readonly doc: {
     readonly cache: DocCache;
     readonly listSpaces: ListDocSpacesUseCase;
+    readonly listOrphanedSpaces: ListOrphanedDocSpacesUseCase;
     readonly getSpace: GetDocSpaceUseCase;
     readonly createSpace: CreateDocSpaceUseCase;
     readonly updateSpace: UpdateDocSpaceUseCase;
@@ -486,6 +495,8 @@ export class Container {
     readonly openImage: OpenDocImageUseCase;
     // The worker's, off `pnpm doc:rerender`: every published page an older renderer wrote.
     readonly rerender: DocRerender;
+    // The worker's, queued by a page delete: a space's images that no text links any more.
+    readonly imageOrphans: DocImageOrphans;
   };
   // One person's exceptions to their role. `expire` is the worker's, like the other sweeps.
   public readonly overrides: {
@@ -999,6 +1010,7 @@ export class Container {
         this.clock,
       ),
       listExports: new ListTenantExportsUseCase(this.authorizer, this.storage),
+      listExportImages: new ListTenantExportImagesUseCase(this.authorizer, this.storage),
       inspectStatus: new InspectPlatformStatusUseCase(
         this.authorizer,
         this.platform,
@@ -1184,20 +1196,26 @@ export class Container {
       ),
     };
 
+    const indexText = new IndexTextStage(this.storage);
+    const indexDocument = new IndexDocumentUseCase(
+      this.authorizer,
+      this.searchMode,
+      this.vectors,
+      this.activity,
+      this.routedUnitOfWork,
+    );
+
     this.ai = {
       // Run by the worker's consumer, off the queue the two below feed.
-      indexDocument: new IndexDocumentUseCase(
-        this.authorizer,
-        this.searchMode,
-        this.vectors,
-        this.activity,
-        this.routedUnitOfWork,
-      ),
+      indexDocument,
+      indexQueued: new IndexQueuedDocumentUseCase(indexDocument, indexText),
+      indexText,
       queueIndex: new QueueDocumentIndexUseCase(
         this.authorizer,
         this.queuePublisher,
         this.vectors,
         this.clock,
+        indexText,
       ),
       searchDocuments: new SearchDocumentsUseCase(
         this.authorizer,
@@ -1478,6 +1496,7 @@ export class Container {
     return {
       cache,
       listSpaces: new ListDocSpacesUseCase(auth, cache, features),
+      listOrphanedSpaces: new ListOrphanedDocSpacesUseCase(auth, cache, this.tenantMemberships),
       getSpace: new GetDocSpaceUseCase(auth, spaces),
       createSpace: new CreateDocSpaceUseCase(
         auth,
@@ -1500,6 +1519,7 @@ export class Container {
       deleteSpace: new DeleteDocSpaceUseCase(
         auth,
         spaces,
+        this.tenantMemberships,
         pages,
         grants,
         access,
@@ -1526,7 +1546,16 @@ export class Container {
         uow,
       ),
       movePage: new MoveDocPageUseCase(auth, spaces, pages, tree, cache, this.activity, uow),
-      deletePage: new DeleteDocPageUseCase(auth, spaces, pages, tree, cache, this.activity, uow),
+      deletePage: new DeleteDocPageUseCase(
+        auth,
+        spaces,
+        pages,
+        tree,
+        cache,
+        this.activity,
+        uow,
+        this.queuePublisher,
+      ),
       previewPage: new PreviewDocPageUseCase(auth, renderer),
       revisions: new ListDocRevisionsUseCase(auth, pages, spaces),
       revision: new GetDocRevisionUseCase(auth, pages, spaces),
@@ -1560,6 +1589,7 @@ export class Container {
         this.catalogUnitOfWork,
       ),
       rerender: new DocRerender(pages, renderer, cache, uow),
+      imageOrphans: new DocImageOrphans(pages, this.storage, this.clock),
     };
   }
 

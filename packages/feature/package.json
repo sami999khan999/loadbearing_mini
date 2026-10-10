@@ -48,6 +48,7 @@
     "@loadbearing/errors": "workspace:*",
     "@loadbearing/permissions": "workspace:*",
     "@loadbearing/query": "workspace:*",
-    "@loadbearing/ui": "workspace:*"
+    "@loadbearing/ui": "workspace:*",
+    "diff": "catalog:"
   }
 }

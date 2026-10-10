@@ -145,7 +145,7 @@ describe("PgEntitlementRepository — adjustments", () => {
       actor,
     );
 
-    const expired = (await entitlements.findExpired(now)).filter(
+    const expired = (await entitlements.findExpired(now, 10_000)).filter(
       (row) => row.organizationId === organizationId,
     );
     expect(expired.map((row) => row.permission)).toEqual(["apikey.read"]);

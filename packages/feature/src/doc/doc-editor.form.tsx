@@ -2,7 +2,6 @@ import { useErrorMessage } from "../error/index.js";
 import { useMessages } from "../i18n/index.js";
 import {
   Button,
-  buttonClassName,
   Callout,
   type DocAccessRuleDto,
   DocMutations,
@@ -31,6 +30,8 @@ export interface DocEditorFormProps {
   readonly draft: DocPageDraftDto;
   // The live page, once there is one to open.
   readonly viewLink?: ReactNode;
+  // Told whenever the form gains or loses unsaved edits, so the shell can hold navigation.
+  readonly onDirtyChange?: (dirty: boolean) => void;
 }
 
 // Long enough that a pause mid-sentence is not a save; short enough that closing the tab
@@ -51,7 +52,7 @@ const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 
 // One page's draft and its two writes. Each names the version it read, so of two authors
 // the second is told rather than silently overwriting the first.
-export function DocEditorForm({ draft, viewLink }: DocEditorFormProps) {
+export function DocEditorForm({ draft, viewLink, onDirtyChange }: DocEditorFormProps) {
   const { t } = useMessages("doc");
   const describe = useErrorMessage();
   const client = useApiClient();
@@ -61,6 +62,7 @@ export function DocEditorForm({ draft, viewLink }: DocEditorFormProps) {
   const upload = DocMutations.useUploadImage(client);
   const [imageError, setImageError] = useState<string | null>(null);
   const textarea = useRef<HTMLTextAreaElement>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
 
   const [title, setTitle] = useState(draft.title);
   const [slug, setSlug] = useState(draft.slug);
@@ -144,6 +146,8 @@ export function DocEditorForm({ draft, viewLink }: DocEditorFormProps) {
     const timer = setTimeout(() => latest.current(), AUTOSAVE_MS);
     return () => clearTimeout(timer);
   }, [dirty, save.isPending, save.isError, title, slug, description, icon, markdown, url, access]);
+
+  useEffect(() => onDirtyChange?.(dirty), [dirty, onDirtyChange]);
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -238,38 +242,43 @@ export function DocEditorForm({ draft, viewLink }: DocEditorFormProps) {
             />
           </Field>
 
-          <div className={readerClassName.actions} role="tablist">
+          <div className={readerClassName.actions}>
+            <fieldset className={`${readerClassName.actions} m-0 min-w-0 border-0 p-0`}>
+              <legend className="sr-only">{t("doc.editor.mode")}</legend>
+              <Button
+                variant={tab === "write" ? "secondary" : "ghost"}
+                aria-pressed={tab === "write"}
+                onClick={() => setTab("write")}
+              >
+                {t("doc.editor.write")}
+              </Button>
+              <Button
+                variant={tab === "preview" ? "secondary" : "ghost"}
+                aria-pressed={tab === "preview"}
+                onClick={showPreview}
+              >
+                {t("doc.editor.preview")}
+              </Button>
+            </fieldset>
             <Button
-              variant={tab === "write" ? "secondary" : "ghost"}
-              role="tab"
-              aria-selected={tab === "write"}
-              onClick={() => setTab("write")}
+              variant="ghost"
+              disabled={upload.isPending}
+              onClick={() => fileInput.current?.click()}
             >
-              {t("doc.editor.write")}
-            </Button>
-            <Button
-              variant={tab === "preview" ? "secondary" : "ghost"}
-              role="tab"
-              aria-selected={tab === "preview"}
-              onClick={showPreview}
-            >
-              {t("doc.editor.preview")}
-            </Button>
-            <label className={buttonClassName("ghost")}>
               {upload.isPending ? t("doc.editor.imageUploading") : t("doc.editor.image")}
-              <input
-                type="file"
-                accept={IMAGE_TYPES.join(",")}
-                hidden
-                disabled={upload.isPending}
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  // Cleared, so choosing the same file twice still fires a change.
-                  event.target.value = "";
-                  if (file) insertImage(file);
-                }}
-              />
-            </label>
+            </Button>
+            <input
+              ref={fileInput}
+              type="file"
+              accept={IMAGE_TYPES.join(",")}
+              hidden
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                // Cleared, so choosing the same file twice still fires a change.
+                event.target.value = "";
+                if (file) insertImage(file);
+              }}
+            />
           </div>
           {imageError ? <Callout tone="warning">{imageError}</Callout> : null}
 

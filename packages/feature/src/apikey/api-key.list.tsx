@@ -19,6 +19,7 @@ import {
   useApiClient,
   useAppQuery,
   useMemo,
+  useRef,
   useState,
 } from "../import.js";
 
@@ -41,6 +42,7 @@ export function ApiKeyList({ limit = 25 }: ApiKeyListProps) {
   const revoke = ApiKeyMutations.useRevoke(client);
   // The key being asked about, held while the question is open.
   const [revoking, setRevoking] = useState<ApiKeyRow | null>(null);
+  const region = useRef<HTMLDivElement>(null);
 
   // One instant for the whole render pass: read per row, two of them disagree about
   // whether a key expiring this second is expired.
@@ -96,6 +98,7 @@ export function ApiKeyList({ limit = 25 }: ApiKeyListProps) {
               row.revokedAt ? null : (
                 <Button
                   variant="secondary"
+                  aria-label={t("apikey.action.revokeFor", { name: row.name })}
                   disabled={revoke.isPending}
                   onClick={() => setRevoking(row)}
                 >
@@ -119,7 +122,9 @@ export function ApiKeyList({ limit = 25 }: ApiKeyListProps) {
   return (
     <>
       {revoke.error ? <Callout tone="danger">{describe(revoke.error)?.message}</Callout> : null}
-      <DataTable columns={columns} rows={rows} caption={t("apikey.title")} />
+      <section ref={region} tabIndex={-1} aria-label={t("apikey.title")} className="outline-none">
+        <DataTable columns={columns} rows={rows} caption={t("apikey.title")} />
+      </section>
       <AlertDialog
         open={revoking !== null}
         onOpenChange={(open) => {
@@ -129,7 +134,10 @@ export function ApiKeyList({ limit = 25 }: ApiKeyListProps) {
         confirmLabel={t("apikey.action.revoke")}
         cancelLabel={shell.t("action.cancel")}
         onConfirm={() => {
-          if (revoking) revoke.mutate({ apiKeyId: revoking.id });
+          if (!revoking) return;
+          // The trigger leaves with the row's actions once revoked, so focus is parked on
+          // the table rather than dropped to the page.
+          revoke.mutate({ apiKeyId: revoking.id }, { onSuccess: () => region.current?.focus() });
         }}
       />
     </>

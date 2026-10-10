@@ -10,10 +10,7 @@ export class ApiKeyRouter {
   );
 
   public static readonly create = authed.apiKey.create.handler(({ input, context }) =>
-    context.container.apiKey.createApiKey.execute(context.principal, {
-      ...input,
-      scopes: [...input.scopes],
-    }),
+    context.container.apiKey.createApiKey.execute(context.principal, input),
   );
 
   public static readonly revoke = authed.apiKey.revoke.handler(({ input, context }) =>

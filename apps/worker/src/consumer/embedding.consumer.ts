@@ -1,19 +1,19 @@
 import { SystemPrincipal, withShard } from "../bootstrap/index.js";
-import { type Container, type Job, QueueName, type Redis, Worker } from "../import.js";
+import {
+  type Container,
+  type IndexDocumentJob,
+  type Job,
+  QueueName,
+  type Redis,
+  Worker,
+} from "../import.js";
 
-interface EmbeddingJobData {
-  readonly organizationId: string;
-  // Absent on a `reembed` job, which names only the tenant: `pnpm ai:reindex` queues one.
-  readonly documentId: string;
-  readonly text: string;
-  readonly goalId?: string | null;
-  readonly sourceType?: string;
-  // Absent on a job queued before `CR.33`, which then indexes unconditionally.
-  readonly version?: number;
-}
+// A `reembed` job names only the tenant, which `pnpm ai:reindex` queues; an index job is
+// an `IndexDocumentJob`.
+type EmbeddingJobData = Pick<IndexDocumentJob, "organizationId"> & Partial<IndexDocumentJob>;
 
 // A thin adapter, exactly like an oRPC router. Everything worth testing lives in
-// `IndexDocumentUseCase`.
+// `IndexQueuedDocumentUseCase`.
 export class EmbeddingConsumer {
   public constructor(
     private readonly container: Container,
@@ -76,14 +76,10 @@ export class EmbeddingConsumer {
       return;
     }
 
-    await withShard(this.container, job.data.organizationId, () =>
-      this.container.ai.indexDocument.execute(principal, {
-        documentId: job.data.documentId,
-        text: job.data.text,
-        goalId: job.data.goalId ?? null,
-        sourceType: job.data.sourceType ?? "document",
-        ...(job.data.version === undefined ? {} : { version: job.data.version }),
-      }),
+    // Present on every job but a `reembed`, which returned above.
+    const data = job.data as IndexDocumentJob;
+    await withShard(this.container, data.organizationId, () =>
+      this.container.ai.indexQueued.execute(principal, data),
     );
   }
 }

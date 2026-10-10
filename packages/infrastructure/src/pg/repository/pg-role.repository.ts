@@ -5,10 +5,12 @@ import {
   count,
   eq,
   inArray,
+  NotFoundError,
   not,
   type OrganizationId,
   type PaginationQuery,
   type Placement,
+  type RoleDetails,
   type RoleId,
   type RolePage,
   type RoleRecord,
@@ -16,7 +18,7 @@ import {
   sql,
 } from "../../import.js";
 import { BaseRepository } from "../primitive/index.js";
-import { goalMembers, memberships, rolePermissions, roles } from "../schema/index.js";
+import { goalMembers, invitations, memberships, rolePermissions, roles } from "../schema/index.js";
 
 export class PgRoleRepository extends BaseRepository implements RoleRepository {
   // RBAC.
@@ -134,6 +136,21 @@ export class PgRoleRepository extends BaseRepository implements RoleRepository {
       );
   }
 
+  // The labels alone: no insert, no `role_permissions` write, so a rename cannot undo a
+  // grant that committed after the caller read the role.
+  public async saveDetails(
+    organizationId: OrganizationId,
+    roleId: RoleId,
+    details: RoleDetails,
+  ): Promise<void> {
+    const updated = await this.db
+      .update(roles)
+      .set({ name: details.name, description: details.description })
+      .where(and(eq(roles.organizationId, organizationId), eq(roles.id, roleId)));
+
+    if ((updated.rowCount ?? 0) === 0) throw new NotFoundError("role", roleId);
+  }
+
   // The row and its grants in one call, reconciled rather than replaced: deleting every
   // permission and re-inserting would churn the index on a rename.
   public async save(organizationId: OrganizationId, role: RoleRecord): Promise<void> {
@@ -183,15 +200,20 @@ export class PgRoleRepository extends BaseRepository implements RoleRepository {
     }
   }
 
-  // The grants go with the row: `role_permissions.role_id` cascades, so this is one
-  // statement and the second table is the database's problem.
+  // The grants go with the row, since `role_permissions.role_id` cascades. A holder who
+  // appeared after the count is the same refusal, not a driver error.
   public async delete(organizationId: OrganizationId, roleId: RoleId): Promise<void> {
-    await this.db
-      .delete(roles)
-      .where(and(eq(roles.organizationId, organizationId), eq(roles.id, roleId)));
+    try {
+      await this.db
+        .delete(roles)
+        .where(and(eq(roles.organizationId, organizationId), eq(roles.id, roleId)));
+    } catch (error) {
+      if (PgRoleRepository.isForeignKeyViolation(error)) throw new ConflictError("role", "inUse");
+      throw error;
+    }
   }
 
-  // Both tables that reference `roles` with `on delete no action`, summed: either one
+  // Every table that references `roles` with `on delete no action`, summed: any one
   // non-empty makes a delete a driver error rather than a refusal the UI can render.
   public async countAssignments(organizationId: OrganizationId, roleId: RoleId): Promise<number> {
     const [held] = await this.db
@@ -204,7 +226,23 @@ export class PgRoleRepository extends BaseRepository implements RoleRepository {
       .from(goalMembers)
       .where(and(eq(goalMembers.organizationId, organizationId), eq(goalMembers.roleId, roleId)));
 
-    return (held?.total ?? 0) + (scoped?.total ?? 0);
+    // Pending and expired alike: the key holds until the row is swept.
+    const [invited] = await this.db
+      .select({ total: count() })
+      .from(invitations)
+      .where(and(eq(invitations.organizationId, organizationId), eq(invitations.roleId, roleId)));
+
+    return (held?.total ?? 0) + (scoped?.total ?? 0) + (invited?.total ?? 0);
+  }
+
+  // SQLSTATE 23503, which drizzle wraps: the driver's error is on `cause`.
+  private static isForeignKeyViolation(error: unknown): boolean {
+    let cursor: unknown = error;
+    for (let depth = 0; depth < 4 && cursor instanceof Error; depth += 1) {
+      if ((cursor as { code?: unknown }).code === "23503") return true;
+      cursor = cursor.cause;
+    }
+    return false;
   }
 
   // Two queries for one row: `RoleRecord` carries its grants, and a thinner record type

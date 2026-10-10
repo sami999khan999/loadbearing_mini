@@ -54,6 +54,8 @@ packages/application/
 │   ├── ai/
 │   │   ├── ai-search-mode.ts           → SearchMode
 │   │   ├── index-document.use-case.ts  → IndexDocumentUseCase
+│   │   ├── index-queued-document.use-case.ts → IndexQueuedDocumentUseCase
+│   │   ├── index-text-stage.ts         → IndexTextStage
 │   │   ├── reembed-chunks.use-case.ts  → ReembedChunksUseCase
 │   │   └── search-documents.use-case.ts → SearchDocumentsUseCase
 │   ├── mail/                    ← a slice with no repository: the queue is the state

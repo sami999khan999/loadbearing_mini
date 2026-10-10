@@ -42,6 +42,10 @@ class Vectors implements VectorStore {
     throw new Error("not under test");
   }
 
+  public lockSource(): Promise<void> {
+    throw new Error("not under test");
+  }
+
   public sourceOf(): Promise<null> {
     return Promise.resolve(null);
   }

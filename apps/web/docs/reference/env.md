@@ -38,6 +38,14 @@ same shape of failure one layer down. Without the rule the first document indexe
 vendor auth error, in the worker's log rather than the one someone is watching. See
 [embedding](../../../../packages/infrastructure/docs/reference/embedding.md).
 
+**An `http` `AUTH_URL` in production** is refused too (`FC.15`). Better Auth marks the session
+cookie `Secure` only when `AUTH_URL` is https, so a mis-set URL shipped the cookie in the clear and
+nothing said so. A loopback host, `localhost`, `127.0.0.1` or `[::1]`, is allowed, because that is a
+production build tried on a laptop.
+
+**`WEB_DATABASE_CONNECTIONS`** is read by `cluster.mjs` before any process parses this schema; it is
+declared here only so a bad value fails with a field path (`FC.14`).
+
 ## Values whose absence is the decision
 
 | Variable | Absent means |

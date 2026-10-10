@@ -8,7 +8,7 @@ export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 // The placeholder is --fg-muted on --muted, the pairing that fixed --fg-muted at 0.535.
 // Invalid is read from the enclosing `Field`, so the control never needs to be told.
 const CONTROL =
-  "w-full rounded-md border border-border bg-muted text-fg text-sm [font-family:inherit] transition-colors duration-(--duration-fast) placeholder:text-fg-muted placeholder:opacity-100 enabled:hover:border-[color-mix(in_oklch,var(--border)_70%,var(--fg))] disabled:cursor-not-allowed disabled:opacity-50 in-data-[invalid=true]:border-danger in-data-[invalid=true]:focus-visible:shadow-[0_0_0_2px_var(--bg),0_0_0_4px_var(--danger)]";
+  "w-full rounded-md border border-border bg-muted text-fg text-sm [font-family:inherit] transition-colors duration-(--duration-fast) placeholder:text-fg-muted placeholder:opacity-100 enabled:hover:border-[color-mix(in_oklab,var(--border)_70%,var(--fg))] disabled:cursor-not-allowed disabled:opacity-50 in-data-[invalid=true]:border-danger in-data-[invalid=true]:focus-visible:shadow-[0_0_0_2px_var(--bg),0_0_0_4px_var(--danger)]";
 
 // For a control that is not an `Input` but must look like one: a native `<select>`.
 export function inputClassName(className?: string): string {

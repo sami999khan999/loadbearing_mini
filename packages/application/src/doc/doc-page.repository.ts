@@ -193,11 +193,12 @@ export abstract class DocPageRepository {
     sections: readonly RenderedSection[],
   ): Promise<void>;
 
-  // Full text over the published sections, and published titles by prefix and typo, in
-  // one statement. Tenant-scoped like everything else; the caller narrows by space.
+  // Full text over the published sections, and published titles by prefix and typo, in one
+  // statement, over `spaceIds` only: a hidden space ranked in would take the reader's window.
   public abstract search(
     organizationId: OrganizationId,
     query: string,
+    spaceIds: readonly DocSpaceId[],
     limit: number,
   ): Promise<readonly DocSearchMatch[]>;
 
@@ -218,6 +219,13 @@ export abstract class DocPageRepository {
     parentId: DocPageId | null,
     orderedIds: readonly DocPageId[],
   ): Promise<void>;
+
+  // The distinct image links under `linkPrefix` in any draft, published page or revision
+  // of the tenant, since any space's page may link an image: a short list, never a body.
+  public abstract listImageLinks(
+    organizationId: OrganizationId,
+    linkPrefix: string,
+  ): Promise<readonly string[]>;
 
   // The pages with their revisions and sections. The caller names the whole subtree.
   public abstract delete(

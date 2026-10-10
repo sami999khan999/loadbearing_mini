@@ -190,14 +190,13 @@ roving focus and ARIA. This package owns the markup's styling and the props.
 | `Select`, `Menu` | `Select` | the listbox: arrows, Home and End, typeahead, a hidden input for forms |
 | `ThemeToggle` | `RadioGroup` | a real radio group, with arrow keys and one tab stop |
 | `CommandDialog` | `Dialog` | the modal trap, the inert page, Escape, focus return |
+| `Sidebar` (below `lg`) | `Dialog` | the modal trap, the inert page, Escape, focus return; at `lg` and up it stays a plain `<aside>` |
 | `Dialog`, `AlertDialog` | `Dialog`, `AlertDialog` | as above; an alert dialog starts on Cancel and ignores the backdrop |
 | `Tooltip` | `Tooltip` | hover and focus delays, Escape, the description link |
 
-Three stayed hand-written, each for a stated reason:
+Two stayed hand-written, each for a stated reason:
 - **`Field`** has no interaction to take over. Base UI's `Field` would also require its own
   control inside, which every native control would then have to become.
-- **`Sidebar`'s drawer** is one element that is a column on a wide screen, and Base UI's `Dialog`
-  renders only while open, in a portal.
 - **`CommandDialog`'s result list** follows the caller's router link on Enter, which is not
   a select.
 

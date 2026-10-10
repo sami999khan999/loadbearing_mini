@@ -138,9 +138,11 @@ class MemoryEntitlements extends EntitlementRepository {
     return Promise.resolve(true);
   }
 
-  public override findExpired(now: Date): Promise<readonly AdjustmentRecord[]> {
+  public override findExpired(now: Date, limit: number): Promise<readonly AdjustmentRecord[]> {
     return Promise.resolve(
-      this.adjustments.filter((row) => row.expiresAt !== null && row.expiresAt <= now),
+      this.adjustments
+        .filter((row) => row.expiresAt !== null && row.expiresAt <= now)
+        .slice(0, limit),
     );
   }
 
@@ -484,6 +486,24 @@ describe("ExpireEntitlementAdjustmentsUseCase", () => {
       [ACME, "entitlement.adjustment.expired"],
     ]);
     expect(invalidator.flushed).toEqual([ACME]);
+  });
+
+  it("works through a backlog larger than one page", async () => {
+    const { expire, entitlements } = harness();
+    const backlog = ExpireEntitlementAdjustmentsUseCase.BATCH + 3;
+    for (let index = 0; index < backlog; index += 1) {
+      entitlements.adjustments.push({
+        organizationId: ACME,
+        permission: `analytics.activity.read.${index}`,
+        effect: "add",
+        reason: "trial",
+        expiresAt: new Date(NOW.getTime() - 1),
+        createdAt: NOW,
+      });
+    }
+
+    expect(await expire.execute(actor(), NOW)).toEqual({ adjustments: backlog });
+    expect(entitlements.adjustments).toEqual([]);
   });
 
   it("does nothing, and flushes nothing, when nothing has expired", async () => {

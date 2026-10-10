@@ -77,6 +77,10 @@ class StubRoleRepository implements RoleRepository {
     throw new Error("not under test");
   }
 
+  public saveDetails(): Promise<void> {
+    throw new Error("not under test");
+  }
+
   public save(): Promise<void> {
     throw new Error("not under test");
   }

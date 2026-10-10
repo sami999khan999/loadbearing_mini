@@ -22,13 +22,7 @@ import type {
   OrganizationFounder,
 } from "../session/index.js";
 import type { AuthConfig } from "./auth.config.js";
-
-// Both, because the scheme differs by platform — shipping one produces an app that
-// works for half your team. See docs/reference/auth-factory.md.
-const DESKTOP_ORIGINS = ["tauri://localhost", "http://tauri.localhost"] as const;
-
-const surfaceOf = (origin: string | null | undefined): "web" | "desktop" =>
-  origin && DESKTOP_ORIGINS.some((allowed) => origin.startsWith(allowed)) ? "desktop" : "web";
+import { AuthSurface } from "./auth-surface.js";
 
 // The one place Better Auth is configured. Every option is a security boundary or a
 // surface that stops working — the argument for each is in docs/reference/auth-factory.md.
@@ -222,7 +216,7 @@ export class AuthFactory {
                 data: {
                   ...session,
                   activeOrganizationId: organizationId,
-                  surface: surfaceOf(origin),
+                  surface: AuthSurface.of(origin),
                 },
               };
             },

@@ -6,7 +6,21 @@ import { availableParallelism } from "node:os";
 import { fileURLToPath } from "node:url";
 
 const entry = fileURLToPath(new URL("./.output/server/index.mjs", import.meta.url));
-const size = Number.parseInt(process.env.WEB_PROCESSES ?? "", 10) || availableParallelism();
+const integer = (name, fallback) => Number.parseInt(process.env[name] ?? "", 10) || fallback;
+
+// Each process opens a pool of up to DATABASE_POOL_MAX, so the web tier asks for their
+// product. A core count alone asked a 12-core host for 240 against Postgres's 200.
+const poolMax = integer("DATABASE_POOL_MAX", 20);
+const budget = integer("WEB_DATABASE_CONNECTIONS", 100);
+const requested = integer("WEB_PROCESSES", 0);
+if (requested * poolMax > budget) {
+  process.stderr.write(
+    `${JSON.stringify({ event: "web.processes.over_budget", processes: requested, poolMax, budget })}\n`,
+  );
+  process.exit(1);
+}
+const size =
+  requested || Math.max(1, Math.min(availableParallelism(), Math.floor(budget / poolMax)));
 
 // A worker that dies is replaced, but one that dies on boot every time would fork forever:
 // past this many deaths in a minute the primary gives up and exits non-zero.

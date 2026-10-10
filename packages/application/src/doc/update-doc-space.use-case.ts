@@ -31,7 +31,7 @@ export class UpdateDocSpaceUseCase {
     DocRules.assertAudience(input.audience, isPlatform);
     if (input.access !== undefined) await this.features.assertKnown(input.access);
 
-    const { before, after } = await this.unitOfWork.run(async () => {
+    const { before, after, slug } = await this.unitOfWork.run(async () => {
       const current = DocRules.assertVisible(
         await this.spaces.findById(actor.organizationId, input.spaceId),
         actor.userId,
@@ -42,11 +42,13 @@ export class UpdateDocSpaceUseCase {
       DocRules.assertMayOpen(actor, input.audience, current.audience);
 
       // Left out keeps what is stored: an older client cannot clear a rule it never showed.
+      const stored = DocRules.storedSlug(input.slug, input.audience, current);
       const saved = await this.spaces.save(
         actor.organizationId,
         input.spaceId,
         {
           ...input,
+          slug: stored,
           access: input.access === undefined ? current.access : input.access,
           repositoryUrl:
             input.repositoryUrl === undefined ? current.repositoryUrl : input.repositoryUrl,
@@ -57,17 +59,18 @@ export class UpdateDocSpaceUseCase {
 
       await this.activity.record(actor, "doc.space.updated", {
         spaceId: input.spaceId,
-        slug: input.slug,
+        slug: stored,
         audience: input.audience,
       });
       return {
         before: current,
         after: await this.spaces.findById(actor.organizationId, input.spaceId),
+        slug: stored,
       };
     });
 
     // Both slugs: the old key would otherwise keep answering for a space that has moved.
-    await this.cache.forget(actor.organizationId, before.slug, input.slug);
+    await this.cache.forget(actor.organizationId, before.slug, slug);
     if (!after) throw new NotFoundError("doc.space", input.spaceId);
     return DocShape.space(after);
   }

@@ -50,6 +50,12 @@ the stack un-ready until it is — a one-shot still running is doing the work th
 container that is supposed to stop cannot be "unhealthy" — and without the explicit `restart` the
 project default would keep starting a container whose whole job is to finish.
 
+`minio-init` sets **no CORS rule**. The `mc` client has `mc cors set`, but the MinIO server pinned
+here refuses it ("a header you provided implies functionality that is not implemented"), because it
+has no per-bucket CORS API and answers every origin instead. A production bucket on S3 or R2 does
+need a rule allowing `POST` from the app's origin, or browser uploads fail: see
+[the bucket's CORS rule](../deployment.md#the-buckets-cors-rule).
+
 ### What lite does not run
 
 The big kit also ran a pooler, a streaming replica, a second shard node and its pooler, a

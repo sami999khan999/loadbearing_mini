@@ -62,6 +62,11 @@ export { type FlagSummary, ListFlagsUseCase } from "./list-flags.use-case.js";
 export { ListModuleSwitchesUseCase, type ModuleSwitch } from "./list-module-switches.use-case.js";
 export { ListPlansUseCase, type PlanList } from "./list-plans.use-case.js";
 export {
+  type ListTenantExportImagesInput,
+  ListTenantExportImagesUseCase,
+  type TenantExportImage,
+} from "./list-tenant-export-images.use-case.js";
+export {
   type ListTenantExportsInput,
   ListTenantExportsUseCase,
   type TenantExportObject,

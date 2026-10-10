@@ -43,6 +43,10 @@ export const platform = {
     "টেন্যান্টের প্রতিটি টেবিলের জন্য একটি করে অবজেক্ট, সঙ্গে ক্যাটালগ সারি এবং গণনা ও চেকসামের একটি ম্যানিফেস্ট। এপিআই কী ও আমন্ত্রণের হ্যাশ বাদ দেওয়া হয়।",
   "platform.tenantExport.action": "রপ্তানি শুরু",
   "platform.tenantExport.queued": "{jobId} হিসেবে সারিবদ্ধ। ওয়ার্কার শেষ করলে অবজেক্টগুলি নিচে দেখা যাবে।",
+  "platform.tenantExport.images": "{day}-এর ডক ছবির লিঙ্ক সংরক্ষণ করুন",
+  "platform.tenantExport.imagesHint":
+    "ডক ছবিগুলো আলাদা করে তালিকায় দেখানো হয় না। প্রতিটি রপ্তানির ছবি পাথ ও লিঙ্কের একটি ফাইল হিসেবে সংরক্ষিত হয়, লিঙ্ক এক ঘণ্টা কার্যকর।",
+  "platform.tenantExport.imagesNone": "ওই রপ্তানিতে কোনো ডক ছবি নেই।",
   "platform.tenantExport.empty": "এই টেন্যান্টের কোনো রপ্তানি অবজেক্ট নেই।",
   "platform.tenantExport.expiry": "ডাউনলোড লিঙ্ক পনেরো মিনিটে শেষ হয়; অবজেক্টগুলি সাত দিন পর মুছে যায়।",
   "platform.tenantDelete.title": "একটি টেন্যান্ট মুছুন",

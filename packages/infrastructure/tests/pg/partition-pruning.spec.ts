@@ -500,7 +500,14 @@ describe("pinned at every month of the tenant, for the reads that carry no bound
 
   it("the suppression check reads every month", async () => {
     const statement = await capture(
-      () => inbox.unreadSubjectHolders(organizationId, [reader], "member.role.changed", Uuid.v7()),
+      () =>
+        inbox.unreadSubjectHolders(
+          organizationId,
+          [reader],
+          "member.role.changed",
+          Uuid.v7(),
+          Uuid.v7(),
+        ),
       /from "notifications"/i,
     );
 

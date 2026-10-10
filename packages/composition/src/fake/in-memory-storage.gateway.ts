@@ -1,4 +1,4 @@
-import { NotFoundError, StorageGateway, type StoredObject } from "../import.js";
+import { NotFoundError, type PresignedPost, StorageGateway, type StoredObject } from "../import.js";
 
 interface StoredEntry {
   readonly body: Uint8Array;
@@ -79,14 +79,30 @@ export class InMemoryStorageGateway extends StorageGateway {
     return Promise.resolve([...this.objects.keys()].filter((key) => key.startsWith(prefix)).sort());
   }
 
-  public override presignUpload(
+  public override async *listPages(
+    prefix: string,
+    pageSize = 1000,
+  ): AsyncGenerator<readonly string[]> {
+    const keys = await this.list(prefix);
+    for (let at = 0; at < keys.length; at += pageSize) yield keys.slice(at, at + pageSize);
+  }
+
+  // The policy rides in the fields, so a test can assert what a use-case signed.
+  public override presignPost(
     key: string,
     contentType: string,
+    maxBytes: number,
     expiresInSeconds: number,
-  ): Promise<string> {
-    return Promise.resolve(
-      `https://fake.storage/put/${key}?type=${encodeURIComponent(contentType)}&expires=${expiresInSeconds}`,
-    );
+  ): Promise<PresignedPost> {
+    return Promise.resolve({
+      url: "https://fake.storage/post",
+      fields: {
+        key,
+        "Content-Type": contentType,
+        maxBytes: String(maxBytes),
+        expires: String(expiresInSeconds),
+      },
+    });
   }
 
   public override presignDownload(key: string, expiresInSeconds: number): Promise<string> {

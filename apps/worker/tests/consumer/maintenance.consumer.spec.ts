@@ -1,11 +1,12 @@
 import type { ArchivedObject, PartitionEstimate } from "@loadbearing/application";
-import { PartitionedTable } from "@loadbearing/application";
+import { IndexTextStage, PartitionedTable } from "@loadbearing/application";
 import type { Container } from "@loadbearing/composition";
 import {
   FixedClock,
   InMemoryOrganizationReader,
   InMemoryOutboxGateway,
   InMemoryPlatformPolicyRepository,
+  InMemoryStorageGateway,
   InMemoryStoragePolicyGateway,
   RecordingMaintenanceGateway,
   RecordingPartitionArchiveGateway,
@@ -22,6 +23,8 @@ const NOW = new Date("2026-08-15T00:00:00Z");
 // from a single call.
 const FIRST = Identifiers.organizationId.parse("018f8c00-0000-7000-8000-000000000001");
 const SECOND = Identifiers.organizationId.parse("018f8c00-0000-7000-8000-000000000002");
+const SPACE = Identifiers.docSpaceId.parse("018f8c00-0000-7000-8000-000000000031");
+const OTHER_SPACE = Identifiers.docSpaceId.parse("018f8c00-0000-7000-8000-000000000032");
 const TENANTS = [FIRST, SECOND] as const;
 
 // Every month-partitioned table, per tenant where it has a tenant level. Derived rather
@@ -68,6 +71,7 @@ function harness(
   const platformPolicy = new InMemoryPlatformPolicyRepository();
   const storagePolicy = options.lifecycle ?? new InMemoryStoragePolicyGateway();
   const logger = { emit: vi.fn(), failure: vi.fn() };
+  const storage = new InMemoryStorageGateway();
 
   // Which tenant each unit of work was placed on. `TestContainer`'s `placed` runs the
   // work and records nothing, so an unplaced job is invisible to every other assertion.
@@ -106,6 +110,7 @@ function harness(
     },
     platformPolicy,
     storagePolicy,
+    ai: { indexText: new IndexTextStage(storage) },
     logger,
     placed: <T>(principal: { organizationId: string }, work: () => Promise<T>): Promise<T> => {
       placements.push(principal.organizationId);
@@ -119,6 +124,7 @@ function harness(
     partitionArchive,
     outbox,
     storagePolicy,
+    storage,
     logger,
     placements,
     expirations,
@@ -256,6 +262,21 @@ describe("MaintenanceConsumer", () => {
 // `24.1` dropped the ten foreign keys that made a leaked row impossible, so the
 // guarantee moved from the database to this job. Silence is the healthy answer.
 describe("MaintenanceConsumer — the orphan count", () => {
+  // `CR.33`: staged index text outlives its job's retention only if a sweep misses it.
+  it("deletes staged index text older than the failed-job retention", async () => {
+    const { container, logger, storage } = harness();
+    const stage = container.ai.indexText;
+    const day = 24 * 60 * 60 * 1000;
+    const now = container.clock.now().getTime();
+    await stage.stage(FIRST, "old", now - 8 * day, "x");
+    const fresh = await stage.stage(FIRST, "new", now - day, "x");
+
+    await consumerFor(container).handle(job("orphans"));
+
+    expect(storage.keys()).toEqual([fresh]);
+    expect(emitted(logger, "maintenance.index_text.swept")).toEqual([{ objects: 1 }]);
+  });
+
   it("says nothing when every tenant on the node is live", async () => {
     const { container, logger, maintenance } = harness();
     maintenance.orphans = [];
@@ -382,6 +403,37 @@ describe("MaintenanceConsumer — the retention job", () => {
 describe("MaintenanceConsumer — the node", () => {
   // An export reads live rows, so an unplaced one read node 0 and wrote a manifest
   // saying a tenant on another node had nothing.
+  it("sweeps a space's unlinked images on the tenant's node and says how many went", async () => {
+    const h = harness();
+    const sweeps: unknown[][] = [];
+    const doc = {
+      imageOrphans: {
+        run: (...args: unknown[]) => {
+          sweeps.push(args);
+          return Promise.resolve(args[1] === SPACE ? 4 : 0);
+        },
+      },
+    };
+    const container = { ...h.container, doc } as unknown as Container;
+
+    await consumerFor(container).handle(
+      job("doc-image-orphans", { organizationId: SECOND, spaceId: SPACE }),
+    );
+    await consumerFor(container).handle(
+      job("doc-image-orphans", { organizationId: FIRST, spaceId: OTHER_SPACE }),
+    );
+
+    expect(h.placements).toEqual([SECOND, FIRST]);
+    expect(sweeps).toEqual([
+      [SECOND, SPACE],
+      [FIRST, OTHER_SPACE],
+    ]);
+    // Silent for the space with nothing to delete.
+    expect(emitted(h.logger, "doc.images.swept")).toEqual([
+      { organizationId: SECOND, spaceId: SPACE, images: 4 },
+    ]);
+  });
+
   it("places tenant-export on the tenant it names", async () => {
     const { container, placements } = harness();
 

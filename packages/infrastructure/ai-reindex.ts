@@ -1,7 +1,8 @@
 // After `EMBEDDING_PROVIDER` or `EMBEDDING_MODEL` changes. Queues one `reembed` job per
 // organization on the embedding queue; the worker re-embeds that tenant's stale chunks.
 
-import { Queue, QueueName, Redis, sql } from "./src/import.js";
+import { BullMqQueuePublisher } from "./src/bullmq/index.js";
+import { QueueName, Redis, sql } from "./src/import.js";
 import { Database } from "./src/pg/primitive/index.js";
 
 const databaseUrl = process.env.DATABASE_DIRECT_URL ?? process.env.DATABASE_URL;
@@ -13,18 +14,20 @@ if (!queueUrl) throw new Error("REDIS_QUEUE_URL is required.");
 // is placed on the tenant's node by the consumer, not here.
 const catalog = new Database({ url: databaseUrl });
 const connection = new Redis(queueUrl, { maxRetriesPerRequest: null });
-const queue = new Queue(QueueName.EMBEDDING, { connection });
+// The app's own publisher, so these jobs get its attempts, backoff and retention: a bare
+// `add` ran each once, and a provider blip left that tenant's chunks stale for good.
+const queue = new BullMqQueuePublisher(connection);
 
 try {
   const rows = await catalog.client.execute<{ id: string }>(sql`select id from organizations`);
 
-  // One job id per tenant, so running this twice before the worker drains it queues
-  // each tenant once.
+  // Deduped while waiting or running, so running this twice before the worker drains it
+  // queues each tenant once. Never a job id: a failed job kept it, and a rerun was a no-op.
   for (const row of rows.rows) {
-    await queue.add(
-      "reembed",
+    await queue.publish(
+      QueueName.EMBEDDING,
       { organizationId: row.id },
-      { jobId: `reembed_${row.id}`, removeOnComplete: true, removeOnFail: 100 },
+      { name: "reembed", inFlightId: `reembed_${row.id}` },
     );
   }
   console.log(`queued a re-embed for ${rows.rows.length} organization(s)`);

@@ -12,6 +12,7 @@ import type {
   DocSpaceId,
   DocSpaceListDto,
   DocSpaceNavDto,
+  DocSpaceOrphanListDto,
 } from "../import.js";
 import { queryOptions } from "../import.js";
 import { QueryKeys } from "../key/index.js";
@@ -23,6 +24,15 @@ export class DocQueries {
     return queryOptions({
       queryKey: QueryKeys.doc.spaces(),
       queryFn: (): Promise<DocSpaceListDto> => client.docSpace.list({}),
+      staleTime: 60_000,
+    });
+  }
+
+  // A manager's list of departed authors' private spaces, each to delete.
+  public static orphanedSpaces(client: ApiClient) {
+    return queryOptions({
+      queryKey: QueryKeys.doc.orphanedSpaces(),
+      queryFn: (): Promise<DocSpaceOrphanListDto> => client.docSpace.orphans({}),
       staleTime: 60_000,
     });
   }

@@ -29,6 +29,7 @@ apps/web/
 │   ├── endpoint.ts                   → Endpoint          (the two addresses a browser needs)
 │   ├── import.ts                     ← the client-safe outside surface
 │   ├── router.tsx                    → createAppRouter
+│   ├── start.ts                      → the request middleware: security headers
 │   ├── route-tree.gen.ts             ← generated; never edited
 │   ├── route/
 │   │   ├── __root.tsx
@@ -45,6 +46,7 @@ apps/web/
 │   │   ├── import.ts                 ← the server-only outside surface
 │   │   ├── container.ts
 │   │   ├── cors.ts
+│   │   ├── security-headers.ts       → SecurityHeaders
 │   │   ├── rpc-client.ts
 │   │   ├── {session,appearance,invitation}.fn.ts
 │   │   └── orpc/                     → base, routers, the error interceptor
@@ -53,8 +55,9 @@ apps/web/
 │       └── appearance.store.ts       → AppearanceStore
 └── tests/
     ├── endpoint.spec.ts
+    ├── env.spec.ts
     ├── route/redirect.spec.ts
-    ├── server/{cors,error.interceptor}.spec.ts
+    ├── server/{cors,error.interceptor,security-headers}.spec.ts
     └── store/{appearance,session}.store.spec.ts
 ```
 

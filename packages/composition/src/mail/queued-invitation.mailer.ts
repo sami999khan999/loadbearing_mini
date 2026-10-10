@@ -33,6 +33,9 @@ export class QueuedInvitationMailer extends InvitationMailer {
       organizationId: mail.organizationId,
       // The invitee has no account yet, which is the whole reason this message exists.
       userId: null,
+      // The token is the invitation. `invitations` holds only its digest, so Redis keeps it
+      // no longer than the job needs it.
+      credential: true,
     });
   }
 }

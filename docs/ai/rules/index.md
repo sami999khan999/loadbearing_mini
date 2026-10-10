@@ -5,9 +5,10 @@ description: The rules an agent must know unprompted, one file per topic. A dige
 
 # Repository rules
 
-One file per topic, none longer than ~900 tokens, ~9,100 for all fourteen. Procedures that touch many
-files in a fixed order are run books instead, in [`../skills/`](../skills/index.md) — adding a
-feature slice, writing a package's docs.
+One file per topic: the longest is `workflow.md` at ~1,650 tokens and all fourteen are ~11,100
+(~8,900 by words × 1.33 instead of characters ÷ 4). Procedures that touch many files in a fixed
+order are run books instead, in [`../skills/`](../skills/index.md) — adding a feature slice,
+writing a package's docs.
 
 **In Claude Code every file below is already loaded** — `CLAUDE.md` `@`-imports the lot, so this page
 is an index of what you are holding rather than a fetch list. Any other agent starts at

@@ -47,18 +47,57 @@ describe("S3StorageGateway against the running object store", () => {
     expect(await response.text()).toBe("signed");
   });
 
-  it("signs an upload URL that accepts a PUT of the content type it was signed for", async () => {
+  const post = async (key: string, body: string, fields: Record<string, string> = {}) => {
+    const signed = await storage.presignPost(key, "text/plain", 8, 60);
+    const form = new FormData();
+    for (const [name, value] of Object.entries({ ...signed.fields, ...fields })) {
+      form.append(name, value);
+    }
+    form.append("file", new Blob([body], { type: "text/plain" }), "upload");
+    return fetch(signed.url, { method: "POST", body: form });
+  };
+
+  it("signs an upload that accepts a POST within the length it was signed for", async () => {
     const key = probe();
 
-    const url = await storage.presignUpload(key, "text/plain", 60);
-    const response = await fetch(url, {
-      method: "PUT",
-      headers: { "content-type": "text/plain" },
-      body: "uploaded",
-    });
+    const response = await post(key, "uploaded");
 
     expect(response.ok).toBe(true);
     expect(new TextDecoder().decode(await storage.get(key))).toBe("uploaded");
+  });
+
+  it("refuses a body over the signed length, whatever the client declared", async () => {
+    const key = probe();
+
+    const response = await post(key, "nine bytes");
+
+    expect(response.status).toBe(400);
+    expect(await storage.exists(key)).toBe(false);
+  });
+
+  it("refuses a body whose content type is not the one signed", async () => {
+    const key = probe();
+
+    const response = await post(key, "small", { "Content-Type": "text/html" });
+
+    expect(response.status).toBe(403);
+    expect(await storage.exists(key)).toBe(false);
+  });
+
+  it("lists every key under a prefix across pages, and nothing outside it", async () => {
+    const stem = `smoke/paged-${Date.now()}`;
+    const inside = [1, 2, 3, 4, 5].map((n) => `${stem}/${n}.txt`);
+    const outside = `${stem}x/other.txt`;
+    keys.push(...inside, outside);
+    for (const key of [...inside, outside]) {
+      await storage.put(key, new Uint8Array([1]), "text/plain");
+    }
+
+    const pages: (readonly string[])[] = [];
+    for await (const page of storage.listPages(`${stem}/`, 2)) pages.push(page);
+
+    expect(pages.map((page) => page.length)).toEqual([2, 2, 1]);
+    expect(pages.flat()).toEqual(inside);
   });
 
   it("signs a URL that expires, and says so in the query it carries", async () => {

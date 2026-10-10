@@ -1,6 +1,6 @@
 import { Identifiers, type OrganizationId, type UserId } from "@loadbearing/contracts";
 import { SystemClock, Uuid } from "@loadbearing/core";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, type Logger } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Database } from "../../src/pg/primitive/index.js";
 import { DatabaseCluster } from "../../src/pg/primitive/index.js";
@@ -14,6 +14,17 @@ import { RecordingLogger } from "../support/recording.logger.js";
 
 // One node, so nothing is ever placed: every repository here resolves to it.
 const shards = new ShardScope();
+
+// Counts the statements drizzle sends, so a batch can be asserted to be one.
+class CountingLogger implements Logger {
+  public count = 0;
+
+  public logQuery(): void {
+    this.count += 1;
+  }
+}
+
+const counter = new CountingLogger();
 
 let database: Database;
 const created: UserId[] = [];
@@ -76,7 +87,7 @@ const joinAs = async (userId: UserId, organizationId: OrganizationId, key: strin
 };
 
 beforeAll(async () => {
-  database = openDatabase();
+  database = openDatabase(counter);
   ada = await makeUser("Ada");
   grace = await makeUser("Grace");
   first = await found(ada, "First");
@@ -161,6 +172,19 @@ describe("PgMembershipReader", () => {
     }
 
     expect(await reader().isActive(grace, elsewhere)).toBe(true);
+  });
+
+  // `RV.4`. Every held stream asks this once a minute: a tenant's worth is one statement,
+  // not one per stream, and the tenant is the query's rather than the id's.
+  it("answers many streams' users of one tenant in one statement", async () => {
+    const asked = [ada, grace, ada, ada, grace];
+    counter.count = 0;
+
+    const active = await reader().activeMemberIds(first, asked);
+
+    expect(counter.count).toBe(1);
+    expect([...active].sort()).toEqual([ada, grace].sort());
+    expect([...(await reader().activeMemberIds(elsewhere, asked))]).toEqual([grace]);
   });
 
   it("defaults the active organization to the oldest membership", async () => {

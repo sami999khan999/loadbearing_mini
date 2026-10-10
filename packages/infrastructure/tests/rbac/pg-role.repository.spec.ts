@@ -1,6 +1,7 @@
 import type { RoleRecord } from "@loadbearing/application";
-import { Identifiers, type OrganizationId, type UserId } from "@loadbearing/contracts";
+import { Identifiers, type OrganizationId, type RoleId, type UserId } from "@loadbearing/contracts";
 import { SystemClock, Uuid } from "@loadbearing/core";
+import { ConflictError, NotFoundError } from "@loadbearing/errors";
 import { eq, inArray } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Database } from "../../src/pg/primitive/index.js";
@@ -9,6 +10,7 @@ import { PgActivityLogger } from "../../src/pg/repository/pg-activity.logger.js"
 import { PgOrganizationFounder } from "../../src/pg/repository/pg-organization.founder.js";
 import { PgRoleRepository } from "../../src/pg/repository/pg-role.repository.js";
 import {
+  invitations,
   memberships,
   organizations,
   rolePermissions,
@@ -66,6 +68,18 @@ const draft = (overrides: Partial<RoleRecord> = {}): RoleRecord => ({
   ...overrides,
 });
 
+const invite = async (roleId: RoleId) => {
+  await database.client.insert(invitations).values({
+    id: Uuid.v7(),
+    organizationId: here,
+    email: `${Uuid.v7()}@example.test`,
+    roleId,
+    tokenHash: Uuid.v7(),
+    invitedBy: await makeUser(),
+    expiresAt: new Date(Date.now() + 86_400_000),
+  });
+};
+
 beforeAll(async () => {
   database = openDatabase();
   repository = new PgRoleRepository(
@@ -79,6 +93,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   for (const id of createdOrgs) {
+    await database.client.delete(invitations).where(eq(invitations.organizationId, id));
     await database.client.delete(memberships).where(eq(memberships.organizationId, id));
     await database.client.delete(rolePermissions).where(eq(rolePermissions.organizationId, id));
     await database.client.delete(roles).where(eq(roles.organizationId, id));
@@ -114,6 +129,31 @@ describe("PgRoleRepository writes", () => {
     const read = await repository.findById(here, role.id);
     expect(read?.name).toBe("Auditor");
     expect(read?.permissions).toEqual(["rbac.role.read"]);
+  });
+
+  // `save` reconciles grants to the record it is handed; a rename holding a stale list
+  // would delete a grant that committed since. `saveDetails` never reads the list at all.
+  it("renames without touching grants a stale record does not know about", async () => {
+    const role = draft({ permissions: ["member.read"] });
+    await repository.save(here, role);
+    await repository.savePermission(here, role.id, "rbac.role.read");
+
+    await repository.saveDetails(here, role.id, { name: "Auditor", description: "Reads" });
+
+    const read = await repository.findById(here, role.id);
+    expect(read?.name).toBe("Auditor");
+    expect(read?.description).toBe("Reads");
+    expect(read?.permissions).toEqual(["member.read", "rbac.role.read"]);
+  });
+
+  it("refuses to rename a role through another tenant", async () => {
+    const role = draft();
+    await repository.save(here, role);
+
+    await expect(
+      repository.saveDetails(elsewhere, role.id, { name: "Hijacked", description: null }),
+    ).rejects.toBeInstanceOf(NotFoundError);
+    expect((await repository.findById(here, role.id))?.name).toBe("Reviewer");
   });
 
   it("empties a role's grants when the record carries none", async () => {
@@ -192,5 +232,24 @@ describe("PgRoleRepository writes", () => {
     });
 
     expect(await repository.countAssignments(here, role.id)).toBe(1);
+  });
+
+  // `invitations.role_id` is `on delete no action` too, and a pending invitation is no
+  // membership: without this the count says zero and the delete is a driver error.
+  it("counts a pending invitation that names the role", async () => {
+    const role = draft();
+    await repository.save(here, role);
+    await invite(role.id);
+
+    expect(await repository.countAssignments(here, role.id)).toBe(1);
+  });
+
+  it("answers a foreign key violation on delete as a role in use", async () => {
+    const role = draft();
+    await repository.save(here, role);
+    await invite(role.id);
+
+    await expect(repository.delete(here, role.id)).rejects.toBeInstanceOf(ConflictError);
+    expect(await repository.findById(here, role.id)).not.toBeNull();
   });
 });

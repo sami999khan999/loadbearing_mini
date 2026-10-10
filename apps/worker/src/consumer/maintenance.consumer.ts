@@ -1,6 +1,7 @@
 import { SystemPrincipal, withShard } from "../bootstrap/index.js";
 import {
   type Container,
+  type DocSpaceId,
   type Job,
   type OrganizationId,
   PartitionedTable,
@@ -27,6 +28,12 @@ interface RerenderJob {
   readonly organizationId: OrganizationId;
 }
 
+// What `doc-image-orphans` carries: the space a page was deleted from.
+interface ImageOrphansJob {
+  readonly organizationId: OrganizationId;
+  readonly spaceId: DocSpaceId;
+}
+
 interface PurgeJob {
   readonly organizationId: OrganizationId;
   readonly actorId: UserId;
@@ -35,6 +42,10 @@ interface PurgeJob {
 // The consumer whose absence meant `cleanup-daily` registered every boot and never ran,
 // accumulating silently. See docs/reference/consumers.md.
 export class MaintenanceConsumer {
+  // The failed-job retention in `BullMqQueuePublisher`: a week. It runs from the last
+  // attempt, which is minutes after the key's time, so the sweep waits an hour longer.
+  private static readonly FAILED_KEEP_MS = 7 * 24 * 60 * 60 * 1000 + 60 * 60 * 1000;
+
   // A count of partitions per run, not months of runway: three is the current month and
   // the next two, so two consecutive missed runs survive and the third is an outage.
   private static readonly MONTHS_PER_RUN = 3;
@@ -74,11 +85,8 @@ export class MaintenanceConsumer {
       {
         connection: this.connection,
         concurrency: this.concurrency,
-        // Five minutes, not BullMQ's 30 s. `partitions-boot` logs nothing for its first
-        // half-minute at 78 tenants, so the lock expired, the job was re-delivered and
-        // ──
-        // ran a second time. Idempotent, so it was waste rather than damage — but the
-        // default is sized for short jobs and these are the opposite.
+        // Five minutes, not BullMQ's 30 s: `partitions-boot` is silent for half a minute at 78
+        // tenants, and an expired lock re-delivers the job to run a second time.
         lockDuration: MaintenanceConsumer.LOCK_DURATION_MS,
       },
     );
@@ -136,6 +144,8 @@ export class MaintenanceConsumer {
         return this.purge(job.data as PurgeJob);
       case "doc-rerender":
         return this.rerender(job.data as RerenderJob);
+      case "doc-image-orphans":
+        return this.imageOrphans(job.data as ImageOrphansJob);
       default:
         throw new Error(`Unknown maintenance job: ${job.name}`);
     }
@@ -192,6 +202,19 @@ export class MaintenanceConsumer {
     });
   }
 
+  // Queued by a page delete, one per space. Silent when every image is still linked.
+  private async imageOrphans(data: ImageOrphansJob): Promise<void> {
+    const images = await withShard(this.container, data.organizationId, () =>
+      this.container.doc.imageOrphans.run(data.organizationId, data.spaceId),
+    );
+    if (images === 0) return;
+    this.container.logger.emit("doc.images.swept", {
+      organizationId: data.organizationId,
+      spaceId: data.spaceId,
+      images,
+    });
+  }
+
   // Silent when the pool was full, which is every run but the ones after a burst.
   private async spares(): Promise<void> {
     const created = await this.container.maintenance.topUpSpareTenants(
@@ -208,6 +231,8 @@ export class MaintenanceConsumer {
   // `24.1` moved this guarantee out of the database and into a job. Silence is the
   // healthy answer; a line here is a tenant delete that did not finish.
   private async orphans(): Promise<void> {
+    await this.sweepIndexText();
+
     await this.container.eachShard(async (node) => {
       const orphaned = await this.container.maintenance.orphanedTenants();
       if (orphaned.length === 0) return;
@@ -220,6 +245,16 @@ export class MaintenanceConsumer {
         organizationIds: orphaned.join(","),
       });
     });
+  }
+
+  // Index text whose job failed stays for `queue:replay`; once the failed job itself is
+  // gone (a week, `FAILED_KEEP`) nothing can read it. Not shard-routed: it is the bucket.
+  private async sweepIndexText(): Promise<void> {
+    const before = new Date(
+      this.container.clock.now().getTime() - MaintenanceConsumer.FAILED_KEEP_MS,
+    );
+    const swept = await this.container.ai.indexText.sweepStale(before);
+    if (swept > 0) this.container.logger.emit("maintenance.index_text.swept", { objects: swept });
   }
 
   private async cleanup(): Promise<void> {

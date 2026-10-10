@@ -30,6 +30,8 @@ export {
   type ReplicaDto,
   type ReplicaToggleInput,
   type TenantDeleteInput,
+  type TenantExportDayInput,
+  type TenantExportImageDto,
   type TenantExportInput,
   type TenantExportObjectDto,
 } from "./platform.contract.js";

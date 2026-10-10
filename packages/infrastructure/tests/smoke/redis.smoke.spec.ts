@@ -200,6 +200,47 @@ describe("QueuePublisher against the running queue instance", () => {
     }
   });
 
+  // `RW.2`: a job holding a credential is kept an hour after failing, not a week.
+  it("shortens a failed job's keep when the caller asks", async () => {
+    const publisher = new BullMqQueuePublisher(redis.queueClient());
+    const reader = queue();
+
+    try {
+      await publisher.publish(
+        SMOKE_QUEUE,
+        { probe: true },
+        { jobId: "smoke-short", removeOnFailAgeSeconds: 3_600 },
+      );
+      const job = await reader.getJob("smoke-short");
+
+      expect(job?.opts.removeOnFail).toMatchObject({ age: 3_600, count: 10_000 });
+    } finally {
+      await (await reader.getJob("smoke-short"))?.remove();
+      await reader.close();
+      await publisher.close();
+    }
+  });
+
+  // A credential mail job's keep: zero is gone as it completes, not at the next completion.
+  it("removes a job kept for zero seconds as it completes", async () => {
+    const name = `${SMOKE_QUEUE}-zero-keep-${Date.now()}`;
+    const publisher = new BullMqQueuePublisher(redis.queueClient());
+    const reader = new Queue(name, { connection: redis.queueClient() });
+    const worker = new Worker(name, () => Promise.resolve(), { connection: redis.queueClient() });
+
+    try {
+      await publisher.publish(name, { probe: true }, { removeOnCompleteAgeSeconds: 0 });
+      await new Promise((resolve) => setTimeout(resolve, 1_000));
+
+      expect(await reader.getJobCounts("completed")).toMatchObject({ completed: 0 });
+    } finally {
+      await worker.close();
+      await reader.obliterate({ force: true });
+      await reader.close();
+      await publisher.close();
+    }
+  });
+
   // `CP4.1`: a fan-out's jobs go in one `addBulk`, and each keeps its own id and options.
   it("publishes many jobs at once, each under its own id", async () => {
     const publisher = new BullMqQueuePublisher(redis.queueClient());

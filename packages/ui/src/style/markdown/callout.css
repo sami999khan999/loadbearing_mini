@@ -39,25 +39,25 @@
 }
 
 .ui-callout--info {
-  background: color-mix(in oklch, var(--primary) 8%, var(--surface));
-  border-color: color-mix(in oklch, var(--primary) 26%, var(--border));
+  background: color-mix(in oklab, var(--primary) 8%, var(--surface));
+  border-color: color-mix(in oklab, var(--primary) 26%, var(--border));
   border-left-color: var(--primary);
 }
 
 .ui-callout--success {
-  background: color-mix(in oklch, var(--success) 10%, var(--surface));
-  border-color: color-mix(in oklch, var(--success) 28%, var(--border));
+  background: color-mix(in oklab, var(--success) 10%, var(--surface));
+  border-color: color-mix(in oklab, var(--success) 28%, var(--border));
   border-left-color: var(--success);
 }
 
 .ui-callout--warning {
-  background: color-mix(in oklch, var(--warning) 12%, var(--surface));
-  border-color: color-mix(in oklch, var(--warning) 30%, var(--border));
+  background: color-mix(in oklab, var(--warning) 12%, var(--surface));
+  border-color: color-mix(in oklab, var(--warning) 30%, var(--border));
   border-left-color: var(--warning);
 }
 
 .ui-callout--danger {
-  background: color-mix(in oklch, var(--danger) 10%, var(--surface));
-  border-color: color-mix(in oklch, var(--danger) 28%, var(--border));
+  background: color-mix(in oklab, var(--danger) 10%, var(--surface));
+  border-color: color-mix(in oklab, var(--danger) 28%, var(--border));
   border-left-color: var(--danger);
 }

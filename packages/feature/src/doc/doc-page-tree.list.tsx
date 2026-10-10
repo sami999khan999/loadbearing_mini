@@ -23,6 +23,7 @@ import {
   useApiClient,
   useAppQuery,
   useMemo,
+  useRef,
   useState,
 } from "../import.js";
 import { DocNavTree } from "./doc-nav-tree.js";
@@ -67,6 +68,7 @@ export function DocPageTreeList({
   const [url, setUrl] = useState("");
   const [parentId, setParentId] = useState<DocPageId | null>(null);
   const [confirming, setConfirming] = useState<DocPageId | null>(null);
+  const region = useRef<HTMLDivElement>(null);
 
   const items: readonly DocPageNodeDto[] = tree.data?.items ?? [];
   const children = useMemo((): Children => {
@@ -162,6 +164,7 @@ export function DocPageTreeList({
               <Button
                 variant="ghost"
                 aria-label={t("doc.tree.moveUp", { title: node.title })}
+                disabled={move.isPending}
                 onClick={() => shift(node, -1)}
               >
                 <span aria-hidden="true">↑</span>
@@ -169,6 +172,7 @@ export function DocPageTreeList({
               <Button
                 variant="ghost"
                 aria-label={t("doc.tree.moveDown", { title: node.title })}
+                disabled={move.isPending}
                 onClick={() => shift(node, 1)}
               >
                 <span aria-hidden="true">↓</span>
@@ -176,6 +180,7 @@ export function DocPageTreeList({
               <Button
                 variant="ghost"
                 aria-label={t("doc.tree.indent", { title: node.title })}
+                disabled={move.isPending}
                 onClick={() => indent(node)}
               >
                 <span aria-hidden="true">→</span>
@@ -183,16 +188,35 @@ export function DocPageTreeList({
               <Button
                 variant="ghost"
                 aria-label={t("doc.tree.outdent", { title: node.title })}
+                disabled={move.isPending}
                 onClick={() => outdent(node)}
               >
                 <span aria-hidden="true">←</span>
               </Button>
               <Button
                 variant={confirming === node.id ? "danger" : "ghost"}
-                aria-label={t("doc.tree.delete", { title: node.title })}
+                aria-label={
+                  confirming === node.id
+                    ? t("doc.tree.deleteConfirm", { title: node.title })
+                    : t("doc.tree.delete", { title: node.title })
+                }
+                disabled={remove.isPending}
+                onBlur={() => setConfirming(null)}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") setConfirming(null);
+                }}
                 onClick={() => {
                   if (confirming !== node.id) return setConfirming(node.id);
-                  remove.mutate({ pageId: node.id }, { onSuccess: () => setConfirming(null) });
+                  remove.mutate(
+                    { pageId: node.id },
+                    {
+                      onSuccess: () => {
+                        setConfirming(null);
+                        // The row is about to unmount with the focus on it.
+                        region.current?.focus();
+                      },
+                    },
+                  );
                 }}
               >
                 {confirming === node.id ? (
@@ -212,7 +236,12 @@ export function DocPageTreeList({
   const failure = create.error ?? move.error ?? remove.error;
 
   return (
-    <div className="ui-stack flex flex-col gap-3">
+    <section
+      ref={region}
+      tabIndex={-1}
+      aria-label={t("doc.tree.label")}
+      className="ui-stack flex flex-col gap-3 outline-none"
+    >
       {items.length === 0 && !tree.isPending ? (
         <EmptyState icon="file" title={t("doc.tree.empty")} />
       ) : null}
@@ -274,6 +303,6 @@ export function DocPageTreeList({
           {t("doc.tree.add")}
         </Button>
       </form>
-    </div>
+    </section>
   );
 }

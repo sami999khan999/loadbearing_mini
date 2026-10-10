@@ -251,3 +251,31 @@ describe("DocRules.assertMayOpen", () => {
     expect(() => DocRules.assertMayOpen(editor, "members", "public")).not.toThrow();
   });
 });
+
+// `BL.16`. A slug taken by someone's private space answered "taken", which told a manager
+// that a private space by that name existed.
+describe("DocRules.storedSlug", () => {
+  const RANDOM = "018f8c00-0000-7000-8000-00000000abcdef";
+
+  it("gives a private space an address ending in six random characters", () => {
+    expect(DocRules.privateSlug("notes", RANDOM)).toBe("notes-abcdef");
+    expect(DocRules.storedSlug("notes", "owner")).toMatch(/^notes-[0-9a-f]{6}$/);
+  });
+
+  it("stays a valid slug at the length limit", () => {
+    const long = `${"a".repeat(52)}-b-c`;
+    const stored = DocRules.privateSlug(long, RANDOM);
+    expect(stored.length).toBeLessThanOrEqual(60);
+    expect(stored).toMatch(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+  });
+
+  it("keeps the address asked for anywhere else, and an unchanged private one", () => {
+    expect(DocRules.storedSlug("notes", "members")).toBe("notes");
+    expect(
+      DocRules.storedSlug("notes-abcdef", "owner", { slug: "notes-abcdef", audience: "owner" }),
+    ).toBe("notes-abcdef");
+    expect(DocRules.storedSlug("notes", "owner", { slug: "notes", audience: "members" })).toMatch(
+      /^notes-[0-9a-f]{6}$/,
+    );
+  });
+});

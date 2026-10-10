@@ -271,7 +271,7 @@ const searchTimes: number[] = [];
 for (const term of ["tenant", "transaction", "section 12", "node", "page renders"]) {
   for (let round = 0; round < 20; round += 1) {
     const started = performance.now();
-    await shards.atNode(0, () => repository.search(organizationId, term, 10));
+    await shards.atNode(0, () => repository.search(organizationId, term, [spaceId], 10));
     searchTimes.push(performance.now() - started);
   }
 }

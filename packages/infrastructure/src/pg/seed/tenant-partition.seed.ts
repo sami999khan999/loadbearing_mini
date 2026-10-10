@@ -129,11 +129,8 @@ export class TenantPartitionSeed extends BaseRepository {
     });
   }
 
-  // Every named tenant's partitions of `tables`, months included. **No detach and no
-  // transaction**: nothing references a tenant-partitioned table since `PF.1`, and each
-  // ──
-  // statement commits on its own, so a parent's ACCESS EXCLUSIVE lasts one drop — a
-  // reader on one table delays that table alone. See docs/reference/partitions.md.
+  // Every named tenant's partitions of `tables`, months included, with no detach and no
+  // transaction around them. See docs/reference/partitions.md.
   public static async drop(
     client: DrizzleClient,
     organizationIds: readonly OrganizationId[],

@@ -60,6 +60,8 @@ describe("QueuedMailPublisher", () => {
     // The name is what `MailConsumer` switches on; without it every job on this queue
     // would arrive named after the queue itself.
     expect(job?.options?.name).toBe("send");
+    // Not marked as a credential, so the port's defaults apply.
+    expect(job?.options).not.toHaveProperty("removeOnFailAgeSeconds");
   });
 
   // More attempts and the front of the queue, because somebody is sitting in front of a
@@ -151,6 +153,22 @@ describe("QueuedAuthMailer", () => {
 
     expect(queue.publishedTo(QueueName.MAIL)[0]?.options).not.toHaveProperty("jobId");
   });
+
+  // `RW.2`. Each one carries a live link or code, so the queue keeps it only briefly.
+  it("keeps every job briefly, since each holds a live link or code", async () => {
+    const { queue, mail } = build();
+    const mailer = new QueuedAuthMailer(mail);
+
+    await mailer.sendPasswordReset(recipient, "https://example.test/r");
+    await mailer.sendTwoFactorOtp(recipient, "123456");
+
+    for (const job of queue.publishedTo(QueueName.MAIL)) {
+      expect(job.options).toMatchObject({
+        removeOnCompleteAgeSeconds: 0,
+        removeOnFailAgeSeconds: 3_600,
+      });
+    }
+  });
 });
 
 describe("QueuedInvitationMailer", () => {
@@ -174,5 +192,7 @@ describe("QueuedInvitationMailer", () => {
     expect(payload.params.url).toBe("https://app.example.test/invitation/tok");
     // The one mail that belongs to a tenant, and the field exists to say so.
     expect(payload.organizationId).toBe(ORG);
+    // The token is the invitation, so a failed job is not kept a week (`RW.2`).
+    expect(queue.publishedTo(QueueName.MAIL)[0]?.options?.removeOnFailAgeSeconds).toBe(3_600);
   });
 });

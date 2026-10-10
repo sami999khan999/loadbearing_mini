@@ -109,6 +109,6 @@ describe("doc reader query plans", () => {
 
   // Both halves of search: the text through the generated column, the titles by trigram.
   it("searches sections and titles through their indexes", async () => {
-    expectIndexed(await plansOf(() => pages().search(organizationId, "install", 10)));
+    expectIndexed(await plansOf(() => pages().search(organizationId, "install", [spaceId], 10)));
   });
 });

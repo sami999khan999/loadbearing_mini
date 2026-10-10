@@ -6,8 +6,10 @@ import { DocGrantRepository } from "../../src/doc/doc-grant.repository.js";
 import { DocImageKey } from "../../src/doc/doc-image-key.js";
 import { DocSpaceRepository, type DocSpaceSummary } from "../../src/doc/doc-space.repository.js";
 import { OpenDocImageUseCase } from "../../src/doc/open-doc-image.use-case.js";
+import { UploadDocImageUseCase } from "../../src/doc/upload-doc-image.use-case.js";
 import type { PlatformReader } from "../../src/platform/platform.reader.js";
 import type { CacheStore, StorageGateway } from "../../src/port/index.js";
+import { Authorizer } from "../../src/primitive/authorizer.js";
 import { Principal } from "../../src/primitive/principal.js";
 
 const PLATFORM = Identifiers.organizationId.parse("018f8c00-0000-7000-8000-000000000001");
@@ -54,6 +56,7 @@ class OneSpace extends DocSpaceRepository {
   public create = () => Promise.reject(new Error("unused"));
   public save = () => Promise.reject(new Error("unused"));
   public saveNav = () => Promise.reject(new Error("unused"));
+  public lock = () => Promise.reject(new Error("unused"));
   public delete = () => Promise.reject(new Error("unused"));
 }
 
@@ -153,5 +156,33 @@ describe("OpenDocImageUseCase", () => {
         extension: "svg",
       }),
     ).rejects.toThrow("NOT_FOUND");
+  });
+});
+
+describe("UploadDocImageUseCase", () => {
+  const posts: unknown[][] = [];
+  const signing = {
+    presignPost: (...args: unknown[]) => {
+      posts.push(args);
+      return Promise.resolve({ url: "https://storage/post", fields: {} });
+    },
+  } as unknown as StorageGateway;
+
+  it("signs a policy bound to the contract's size, whatever the client declared", async () => {
+    const upload = new UploadDocImageUseCase(
+      new Authorizer(),
+      new OneSpace(summary(TENANT, "members")),
+      signing,
+    );
+
+    const signed = await upload.execute(viewer(TENANT, ["doc.page.write"]), {
+      spaceId: SPACE,
+      contentType: "image/png",
+      size: 1,
+    });
+
+    expect(posts[0]?.[0]).toMatch(new RegExp(`^doc/${TENANT}/${SPACE}/.+\\.png$`));
+    expect(posts[0]?.[2]).toBe(5 * 1024 * 1024);
+    expect(signed.post.url).toBe("https://storage/post");
   });
 });

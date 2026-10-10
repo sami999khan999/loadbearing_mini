@@ -1,4 +1,5 @@
 import { type Container, Queue, QueueName, type Redis } from "../import.js";
+import { UtcCron } from "./utc-cron.js";
 
 // The deadline the first migrations wrote is no longer the only thing standing between
 // this system and a failed insert: `runOnce()` recovers the runway at every boot.
@@ -41,11 +42,17 @@ export class PartitionsSchedule {
     const queue = new Queue(QueueName.MAINTENANCE, { connection: this.connection });
 
     try {
+      await UtcCron.dropLocal(
+        queue,
+        "partitions",
+        PartitionsSchedule.PATTERN,
+        PartitionsSchedule.JOB_ID,
+      );
       await queue.add(
         "partitions",
         {},
         {
-          repeat: { pattern: PartitionsSchedule.PATTERN },
+          repeat: { pattern: PartitionsSchedule.PATTERN, tz: UtcCron.TZ },
           jobId: PartitionsSchedule.JOB_ID,
           removeOnComplete: 10,
           removeOnFail: 100,

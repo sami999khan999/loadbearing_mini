@@ -16,7 +16,7 @@ export function SearchTrigger({ label, shortcut, onClick, className }: SearchTri
     <button
       type="button"
       className={cn(
-        "ui-search-trigger flex h-(--control-height) w-full cursor-pointer items-center gap-2 rounded-md border border-border bg-muted pr-2 pl-3 text-left text-fg-muted text-sm [font:inherit] transition-colors duration-(--duration-fast) hover:border-[color-mix(in_oklch,var(--border)_70%,var(--fg))]",
+        "ui-search-trigger flex h-(--control-height) w-full cursor-pointer items-center gap-2 rounded-md border border-border bg-muted pr-2 pl-3 text-left text-fg-muted text-sm [font:inherit] transition-colors duration-(--duration-fast) hover:border-[color-mix(in_oklab,var(--border)_70%,var(--fg))]",
         className,
       )}
       onClick={onClick}

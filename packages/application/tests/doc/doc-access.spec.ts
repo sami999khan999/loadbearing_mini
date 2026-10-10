@@ -136,6 +136,14 @@ describe("DocAccess", () => {
       await a.canRead(viewer(TENANT, [], ["platform.doc.grant"]), space("owner"), PLATFORM),
     ).toBe(false);
     expect(await a.canRead(viewer(TENANT), space("owner"), PLATFORM)).toBe(false);
+    // The author too, from any organization but the platform's (`FC.11`).
+    expect(
+      await a.canRead(
+        new Principal(TENANT, AUTHOR, CapabilitySet.empty()),
+        space("owner"),
+        PLATFORM,
+      ),
+    ).toBe(false);
   });
 
   it("reads the grants once per viewer until they change, then again", async () => {

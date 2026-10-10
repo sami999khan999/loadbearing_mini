@@ -221,6 +221,109 @@ describe("PgDocPageRepository", () => {
     expect((await pages().findRevision(organizationId, id, 2))?.markdown).toBe("v2");
   });
 
+  // The three places a link can live, and the one thing that must not count: a link to
+  // another space's image.
+  it("finds the image links of a space in drafts, published text and revisions", async () => {
+    const prefix = `/api/doc-image/${organizationId}/${spaceId}/`;
+    const link = () => `${prefix}png/${Uuid.v7()}`;
+    const [inDraft, inPublished, inRevision, inBoth] = [link(), link(), link(), link()];
+    const foreign = `/api/doc-image/${organizationId}/${Uuid.v7()}/png/${Uuid.v7()}`;
+
+    const id = await newPage(`img-${Uuid.v7().slice(-8)}`);
+    await pages().saveDraft(
+      organizationId,
+      id,
+      1,
+      {
+        slug: `img-${Uuid.v7().slice(-8)}`,
+        title: "Images",
+        description: null,
+        icon: null,
+        markdown: `![a](${inDraft}) ![b](${inBoth}) ![c](${foreign})`,
+        url: null,
+        access: null,
+      },
+      author,
+    );
+    await pages().publish(
+      organizationId,
+      id,
+      2,
+      { ...PUBLICATION, markdown: `![p](${inPublished}) ![b](${inBoth})` },
+      author,
+    );
+    await pages().saveRevision(
+      organizationId,
+      spaceId,
+      id,
+      7,
+      { ...PUBLICATION, markdown: `![r](${inRevision})` },
+      author,
+    );
+
+    const links = await pages().listImageLinks(organizationId, prefix);
+
+    expect([...links].sort()).toEqual([inDraft, inPublished, inRevision, inBoth].sort());
+  });
+
+  // An image is served to whoever may read its space, so another space's page can link it.
+  // Read only from the swept space, that link did not count and the sweep deleted it.
+  it("finds a space's image linked from a page in another space", async () => {
+    const prefix = `/api/doc-image/${organizationId}/${spaceId}/`;
+    const borrowed = `${prefix}png/${Uuid.v7()}`;
+    const other = Identifiers.docSpaceId.parse(Uuid.v7()) as DocSpaceId;
+    await spaces().create(
+      organizationId,
+      other,
+      {
+        slug: `other-${other.slice(-12)}`,
+        title: "Other",
+        description: null,
+        icon: null,
+        audience: "members",
+        theme: null,
+        access: null,
+        repositoryUrl: null,
+      },
+      author,
+    );
+    try {
+      const id = page();
+      await pages().create(organizationId, {
+        id,
+        spaceId: other,
+        parentId: null,
+        kind: "page",
+        slug: "borrows",
+        title: "Borrows",
+        icon: null,
+        url: null,
+        position: 0,
+        createdBy: author,
+      });
+      await pages().saveDraft(
+        organizationId,
+        id,
+        1,
+        {
+          slug: "borrows",
+          title: "Borrows",
+          description: null,
+          icon: null,
+          markdown: `![x](${borrowed})`,
+          url: null,
+          access: null,
+        },
+        author,
+      );
+
+      expect(await pages().listImageLinks(organizationId, prefix)).toContain(borrowed);
+    } finally {
+      await pages().deleteBySpace(organizationId, other);
+      await spaces().delete(organizationId, other);
+    }
+  });
+
   // A fixed count whatever the page's length or the number of siblings: an N+1 here is
   // invisible at five rows and a timeout at five hundred.
   it("replaces a page's sections and reorders siblings in a fixed number of statements", async () => {
@@ -275,18 +378,22 @@ describe("PgDocPageRepository", () => {
     ]);
 
     counter.count = 0;
-    const byWord = await pages(counted).search(organizationId, word, 5);
+    const byWord = await pages(counted).search(organizationId, word, [spaceId], 5);
     expect(counter.count).toBe(1);
     expect(byWord.map((match) => [match.pageId, match.anchor])).toContainEqual([id, "setup"]);
     expect(byWord.find((match) => match.anchor === "setup")?.excerpt).toContain(word);
 
     // Half a word, as the palette sees it while it is still being typed.
-    const byPrefix = await pages().search(organizationId, word.slice(0, 9), 5);
+    const byPrefix = await pages().search(organizationId, word.slice(0, 9), [spaceId], 5);
     expect(byPrefix.map((match) => match.anchor)).toContain("setup");
 
     // A letter dropped and one doubled, which full-text search would never match.
-    const byTypo = await pages().search(organizationId, "quokaflux", 5);
+    const byTypo = await pages().search(organizationId, "quokaflux", [spaceId], 5);
     expect(byTypo.map((match) => match.pageId)).toContain(id);
+
+    // A space the reader cannot see never takes a place in the window (`FC.10`).
+    const elsewhere = Identifiers.docSpaceId.parse(Uuid.v7()) as DocSpaceId;
+    expect(await pages().search(organizationId, word, [elsewhere], 5)).toEqual([]);
   });
 
   it("deletes a subtree with its revisions and sections", async () => {

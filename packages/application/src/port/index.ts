@@ -40,7 +40,7 @@ export {
 } from "./session.resolver.js";
 export { type ShardPlacement, ShardResolver } from "./shard.resolver.js";
 export { ShardingStrategy } from "./sharding.strategy.js";
-export { StorageGateway, type StoredObject } from "./storage.gateway.js";
+export { type PresignedPost, StorageGateway, type StoredObject } from "./storage.gateway.js";
 export {
   type LifecycleRule,
   StoragePolicyGateway,

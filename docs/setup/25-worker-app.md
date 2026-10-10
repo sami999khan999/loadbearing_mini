@@ -468,6 +468,11 @@ This is what makes rule 1 above load-bearing rather than good practice: **the sw
 > waiting on one nothing did. The dedup key is `<organizationId>_<documentId>`, and the separator is
 > load-bearing: **BullMQ rejects a `jobId` containing `:`** at publish time, which surfaces as a 500
 > rather than as a validation error.
+>
+> The job carries `textKey`, not the text: `QueueDocumentIndexUseCase` stages it under
+> `embedding/<org>/<document>/<version>.txt` so up to 100 KB a job stays out of the `noeviction`
+> queue. `IndexQueuedDocumentUseCase` reads, indexes, then deletes it; a failure leaves it for
+> `queue:replay`, and the nightly `orphans` job sweeps staged text older than a week.
 
 ---
 

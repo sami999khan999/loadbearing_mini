@@ -23,6 +23,9 @@ export interface MailRequest<K extends MailTemplateKey = MailTemplateKey> {
   // Becomes the job id, so "send this once" is expressed where the queue already
   // enforces it rather than as a row a second process has to check.
   readonly dedupeKey?: string;
+  // The params hold a live link or code: a sign-in, reset or invitation. The queue keeps
+  // such a job only briefly after it finishes, so a Redis dump is not a set of keys.
+  readonly credential?: boolean;
 }
 
 // What every caller holds. It returns nothing on purpose: there is no delivery row, so a

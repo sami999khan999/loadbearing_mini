@@ -30,7 +30,13 @@ export class ListTenantExportsUseCase {
   ): Promise<readonly TenantExportObject[]> {
     this.authorizer.assert(actor, "platform.tenant.manage");
 
-    const keys = await this.storage.list(`export/${input.organizationId}/`);
+    const prefix = `export/${input.organizationId}/`;
+    const keys: string[] = [];
+    // A page at a time, and without the copied images: an export can hold thousands of
+    // them, and the manifest names each. One link apiece would bury the nine that matter.
+    for await (const page of this.storage.listPages(prefix)) {
+      keys.push(...page.filter((key) => !key.slice(prefix.length).includes("/doc-image/")));
+    }
 
     return Promise.all(
       keys.map(async (key) => ({

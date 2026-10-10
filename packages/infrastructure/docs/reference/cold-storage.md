@@ -136,6 +136,20 @@ and checksum. A table the tenant has no rows in gets **no object**: the row coun
 once the stream has drained, so the upload happens and the empty object is deleted, which is
 cheaper than counting the table twice.
 
+The tenant's uploaded doc images are copied in as well, from `doc/<organization>/` to
+`export/<organization>/<yyyy-mm-dd>/doc-image/<space>/<file>`. They are streamed object to object
+and listed a page at a time, so a tenant with tens of thousands never has one in memory or hits the
+thousand-key cap. Each is an entry in the manifest with `table: "doc-image"` and `rowCount: 0`,
+because a file has no rows. One deleted between the listing and the copy is skipped. The export
+page does not link them one by one: `list-tenant-exports` leaves them out so the table files are
+not buried. Instead each export day has a button that saves a tab-separated file of every copy's
+path and a presigned link valid for an hour, from `list-tenant-export-images` (`RW.4`). Fetch them
+all with:
+
+```sh
+while IFS=$'\t' read -r path url; do curl -fsS --create-dirs -o "$path" "$url"; done < links.tsv
+```
+
 The keyset is one column — `id` for every table but `role_permissions`, whose primary key is
 `(organization_id, role_id, permission)` and which has no `id` at all. `OFFSET` would re-scan the
 table once per page and skip rows written in between, which on a live table is not a theoretical

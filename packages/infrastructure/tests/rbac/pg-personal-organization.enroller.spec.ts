@@ -137,6 +137,25 @@ describe("PgPersonalOrganizationEnroller", () => {
     expect(rows).toHaveLength(1);
   });
 
+  // The hook asks only after `activeOrganizationFor` found nothing, so a deactivated
+  // membership handed back here pinned the session to a tenant that rejects it.
+  it("does not return, or replace, an organization the user was deactivated in", async () => {
+    const userId = await makeUser();
+    await enroller().enrol(userId);
+    await database.client
+      .update(memberships)
+      .set({ deactivatedAt: new Date() })
+      .where(eq(memberships.userId, userId));
+
+    expect(await enroller().enrol(userId)).toBeNull();
+
+    const rows = await database.client
+      .select({ id: memberships.id })
+      .from(memberships)
+      .where(eq(memberships.userId, userId));
+    expect(rows).toHaveLength(1);
+  });
+
   // Two sign-ins racing on one new user. Losing means two organizations for one person,
   // and `owner` is the wildcard role.
   it("serialises concurrent enrolments into exactly one organization", async () => {

@@ -3,6 +3,7 @@ import { ForbiddenError, NotFoundError } from "@loadbearing/errors";
 import { CapabilitySet, type PermissionKey } from "@loadbearing/permissions";
 import { describe, expect, it } from "vitest";
 import { ExportOrganizationUseCase } from "../../src/platform/export-organization.use-case.js";
+import { ListTenantExportImagesUseCase } from "../../src/platform/list-tenant-export-images.use-case.js";
 import { ListTenantExportsUseCase } from "../../src/platform/list-tenant-exports.use-case.js";
 import type { PlatformReader } from "../../src/platform/platform.reader.js";
 import type { TenantRecord, TenantRepository } from "../../src/platform/tenant.repository.js";
@@ -57,9 +58,10 @@ class FakeStorage implements Partial<StorageGateway> {
 
   public constructor(private readonly keys: readonly string[] = []) {}
 
-  public list(prefix: string): Promise<readonly string[]> {
+  public async *listPages(prefix: string): AsyncGenerator<readonly string[]> {
     this.prefixes.push(prefix);
-    return Promise.resolve(this.keys);
+    // Two to a page, so the walk across pages is exercised by every case.
+    for (let at = 0; at < this.keys.length; at += 2) yield this.keys.slice(at, at + 2);
   }
 
   public presignDownload(key: string, expiresInSeconds: number): Promise<string> {
@@ -171,5 +173,56 @@ describe("ListTenantExportsUseCase", () => {
     expect(storage.prefixes).toEqual([`export/${TENANT}/`]);
     expect(objects.map((object) => object.day)).toEqual(["2026-08-15", "2026-08-15"]);
     expect(objects[0]?.url).toContain("expires=900");
+  });
+
+  // The copied images sit two levels deeper than the tables; the day is still the third
+  // segment, and a thousand of them must not bury the files an operator came for.
+  it("keeps the day of a nested key and leaves the copied images to the manifest", async () => {
+    const storage = new FakeStorage([
+      `export/${TENANT}/2026-08-15/doc-image/${PLATFORM}/a.png`,
+      `export/${TENANT}/2026-08-15/doc-image/${PLATFORM}/b.png`,
+      `export/${TENANT}/2026-08-15/doc-image/${PLATFORM}/c.png`,
+      `export/${TENANT}/2026-08-15/manifest.json`,
+    ]);
+
+    const objects = await useCase(storage).execute(actor("platform.tenant.manage"), {
+      organizationId: TENANT,
+    });
+
+    expect(objects.map((object) => object.key)).toEqual([
+      `export/${TENANT}/2026-08-15/manifest.json`,
+    ]);
+    expect(objects[0]?.day).toBe("2026-08-15");
+  });
+});
+
+describe("ListTenantExportImagesUseCase", () => {
+  const useCase = (storage: FakeStorage) =>
+    new ListTenantExportImagesUseCase(new Authorizer(), storage as unknown as StorageGateway);
+
+  it("refuses an actor without the platform key", async () => {
+    await expect(
+      useCase(new FakeStorage()).execute(actor(), { organizationId: TENANT, day: "2026-08-15" }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  // `RW.4`. The list leaves the copies out, so this is the only way an operator gets them.
+  it("lists one day's copied images by their path below the day, each presigned", async () => {
+    const storage = new FakeStorage([
+      `export/${TENANT}/2026-08-15/doc-image/${PLATFORM}/a.png`,
+      `export/${TENANT}/2026-08-15/doc-image/${PLATFORM}/b.png`,
+    ]);
+
+    const images = await useCase(storage).execute(actor("platform.tenant.manage"), {
+      organizationId: TENANT,
+      day: "2026-08-15",
+    });
+
+    expect(storage.prefixes).toEqual([`export/${TENANT}/2026-08-15/doc-image/`]);
+    expect(images.map((image) => image.path)).toEqual([
+      `doc-image/${PLATFORM}/a.png`,
+      `doc-image/${PLATFORM}/b.png`,
+    ]);
+    expect(images[0]?.url).toContain("expires=3600");
   });
 });

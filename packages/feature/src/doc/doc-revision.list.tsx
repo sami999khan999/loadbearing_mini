@@ -10,24 +10,38 @@ import {
   fieldClassName,
   useApiClient,
   useAppQuery,
+  useState,
 } from "../import.js";
+import { DocRevisionDiffPanel } from "./doc-revision-diff.panel.js";
 
 export interface DocRevisionListProps {
   readonly pageId: DocPageId;
   // The version the editor holds. A restore names it, like a save does.
   readonly draftVersion: number;
+  // The saved draft's Markdown, what a revision is compared against.
+  readonly draftMarkdown: string;
   // Called with the restored draft, so the shell can remount the editor over it.
   readonly onRestored: () => void;
+  // The editor holds unsaved edits. A restore would remount it over them, so it waits.
+  readonly unsaved?: boolean;
 }
 
 // Every publish, newest first. A restore puts that text back into the draft and nothing
 // more: making it live again is a publish, a second decision.
-export function DocRevisionList({ pageId, draftVersion, onRestored }: DocRevisionListProps) {
+export function DocRevisionList({
+  pageId,
+  draftVersion,
+  draftMarkdown,
+  onRestored,
+  unsaved = false,
+}: DocRevisionListProps) {
   const { t } = useMessages("doc");
   const describe = useErrorMessage();
   const client = useApiClient();
   const revisions = useAppQuery(DocQueries.revisions(client, pageId));
   const restore = DocMutations.useRestoreRevision(client);
+
+  const [comparing, setComparing] = useState<number | null>(null);
 
   const items = revisions.data?.items ?? [];
 
@@ -40,6 +54,9 @@ export function DocRevisionList({ pageId, draftVersion, onRestored }: DocRevisio
         {t("doc.revision.title")}
       </h2>
       {items.length === 0 ? <p className={fieldClassName.hint}>{t("doc.revision.none")}</p> : null}
+      {items.length > 0 && unsaved ? (
+        <p className={fieldClassName.hint}>{t("doc.revision.restoreUnsaved")}</p>
+      ) : null}
       <ol className="ui-stack flex flex-col gap-3">
         {items.map((revision) => (
           <li key={revision.revisionNo}>
@@ -51,7 +68,8 @@ export function DocRevisionList({ pageId, draftVersion, onRestored }: DocRevisio
             <br />
             <Button
               variant="ghost"
-              disabled={restore.isPending}
+              aria-label={t("doc.revision.restoreFor", { revision: revision.revisionNo })}
+              disabled={restore.isPending || unsaved}
               onClick={() =>
                 restore.mutate(
                   { pageId, revisionNo: revision.revisionNo, draftVersion },
@@ -61,9 +79,24 @@ export function DocRevisionList({ pageId, draftVersion, onRestored }: DocRevisio
             >
               {t("doc.revision.restore")}
             </Button>
+            <Button
+              variant="ghost"
+              aria-label={t("doc.revision.compareFor", { revision: revision.revisionNo })}
+              onClick={() => setComparing(revision.revisionNo)}
+            >
+              {t("doc.revision.compare")}
+            </Button>
           </li>
         ))}
       </ol>
+      {comparing === null ? null : (
+        <DocRevisionDiffPanel
+          pageId={pageId}
+          revisionNo={comparing}
+          draftMarkdown={draftMarkdown}
+          onClose={() => setComparing(null)}
+        />
+      )}
       {restore.isSuccess ? (
         <Callout tone="info">
           {t("doc.revision.restored", { revision: restore.variables.revisionNo })}

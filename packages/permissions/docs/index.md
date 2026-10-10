@@ -48,13 +48,21 @@ packages/permissions/
 │   │   └── notification.permissions.ts
 │   ├── gate/                        ← same pattern for nav gates
 │   │   ├── index.ts
-│   │   └── rbac.gate.ts, doc.gate.ts, document.gate.ts, notification.gate.ts, platform.gate.ts
+│   │   ├── doc.gate.ts
+│   │   ├── document.gate.ts
+│   │   ├── notification.gate.ts
+│   │   ├── platform.gate.ts
+│   │   └── rbac.gate.ts
 │   ├── flag/                        ← same pattern for feature flags
 │   │   └── index.ts                 → FLAGS, empty in lite
 │   └── route/                       ← same pattern for destinations
 │       ├── index.ts                 → ROUTES, AppRoute, RoutePath
 │       ├── shell.routes.ts          ←   platform-owned: home, sign-in, forbidden
-│       ├── rbac.routes.ts, doc.routes.ts, document.routes.ts, notification.routes.ts, platform.routes.ts
+│       ├── rbac.routes.ts
+│       ├── doc.routes.ts
+│       ├── document.routes.ts
+│       ├── notification.routes.ts
+│       ├── platform.routes.ts
 │       ├── account.routes.ts        ←   no gate: your own password is not a capability
 │       └── organization.routes.ts   ←   no gate: founding your own tenant is not either
 └── tests/

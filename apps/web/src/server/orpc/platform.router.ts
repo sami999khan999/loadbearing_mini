@@ -21,6 +21,11 @@ export class PlatformRouter {
     context.container.platformAdmin.listExports.execute(context.principal, input),
   );
 
+  public static readonly listExportImages = authed.platform.listExportImages.handler(
+    ({ input, context }) =>
+      context.container.platformAdmin.listExportImages.execute(context.principal, input),
+  );
+
   public static readonly updateReplicaSwitch = authed.platform.updateReplicaSwitch.handler(
     async ({ input, context }) => {
       await context.container.platformAdmin.toggleReplicaReads.execute(context.principal, input);
@@ -28,11 +33,9 @@ export class PlatformRouter {
     },
   );
 
-  // Copied, not cast: the use-case hands out readonly arrays and the wire type is mutable.
-  public static readonly listFlags = authed.platform.listFlags.handler(async ({ context }) => {
-    const flags = await context.container.platformAdmin.listFlags.execute(context.principal);
-    return { items: flags.map((flag) => ({ ...flag, targets: [...flag.targets] })) };
-  });
+  public static readonly listFlags = authed.platform.listFlags.handler(async ({ context }) => ({
+    items: await context.container.platformAdmin.listFlags.execute(context.principal),
+  }));
 
   public static readonly updateFlag = authed.platform.updateFlag.handler(
     async ({ input, context }) => {
@@ -156,6 +159,7 @@ export class PlatformRouter {
     deleteTenant: PlatformRouter.deleteTenant,
     exportTenant: PlatformRouter.exportTenant,
     listExports: PlatformRouter.listExports,
+    listExportImages: PlatformRouter.listExportImages,
     listFlags: PlatformRouter.listFlags,
     updateFlag: PlatformRouter.updateFlag,
     updateFlagTarget: PlatformRouter.updateFlagTarget,

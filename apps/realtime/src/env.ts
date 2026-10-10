@@ -11,8 +11,8 @@ const Schema = z
     // Node 0's streaming standby — `24.3`. Reads move onto it only while
     // `platform_policy.replica_reads_enabled` is on, and only once it has caught up.
     DATABASE_REPLICA_URL: z.url().optional(),
-    // Five, not twenty: never a query per frame, but one per open stream each minute to
-    // revalidate it — about 170 a second at 10 000 streams. See docs/reference/env.md.
+    // Five, not twenty: never a query per frame. Open streams are revalidated each minute
+    // in one query per tenant, not per stream. See docs/reference/env.md.
     DATABASE_POOL_MAX: z.coerce.number().int().min(1).default(5),
     DATABASE_POOL_IDLE_TIMEOUT_MS: z.coerce.number().int().min(0).default(30_000),
     // Today an unreachable Postgres hangs the request for the OS default, which is

@@ -178,6 +178,8 @@ half, so both are assertions in `check-architecture.mjs`
 §14 exempts what carries no prose: a `// ──` separator, and a `// biome-ignore`,
 `// eslint-disable` or `// @ts-` pragma. Each of those **ends** a run rather than extending it, so
 two comment lines either side of a separator are two comments rather than one block of five.
+That holds only where a sentence ends: a separator under a line that does not end in `.`, `?`,
+`!` or `:` is a ruler through one comment, and §14 fails it.
 Generated files (`*.gen.ts`) are skipped — `route-tree.gen.ts` asks in its own header to be
 excluded from every checker pointed at it.
 

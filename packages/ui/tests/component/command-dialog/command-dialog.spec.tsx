@@ -71,6 +71,19 @@ describe("CommandDialog", () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
+  // Enter in an IME commits the candidate; navigating then would lose the half-typed word.
+  it("ignores Enter while a composition is open", () => {
+    const { onOpenChange, followed } = mount();
+
+    fireEvent.keyDown(screen.getByRole("combobox", { hidden: true }), {
+      key: "Enter",
+      isComposing: true,
+    });
+
+    expect(followed).not.toHaveBeenCalled();
+    expect(onOpenChange).not.toHaveBeenCalled();
+  });
+
   it("wraps from the first result to the last", () => {
     mount();
     fireEvent.keyDown(screen.getByRole("combobox", { hidden: true }), { key: "ArrowUp" });

@@ -38,7 +38,7 @@ describe("ApiKeyList — revoke", () => {
   it("asks first, and revokes only on the confirm", async () => {
     const revoke = await render();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Revoke" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Revoke CI deploy" }));
     const question = await screen.findByRole("alertdialog");
     expect(question.textContent).toContain("CI deploy");
     expect(revoke).not.toHaveBeenCalled();
@@ -51,10 +51,24 @@ describe("ApiKeyList — revoke", () => {
     await waitFor(() => expect(revoke).toHaveBeenCalledWith({ apiKeyId: KEY.id }));
   });
 
+  it("names the key on its own trigger and parks focus on the table after a revoke", async () => {
+    await render();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Revoke CI deploy" }));
+    const question = await screen.findByRole("alertdialog");
+    const confirm = screen
+      .getAllByRole("button", { name: "Revoke" })
+      .find((button) => question.contains(button));
+    if (confirm) fireEvent.click(confirm);
+
+    const table = await screen.findByRole("region", { name: "API keys" });
+    await waitFor(() => expect(document.activeElement).toBe(table));
+  });
+
   it("does nothing when the question is cancelled", async () => {
     const revoke = await render();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Revoke" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Revoke CI deploy" }));
     fireEvent.click(await screen.findByRole("button", { name: "Cancel" }));
 
     await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());

@@ -26,8 +26,8 @@ export default defineConfig({
     // Serially: every file here signs somebody up, and two of them racing on the same
     // Mailpit inbox is a flake that only reproduces on a fast machine.
     fileParallelism: false,
-    // Boots the built server and the worker, and sweeps what the run created. The
-    // accounts live in the same database `pnpm test` uses — see `tests/smoke/support/`.
+    // Boots the built server, the worker and the stream process, and sweeps what the run
+    // created, in the same database `pnpm test` uses — see `tests/smoke/support/`.
     globalSetup: ["tests/smoke/support/server.ts"],
     // A real sign-up is a mail job, a worker poll and an SMTP round trip.
     testTimeout: 60_000,

@@ -35,16 +35,22 @@ export class CreateDocSpaceUseCase {
     await this.features.assertKnown(input.access);
 
     const id = Uuid.v7() as DocSpaceId;
+    const slug = DocRules.storedSlug(input.slug, input.audience);
     const space = await this.unitOfWork.run(async () => {
-      const created = await this.spaces.create(actor.organizationId, id, input, actor.userId);
+      const created = await this.spaces.create(
+        actor.organizationId,
+        id,
+        { ...input, slug },
+        actor.userId,
+      );
       if (!created) throw new ValidationError([{ field: "slug", rule: "taken" }]);
 
-      await this.activity.record(actor, "doc.space.created", { spaceId: id, slug: input.slug });
+      await this.activity.record(actor, "doc.space.created", { spaceId: id, slug });
       return this.spaces.findById(actor.organizationId, id);
     });
 
     if (!space) throw new NotFoundError("doc.space", id);
-    await this.cache.forget(actor.organizationId, input.slug);
+    await this.cache.forget(actor.organizationId, slug);
     return DocShape.space(space);
   }
 }

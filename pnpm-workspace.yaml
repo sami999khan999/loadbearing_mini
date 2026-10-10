@@ -93,6 +93,9 @@ catalog:
   # conflicting pair, so a caller's `className` overrides a component's default.
   clsx: ^2.1.1
   tailwind-merge: ^3.7.0
+  # Line diffs for comparing a doc revision with its draft. Ships its own types, and is
+  # Myers' algorithm with a time bound, so a page rewritten end to end gives up, not hangs.
+  diff: ^8.0.4
 
   # ── node-only, framework-neutral — behind a port, never imported by the domain ──
   drizzle-orm: ^0.44.7
@@ -105,6 +108,8 @@ catalog:
   bullmq: ^5.81.3
   "@aws-sdk/client-s3": ^3.1107.0
   "@aws-sdk/s3-request-presigner": ^3.1107.0
+  # A browser upload's length is bound by the signed policy, which a presigned PUT cannot carry.
+  "@aws-sdk/s3-presigned-post": ^3.1107.0
   # Multipart upload for a body that will not fit in memory — an archived partition.
   "@aws-sdk/lib-storage": ^3.1107.0
   # Doc pages, Markdown to sanitised HTML, run once at publish behind `MarkdownRenderer`.

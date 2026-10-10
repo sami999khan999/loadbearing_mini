@@ -627,7 +627,7 @@ It is the one assertion whose failure mode is a destructive migration rather tha
 // or if any of them routes to a path that does not exist
 ```
 
-[`docs/ai/rules/`](../ai/rules/index.md) is a digest of [`docs/opinions/`](../opinions/index.md) — the rules an agent must know *unprompted*, one file per topic, none over ~900 tokens. `AGENTS.md` at the repository root is the brief every non-Claude tool loads unprompted, and it routes into [`docs/ai/index.md`](../ai/index.md), which is the task table: one row per thing you might be about to do.
+[`docs/ai/rules/`](../ai/rules/index.md) is a digest of [`docs/opinions/`](../opinions/index.md) — the rules an agent must know *unprompted*, one file per topic, the longest is ~1,650 tokens and all fourteen are ~11,100. `AGENTS.md` at the repository root is the brief every non-Claude tool loads unprompted, and it routes into [`docs/ai/index.md`](../ai/index.md), which is the task table: one row per thing you might be about to do.
 
 A digest is a second copy of every rule it states, and the failure is not that it is wrong the day it is written. It is that a tenth opinions page lands months later, no rule file mentions it, and every agent works from a rulebook missing a chapter while nothing says so. Citing the path is the cheapest thing that cannot be forgotten silently.
 
@@ -662,7 +662,7 @@ Cheap, and it caught three gaps the moment it was written: `docs/` itself, `docs
 
 The other half of [Opinions · Comments](../opinions/comments.md), and the half nothing checked. The two-line ceiling was a convention for as long as it was unenforced, and the tree answered accordingly: 524 blocks over it across seventeen packages, one of them twenty-four blocks in a single file.
 
-**A run ends rather than extends at anything carrying no prose** — a `// ──` separator, and a `// biome-ignore`, `// eslint-disable` or `// @ts-` pragma. That is what lets an `import.ts` keep a one-line header above each of its separators without the whole file reading as one enormous block, and it is why the exemption is a property of the *line* rather than a per-file opt-out. There is no way to silence this assertion from inside a file, which is the point.
+**A run ends rather than extends at anything carrying no prose** — a `// ──` separator, and a `// biome-ignore`, `// eslint-disable` or `// @ts-` pragma. That is what lets an `import.ts` keep a one-line header above each of its separators without the whole file reading as one enormous block, and it is why the exemption is a property of the *line* rather than a per-file opt-out. A separator only ends a run where a sentence ends, though: one sitting between two comment lines, under a line that does not end in `.`, `?`, `!` or `:` (a closing backtick, quote or paren may follow), fails as a sentence split to dodge the ceiling. There is no way to silence this assertion from inside a file, which is the point.
 
 Scope is the same as §5: `{src,tests}` under `packages/*` and `apps/*`, generated files skipped.
 
@@ -753,7 +753,7 @@ Stated as non-negotiable in [Rules · Vocabulary](../ai/rules/vocabulary.md) and
 ### 18 — Every foreign key column has an index leading with it
 
 ```js
-// fail if a column declaring .references() is not the first column of some index
+// fail if a column declaring .references() is not the first column of some index or primary key
 ```
 
 Postgres indexes a primary key and a unique constraint. It does **not** index a foreign key, and nothing in Drizzle's schema types says so. An `ON DELETE CASCADE` with no index behind it scans the whole child table on every parent delete — which is fine at seed scale and is a lock held over a table scan at any other.
@@ -761,6 +761,8 @@ Postgres indexes a primary key and a unique constraint. It does **not** index a 
 **Leading, not merely present.** This is the distinction that gives the assertion its teeth: four tables here already had the column inside a composite index and were still unindexed for the cascade. `goal_members_user_idx` on `(organization_id, user_id)` answers "this tenant's members" and cannot answer "every row naming this user", because deleting a user is not a tenant-scoped operation. The fix is a second index, not a reordering of the first — the tenant-leading index is on the capability-resolution path, and reordering it to serve the cascade would trade a hot read for a rare write.
 
 Those four arrive as `<table>_<subject>_fk_idx`, a suffix that says the index exists for the foreign key rather than for a query, so nobody later reads it as a duplicate of the composite beside it and deletes it.
+
+**A composite primary key counts, by its first column only.** Postgres backs `primaryKey({ columns: [t.goalId, t.userId] })` with a unique index, so it serves a cascade on `goal_id` exactly as `index().on(t.goalId)` would. It does nothing for `user_id`, which still needs an index of its own: the same leading-not-present rule, applied to the index nobody declared by name.
 
 **Both 17 and 18 read the Drizzle schema, not `migrations/*.sql`.** The schema is the file a person edits and the file `db:generate` diffs against, so an index that is missing there is missing from the next migration too. The gap this leaves is a hand-edited migration — the partitioned tables in [13](13-infrastructure-postgres.md) are the precedent — and it is a gap Drizzle already has: DDL the schema does not declare is DDL the next `db:generate` proposes to drop.
 
@@ -1082,7 +1084,8 @@ widgets.
 Tailwind's palette is reset to the twelve, so `bg-red-500` generates no CSS and would at worst do
 nothing. An arbitrary value is different: `text-[#fff]` compiles to a real colour that no theme
 knows and that `check:contrast` never sees. It reviews clean and is wrong in five of six themes.
-A `color-mix` of two of the twelve passes, because that is how a state is derived.
+A `color-mix` of two of the twelve passes, because that is how a state is derived — written
+`in oklab`, because `in oklch` drags a tint toward the hue of the near-grey it is mixed into.
 `style/token.css` keeps its one exception for shadows, `oklch(0 0 0 / <alpha>)`.
 
 ## Step 26.4b — `check:contrast`, the gate that is not a grep
