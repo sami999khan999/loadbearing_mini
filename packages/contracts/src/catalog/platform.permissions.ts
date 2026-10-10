@@ -9,6 +9,7 @@ export const platformProcedurePermissions = {
   "platform.deleteTenant": "platform.tenant.manage",
   "platform.exportTenant": "platform.tenant.manage",
   "platform.listExports": "platform.tenant.manage",
+  "platform.listExportImages": "platform.tenant.manage",
   "platform.listFlags": "platform.flag.read",
   "platform.updateFlag": "platform.flag.manage",
   "platform.updateFlagTarget": "platform.flag.manage",

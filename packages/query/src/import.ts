@@ -89,6 +89,8 @@ export type {
   SearchDocumentsContractInput,
   SetMemberActiveInput,
   TenantDeleteInput,
+  TenantExportDayInput,
+  TenantExportImageDto,
   TenantExportInput,
   UpdateDocSpaceInput,
   UpdateNotificationPreferenceInput,

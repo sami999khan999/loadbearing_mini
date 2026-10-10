@@ -186,6 +186,7 @@ Folders by subject: `ai`, `apikey`, `doc`, `flag`, `mail`, `member`, `notificati
 | `list-module-switches.use-case.ts` | Lists every module the emergency kill switch can turn off, and whether it is on. |
 | `list-plans.use-case.ts` | Lists the plans and marks the default one new signups get. |
 | `list-tenant-exports.use-case.ts` | Lists one organization's finished exports with short-lived download links. |
+| `list-tenant-export-images.use-case.ts` | Lists one export's copied doc images, each with an hour-long download link, for the exports screen to save as a file. |
 | `platform-health.reader.ts` | `PlatformHealthReader`: the interface for the health readings the status page shows. |
 | `platform-policy.repository.ts` | `PlatformPolicyRepository`: the interface for the one row of deployment-wide switches. |
 | `platform.reader.ts` | `PlatformReader`: answers "which organization is the platform (super admin) organization?". There is exactly one, marked by the seed. |

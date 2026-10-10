@@ -88,6 +88,7 @@ export {
   ListPlansUseCase,
   ListPlatformDocSpacesUseCase,
   ListRolesUseCase,
+  ListTenantExportImagesUseCase,
   ListTenantExportsUseCase,
   MailPublisher,
   MailRenderer,

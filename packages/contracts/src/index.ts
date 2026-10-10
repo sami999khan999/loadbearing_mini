@@ -145,6 +145,8 @@ export {
   type ReplicaToggleInput,
   type TenantDeleteInput,
   type TenantExportInput,
+  type TenantExportDayInput,
+  type TenantExportImageDto,
   type TenantExportObjectDto,
 } from "./platform/index.js";
 export {

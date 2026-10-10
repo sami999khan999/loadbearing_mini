@@ -20,6 +20,7 @@ export function TenantExportPanel() {
   const describe = useErrorMessage();
   const client = useApiClient();
   const start = PlatformMutations.useExportTenant(client);
+  const images = PlatformMutations.useExportImageLinks(client);
 
   const [typed, setTyped] = useState("");
   const organizationId =
@@ -29,6 +30,26 @@ export function TenantExportPanel() {
     ...PlatformQueries.exports(client, organizationId),
     enabled: organizationId !== "",
   });
+  const days = [...new Set((exports.data ?? []).map((object) => object.day))];
+
+  // The copied images, as one tab-separated file of path and link: thousands of them
+  // are fetched by a loop, not clicked. See infrastructure's cold-storage.md.
+  const saveImageLinks = (day: string) =>
+    images.mutate(
+      { organizationId, day },
+      {
+        onSuccess: (list) => {
+          if (list.length === 0) return;
+          const text = list.map((image) => `${image.path}\t${image.url}\n`).join("");
+          const href = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
+          const anchor = document.createElement("a");
+          anchor.href = href;
+          anchor.download = `doc-images-${organizationId}-${day}.tsv`;
+          anchor.click();
+          URL.revokeObjectURL(href);
+        },
+      },
+    );
 
   return (
     <section>
@@ -73,6 +94,28 @@ export function TenantExportPanel() {
           ))}
         </ul>
       ) : null}
+      {days.length > 0 ? (
+        <>
+          <p>{t("platform.tenantExport.imagesHint")}</p>
+          <ul>
+            {days.map((day) => (
+              <li key={day}>
+                <Button
+                  variant="secondary"
+                  disabled={images.isPending}
+                  onClick={() => saveImageLinks(day)}
+                >
+                  {t("platform.tenantExport.images", { day })}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
+      {images.isSuccess && images.data.length === 0 ? (
+        <Callout tone="info">{t("platform.tenantExport.imagesNone")}</Callout>
+      ) : null}
+      {images.isError ? <Callout tone="danger">{describe(images.error)?.message}</Callout> : null}
       {exports.isError ? <Callout tone="danger">{describe(exports.error)?.message}</Callout> : null}
 
       <p>{t("platform.tenantExport.expiry")}</p>

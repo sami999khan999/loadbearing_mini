@@ -83,6 +83,7 @@ import {
   ListPlansUseCase,
   ListPlatformDocSpacesUseCase,
   ListRolesUseCase,
+  ListTenantExportImagesUseCase,
   ListTenantExportsUseCase,
   type Logger,
   type MailPublisher,
@@ -425,6 +426,7 @@ export class Container {
     readonly purgeOrganization: PurgeOrganizationUseCase;
     readonly exportOrganization: ExportOrganizationUseCase;
     readonly listExports: ListTenantExportsUseCase;
+    readonly listExportImages: ListTenantExportImagesUseCase;
     readonly inspectStatus: InspectPlatformStatusUseCase;
     readonly toggleReplicaReads: ToggleReplicaReadsUseCase;
     readonly listFlags: ListFlagsUseCase;
@@ -1006,6 +1008,7 @@ export class Container {
         this.clock,
       ),
       listExports: new ListTenantExportsUseCase(this.authorizer, this.storage),
+      listExportImages: new ListTenantExportImagesUseCase(this.authorizer, this.storage),
       inspectStatus: new InspectPlatformStatusUseCase(
         this.authorizer,
         this.platform,

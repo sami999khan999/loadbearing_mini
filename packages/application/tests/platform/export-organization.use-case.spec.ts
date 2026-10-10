@@ -3,6 +3,7 @@ import { ForbiddenError, NotFoundError } from "@loadbearing/errors";
 import { CapabilitySet, type PermissionKey } from "@loadbearing/permissions";
 import { describe, expect, it } from "vitest";
 import { ExportOrganizationUseCase } from "../../src/platform/export-organization.use-case.js";
+import { ListTenantExportImagesUseCase } from "../../src/platform/list-tenant-export-images.use-case.js";
 import { ListTenantExportsUseCase } from "../../src/platform/list-tenant-exports.use-case.js";
 import type { PlatformReader } from "../../src/platform/platform.reader.js";
 import type { TenantRecord, TenantRepository } from "../../src/platform/tenant.repository.js";
@@ -192,5 +193,36 @@ describe("ListTenantExportsUseCase", () => {
       `export/${TENANT}/2026-08-15/manifest.json`,
     ]);
     expect(objects[0]?.day).toBe("2026-08-15");
+  });
+});
+
+describe("ListTenantExportImagesUseCase", () => {
+  const useCase = (storage: FakeStorage) =>
+    new ListTenantExportImagesUseCase(new Authorizer(), storage as unknown as StorageGateway);
+
+  it("refuses an actor without the platform key", async () => {
+    await expect(
+      useCase(new FakeStorage()).execute(actor(), { organizationId: TENANT, day: "2026-08-15" }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  // `RW.4`. The list leaves the copies out, so this is the only way an operator gets them.
+  it("lists one day's copied images by their path below the day, each presigned", async () => {
+    const storage = new FakeStorage([
+      `export/${TENANT}/2026-08-15/doc-image/${PLATFORM}/a.png`,
+      `export/${TENANT}/2026-08-15/doc-image/${PLATFORM}/b.png`,
+    ]);
+
+    const images = await useCase(storage).execute(actor("platform.tenant.manage"), {
+      organizationId: TENANT,
+      day: "2026-08-15",
+    });
+
+    expect(storage.prefixes).toEqual([`export/${TENANT}/2026-08-15/doc-image/`]);
+    expect(images.map((image) => image.path)).toEqual([
+      `doc-image/${PLATFORM}/a.png`,
+      `doc-image/${PLATFORM}/b.png`,
+    ]);
+    expect(images[0]?.url).toContain("expires=3600");
   });
 });
