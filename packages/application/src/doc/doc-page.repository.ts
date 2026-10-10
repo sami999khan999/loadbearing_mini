@@ -193,9 +193,8 @@ export abstract class DocPageRepository {
     sections: readonly RenderedSection[],
   ): Promise<void>;
 
-  // Full text over the published sections, and published titles by prefix and typo, in
-  // one statement. Only `spaceIds`, which must not be empty: ranked across the tenant, a
-  // space the reader cannot see took the window and left them fewer hits or none.
+  // Full text over the published sections, and published titles by prefix and typo, in one
+  // statement, over `spaceIds` only: a hidden space ranked in would take the reader's window.
   public abstract search(
     organizationId: OrganizationId,
     query: string,

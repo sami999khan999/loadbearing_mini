@@ -24,9 +24,8 @@ export class DocAccess {
     space: DocSpaceSummary,
     platformOrganizationId: OrganizationId,
   ): Promise<boolean> {
-    // First, and whatever else the viewer holds: an `owner` space is its author's alone,
-    // a platform admin and a grant included. And only inside the platform organization: an
-    // author removed from it kept reading by signing in under any other tenant.
+    // First, whatever else the viewer holds: its author's alone, and only inside the platform
+    // organization, or an author removed from it kept reading from any other tenant.
     if (space.audience === "owner") {
       return (
         viewer !== null &&
