@@ -116,3 +116,44 @@ Found in code both kits share, fixed in the big kit under the ID given and porte
   **Done 2026-10-10.** Bootstrap declines a deactivated membership; the claimer skips an invitation
   to a tenant that deactivated the user, and refuses a suspended user. The session hook already
   refused a suspended user before enrolling. `bbd7d5c1`.
+
+## 5. Final check of 2026-10-10
+
+Three reviewers read this kit first, then the code it shares with the big kit. The shared fixes
+landed there first under `FC.<n>` and were ported; `FC.11` and `FC.12` are this kit's own.
+
+- [x] `FC.1` An index job dedupes only while in flight, so a revert or a resubmit after a failure
+  is queued. `763001d3`.
+- [x] `FC.2` The image orphan sweep counts a link from any space's page. `dc2deae5`.
+- [x] `FC.3` A sent credential mail job is removed as it completes. `dd4f7041`.
+- [x] `FC.4` The cron schedules run in UTC, and the old local-time entries are removed.
+  `ef0e9547`.
+- [x] `FC.5` The setup guide's `AUTH_SECRET` placeholder no longer boots. `e36f196e`.
+- [x] `FC.6` The desktop origin is matched exactly. `113adbc3`.
+- [x] `FC.8` Widening the screen closes the sidebar drawer. `29f2c959`.
+- [x] `FC.9` The export links file's URL is revoked after the download starts. `62e102c8`.
+- [x] `FC.10` Doc search asks the index about the reader's spaces only, so another author's `owner`
+  space no longer takes the window. `2276b322`.
+- [x] `FC.11` **A private platform `owner` space was readable by its author from any
+  organization.** Only inside the platform organization now. `doc-access.spec`. `58d22992`.
+- [x] `FC.12` **`ai:reindex` jobs ran once, and a rerun after a failure did nothing.** It
+  publishes through `BullMqQueuePublisher`, with its retries and an in-flight id. `fe62daab`.
+
+Left open. The first three are shared: fix in the big kit and port.
+
+- [ ] `BL.12` **No security headers** (CSP, `frame-ancestors`, `X-Content-Type-Options`, HSTS).
+  Big kit: `FC.13`.
+- [ ] `BL.13` **Web processes times `DATABASE_POOL_MAX` is not checked against
+  `max_connections`.** Big kit: `FC.14`.
+- [ ] `BL.14` **Production boots on an `http` `AUTH_URL`**, and the cookie drops `Secure`. Big
+  kit: `FC.15`.
+- [ ] `BL.15` **An `owner` space outlives its author.** Only the author can read, rename or delete
+  it, so once they leave, its slug, pages and images stay until the tenant is purged. **Fix:** an
+  ownership rule: transfer on removal, or let an admin delete a space unseen.
+- [ ] `BL.16` **A slug taken by someone's private space says so.** Creating or renaming a space to
+  that slug answers `slug: taken`, so a member can probe for a colleague's private space. **Fix:**
+  per-author slugs for `owner` spaces, or one generic refusal.
+- [ ] `BL.17` **`deletePrefix` scans the one Redis, queue keys included.**
+  `SCAN MATCH app:<prefix>*` walks every BullMQ key too, on each role or grant change. **Measure** under a backlogged queue
+  first; a key set per prefix would replace the scan.
+
