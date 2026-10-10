@@ -1,8 +1,10 @@
+// Straight from the package, never through `import.ts`: with `start.ts` present, Start's
+// compiler stopped seeing a re-exported one and shipped the server branch to the browser.
+import { createIsomorphicFn } from "@tanstack/react-start";
 import { Endpoint } from "./endpoint.js";
 import {
   ApiClient,
   CookieAuthStrategy,
-  createIsomorphicFn,
   createQueryClient,
   createRouter as createTanStackRouter,
   type DehydratedState,
