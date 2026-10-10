@@ -18,9 +18,9 @@ const ATTEMPTS = Object.freeze({ high: 10, normal: 8 });
 // job id held only while the completed job was kept. See docs/reference/mail-pipeline.md.
 const ONCE_WITHIN_SECONDS = 86_400;
 
-// A minute after sending and an hour after the last failure, for mail whose params are a
-// live link or code: long enough to see a failure, not a week of readable credentials.
-const CREDENTIAL_KEEP = Object.freeze({ completed: 60, failed: 3_600 });
+// Gone once sent, and kept an hour after the last failure, for mail whose params are a live
+// link or code: long enough to see a failure, not a week of readable credentials.
+const CREDENTIAL_KEEP = Object.freeze({ completed: 0, failed: 3_600 });
 
 // The whole publisher. There is no row, no status and no sweep — see
 // docs/reference/mail-pipeline.md.

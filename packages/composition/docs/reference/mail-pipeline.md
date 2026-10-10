@@ -41,9 +41,11 @@ for a week, and `pnpm queue:replay mail` sends it again.
 **Mail that carries a credential is kept for an hour, not a week.** A verification, reset or
 email-change link, a 2FA code and an invitation link are each live in the job's `params`, and
 `invitations` stores only a token's digest. So those mailers set `credential: true`, and the job is
-dropped a minute after it sends and an hour after its last failure (`RW.2`). An hour is long enough
-to see the failure and replay it; past that, the person asks again and gets a fresh token anyway.
-While the job waits or retries, the link is in the queue instance, like any other payload.
+removed as it completes (`RW.2`). A failed one is kept at least an hour, then goes with the next
+failure on the queue: BullMQ trims by age only when a job finishes, so nothing removes it on the
+hour itself. An hour is long enough to see the failure and replay it; past that, the person asks
+again and gets a fresh token anyway. While the job waits or retries, the link is in the queue
+instance, like any other payload.
 
 **Batches go as one enqueue.** `MailPublisher.publishMany` sends a digest page or a notification's
 recipients as one `addBulk` round trip, each job keeping the priority, attempts and dedupe key a

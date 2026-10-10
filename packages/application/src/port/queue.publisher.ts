@@ -17,10 +17,11 @@ export interface JobOptions {
   // single-job-kind queue wants and what a queue carrying two kinds of work cannot use.
   readonly name?: string;
   // How long a completed job stays keyed, as an upper bound only: the adapter also caps
-  // the set by count, and any job completing on the queue trims it. See consumers.md.
+  // the set by count, and any job completing on the queue trims it. Zero removes the job
+  // as it completes. See consumers.md.
   readonly removeOnCompleteAgeSeconds?: number;
   // How long a failed job is kept, where a week is too long: a job whose payload is a
-  // credential is a dead letter nobody should be able to read once it has stopped mattering.
+  // credential. A lower bound: the next failure on the queue is what trims it.
   readonly removeOnFailAgeSeconds?: number;
 }
 

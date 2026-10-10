@@ -221,6 +221,26 @@ describe("QueuePublisher against the running queue instance", () => {
     }
   });
 
+  // A credential mail job's keep: zero is gone as it completes, not at the next completion.
+  it("removes a job kept for zero seconds as it completes", async () => {
+    const name = `${SMOKE_QUEUE}-zero-keep-${Date.now()}`;
+    const publisher = new BullMqQueuePublisher(redis.queueClient());
+    const reader = new Queue(name, { connection: redis.queueClient() });
+    const worker = new Worker(name, () => Promise.resolve(), { connection: redis.queueClient() });
+
+    try {
+      await publisher.publish(name, { probe: true }, { removeOnCompleteAgeSeconds: 0 });
+      await new Promise((resolve) => setTimeout(resolve, 1_000));
+
+      expect(await reader.getJobCounts("completed")).toMatchObject({ completed: 0 });
+    } finally {
+      await worker.close();
+      await reader.obliterate({ force: true });
+      await reader.close();
+      await publisher.close();
+    }
+  });
+
   // `CP4.1`: a fan-out's jobs go in one `addBulk`, and each keeps its own id and options.
   it("publishes many jobs at once, each under its own id", async () => {
     const publisher = new BullMqQueuePublisher(redis.queueClient());

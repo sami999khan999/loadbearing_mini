@@ -164,7 +164,7 @@ describe("QueuedAuthMailer", () => {
 
     for (const job of queue.publishedTo(QueueName.MAIL)) {
       expect(job.options).toMatchObject({
-        removeOnCompleteAgeSeconds: 60,
+        removeOnCompleteAgeSeconds: 0,
         removeOnFailAgeSeconds: 3_600,
       });
     }
