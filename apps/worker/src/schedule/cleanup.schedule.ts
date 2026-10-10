@@ -1,4 +1,5 @@
 import { type Container, Queue, QueueName, type Redis } from "../import.js";
+import { UtcCron } from "./utc-cron.js";
 
 export class CleanupSchedule {
   // Fixed, which is what makes registration idempotent: without it every deploy adds a
@@ -15,11 +16,12 @@ export class CleanupSchedule {
     const queue = new Queue(QueueName.MAINTENANCE, { connection: this.connection });
 
     try {
+      await UtcCron.dropLocal(queue, "cleanup", CleanupSchedule.PATTERN, CleanupSchedule.JOB_ID);
       await queue.add(
         "cleanup",
         {},
         {
-          repeat: { pattern: CleanupSchedule.PATTERN },
+          repeat: { pattern: CleanupSchedule.PATTERN, tz: UtcCron.TZ },
           jobId: CleanupSchedule.JOB_ID,
           removeOnComplete: 10,
           removeOnFail: 100,

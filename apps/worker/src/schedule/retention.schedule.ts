@@ -1,4 +1,5 @@
 import { type Container, Queue, QueueName, type Redis } from "../import.js";
+import { UtcCron } from "./utc-cron.js";
 
 // The daily converger. A bucket call after the commit can fail and a rule deleted in a
 // console is drift nothing else notices. See docs/reference/schedules.md.
@@ -17,11 +18,17 @@ export class RetentionSchedule {
     const queue = new Queue(QueueName.MAINTENANCE, { connection: this.connection });
 
     try {
+      await UtcCron.dropLocal(
+        queue,
+        "retention",
+        RetentionSchedule.PATTERN,
+        RetentionSchedule.JOB_ID,
+      );
       await queue.add(
         "retention",
         {},
         {
-          repeat: { pattern: RetentionSchedule.PATTERN },
+          repeat: { pattern: RetentionSchedule.PATTERN, tz: UtcCron.TZ },
           jobId: RetentionSchedule.JOB_ID,
           removeOnComplete: 10,
           removeOnFail: 100,

@@ -1,4 +1,5 @@
 import { type Container, Queue, QueueName, type Redis } from "../import.js";
+import { UtcCron } from "./utc-cron.js";
 
 export class DigestSchedule {
   private static readonly JOB_ID = "digest-daily";
@@ -16,11 +17,17 @@ export class DigestSchedule {
     const queue = new Queue(QueueName.NOTIFICATION, { connection: this.connection });
 
     try {
+      await UtcCron.dropLocal(
+        queue,
+        "digest-fanout",
+        DigestSchedule.PATTERN,
+        DigestSchedule.JOB_ID,
+      );
       await queue.add(
         "digest-fanout",
         {},
         {
-          repeat: { pattern: DigestSchedule.PATTERN },
+          repeat: { pattern: DigestSchedule.PATTERN, tz: UtcCron.TZ },
           jobId: DigestSchedule.JOB_ID,
           // One failed fan-out at 07:00 would otherwise be every tenant's digest, gone.
           attempts: 5,

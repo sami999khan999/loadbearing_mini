@@ -1,4 +1,5 @@
 import { type Container, Queue, QueueName, type Redis } from "../import.js";
+import { UtcCron } from "./utc-cron.js";
 
 // The nightly count `24.1` promised when it dropped the ten cross-shard foreign keys.
 // A leaked row used to be impossible; it is now merely rare, and this is what notices.
@@ -17,11 +18,12 @@ export class OrphansSchedule {
     const queue = new Queue(QueueName.MAINTENANCE, { connection: this.connection });
 
     try {
+      await UtcCron.dropLocal(queue, "orphans", OrphansSchedule.PATTERN, OrphansSchedule.JOB_ID);
       await queue.add(
         "orphans",
         {},
         {
-          repeat: { pattern: OrphansSchedule.PATTERN },
+          repeat: { pattern: OrphansSchedule.PATTERN, tz: UtcCron.TZ },
           jobId: OrphansSchedule.JOB_ID,
           removeOnComplete: 10,
           removeOnFail: 100,
