@@ -86,6 +86,7 @@ export {
   type PurgeOrganizationInput,
   PurgeOrganizationUseCase,
 } from "./purge-organization.use-case.js";
+export { QueueControlGateway, type QueueCounts } from "./queue-control.gateway.js";
 export {
   type ReinstateAccountInput,
   ReinstateAccountUseCase,
