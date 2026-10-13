@@ -1,4 +1,5 @@
 import {
+  type ChunkFilter,
   type DocumentChunk,
   type IndexedSource,
   type OrganizationId,
@@ -50,8 +51,10 @@ export class InMemoryVectorStore extends VectorStore {
     const chunk = (this.chunks.get(organizationId) ?? []).find((c) => c.sourceId === sourceId);
     if (!chunk) return Promise.resolve(null);
     const version = chunk.metadata.version;
+    const sourceType = chunk.metadata.sourceType;
     return Promise.resolve({
       goalId: chunk.goalId,
+      sourceType: typeof sourceType === "string" ? sourceType : "unknown",
       version: typeof version === "number" ? version : null,
     });
   }
@@ -64,9 +67,10 @@ export class InMemoryVectorStore extends VectorStore {
     model: string,
     goalIds: readonly string[],
     limit: number,
+    filter: ChunkFilter,
   ): Promise<readonly SearchHit[]> {
     // Only `model`'s vectors, like the real store: another model's are another space.
-    const permitted = this.permitted(organizationId, goalIds).filter(
+    const permitted = this.permitted(organizationId, goalIds, filter).filter(
       (chunk) => chunk.embedding !== null && chunk.embeddingModel === model,
     );
 
@@ -92,9 +96,10 @@ export class InMemoryVectorStore extends VectorStore {
     query: string,
     goalIds: readonly string[],
     limit: number,
+    filter: ChunkFilter,
   ): Promise<readonly SearchHit[]> {
     const words = InMemoryVectorStore.words(query);
-    const hits = this.permitted(organizationId, goalIds)
+    const hits = this.permitted(organizationId, goalIds, filter)
       .map((chunk) => {
         const held = new Set(InMemoryVectorStore.words(chunk.content));
         return {
@@ -146,9 +151,26 @@ export class InMemoryVectorStore extends VectorStore {
 
   // The input set, before any scoring: filtering afterwards means the ranking already saw
   // what the actor cannot.
-  private permitted(organizationId: OrganizationId, goalIds: readonly string[]) {
+  private permitted(
+    organizationId: OrganizationId,
+    goalIds: readonly string[],
+    filter: ChunkFilter,
+  ) {
     return (this.chunks.get(organizationId) ?? []).filter(
-      (chunk) => chunk.goalId === null || goalIds.includes(chunk.goalId),
+      (chunk) =>
+        (chunk.goalId === null || goalIds.includes(chunk.goalId)) &&
+        InMemoryVectorStore.passes(chunk, filter),
+    );
+  }
+
+  // The real store's filter, on the same two fields: the source type, then one metadata key.
+  private static passes(chunk: DocumentChunk, filter: ChunkFilter): boolean {
+    const raw = chunk.metadata.sourceType;
+    const sourceType = typeof raw === "string" ? raw : "unknown";
+    if (filter.kind === "except") return !filter.sourceTypes.includes(sourceType);
+    const value = chunk.metadata[filter.key];
+    return (
+      sourceType === filter.sourceType && typeof value === "string" && filter.values.includes(value)
     );
   }
 
