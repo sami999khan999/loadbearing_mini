@@ -15,6 +15,7 @@
     "partitions.ts",
     "platform-grant.ts",
     "queue-replay.ts",
+    "queue-control.ts",
     "ai-reindex.ts",
     "doc-bench.ts",
     "doc-rerender.ts",
