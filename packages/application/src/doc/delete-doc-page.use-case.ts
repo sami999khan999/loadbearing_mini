@@ -1,5 +1,10 @@
 import { type DocPageRefInput, NotFoundError } from "../import.js";
-import type { ActivityLogger, QueuePublisher, UnitOfWork } from "../port/index.js";
+import type {
+  ActivityLogger,
+  DomainEventPublisher,
+  QueuePublisher,
+  UnitOfWork,
+} from "../port/index.js";
 import { type Authorizer, type Principal, QueueName } from "../primitive/index.js";
 import type { DocCache } from "./doc.cache.js";
 import { DocRules } from "./doc.rules.js";
@@ -20,6 +25,7 @@ export class DeleteDocPageUseCase {
     private readonly activity: ActivityLogger,
     private readonly unitOfWork: UnitOfWork,
     private readonly queue: QueuePublisher,
+    private readonly events: DomainEventPublisher,
   ) {}
 
   public async execute(actor: Principal, input: DocPageRefInput): Promise<void> {
@@ -50,6 +56,10 @@ export class DeleteDocPageUseCase {
         spaceId: page.spaceId,
         pageId: page.id,
         count: ids.length,
+      });
+      await this.events.publish(actor, {
+        name: "doc.page.deleted",
+        payload: { spaceId: page.spaceId, pageIds: [...ids] },
       });
       const space = await this.spaces.findById(organizationId, page.spaceId);
       return { slug: space?.slug ?? null, spaceId: page.spaceId };

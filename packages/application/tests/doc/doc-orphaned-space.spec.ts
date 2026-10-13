@@ -82,7 +82,10 @@ describe("DeleteDocSpaceUseCase on another author's private space", () => {
         },
       } as never,
       outsideOnly as never,
-      { deleteBySpace: () => Promise.resolve() } as never,
+      {
+        listBySpace: () => Promise.resolve([]),
+        deleteBySpace: () => Promise.resolve(),
+      } as never,
       { deleteBySpace: () => Promise.resolve() } as never,
       { forget: () => Promise.resolve() } as never,
       { forget: () => Promise.resolve() } as never,
@@ -98,6 +101,7 @@ describe("DeleteDocSpaceUseCase on another author's private space", () => {
         },
       } as never,
       { sweep: () => Promise.resolve() } as never,
+      { publish: () => Promise.resolve() } as never,
     );
     return { deleted, useCase };
   };

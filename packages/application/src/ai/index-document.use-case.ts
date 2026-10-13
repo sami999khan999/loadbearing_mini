@@ -11,6 +11,9 @@ export interface IndexDocumentInput {
   readonly sourceType?: string;
   // The request's time. Absent for a caller that is not racing anything.
   readonly version?: number;
+  // Written onto every chunk, under the indexer's own keys so it cannot overwrite them. A
+  // guarded source type's read rule filters on it.
+  readonly metadata?: Readonly<Record<string, string>>;
 }
 
 export interface IndexDocumentResult {
@@ -66,6 +69,7 @@ export class IndexDocumentUseCase {
       embedding: vectors === null ? null : (vectors[index] as readonly number[]),
       embeddingModel: model,
       metadata: {
+        ...input.metadata,
         sourceType: input.sourceType ?? "document",
         chunkIndex: index,
         ...(input.version === undefined ? {} : { version: input.version }),

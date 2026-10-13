@@ -49,6 +49,7 @@ export { TenantMembershipReader } from "./tenant-membership.reader.js";
 export { UnitOfWork } from "./unit-of-work.js";
 export { UserReader } from "./user.reader.js";
 export {
+  type ChunkFilter,
   type DocumentChunk,
   type IndexedSource,
   type SearchHit,

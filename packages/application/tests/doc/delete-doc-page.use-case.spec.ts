@@ -25,6 +25,7 @@ const node = { id: PAGE, spaceId: SPACE, parentId: null };
 
 const build = (events: string[]) => {
   const published: { queue: string; payload: unknown; options?: JobOptions }[] = [];
+  const domainEvents: { name: string; payload: unknown }[] = [];
   const useCase = new DeleteDocPageUseCase(
     new Authorizer(),
     {
@@ -56,8 +57,15 @@ const build = (events: string[]) => {
         return Promise.resolve();
       },
     } as never,
+    {
+      publish: (_actor: unknown, event: { name: string; payload: unknown }) => {
+        events.push("event");
+        domainEvents.push(event);
+        return Promise.resolve();
+      },
+    } as never,
   );
-  return { useCase, published };
+  return { useCase, published, domainEvents };
 };
 
 describe("DeleteDocPageUseCase", () => {
@@ -67,7 +75,7 @@ describe("DeleteDocPageUseCase", () => {
 
     await useCase.execute(actor, { pageId: PAGE });
 
-    expect(events).toEqual(["deleted", "committed", "queued"]);
+    expect(events).toEqual(["deleted", "event", "committed", "queued"]);
     expect(published).toEqual([
       {
         queue: "maintenance",
@@ -80,5 +88,19 @@ describe("DeleteDocPageUseCase", () => {
       },
     ]);
     expect(published[0]?.options?.inFlightId).not.toContain(":");
+  });
+
+  // `DC.2`: inside the transaction, so the semantic index forgets exactly the pages the
+  // commit removed — the whole subtree, not only the page named.
+  it("publishes doc.page.deleted with every page it removed, before the commit", async () => {
+    const events: string[] = [];
+    const { useCase, domainEvents } = build(events);
+
+    await useCase.execute(actor, { pageId: PAGE });
+
+    expect(domainEvents).toEqual([
+      { name: "doc.page.deleted", payload: { spaceId: SPACE, pageIds: [PAGE] } },
+    ]);
+    expect(events.indexOf("event")).toBeLessThan(events.indexOf("committed"));
   });
 });

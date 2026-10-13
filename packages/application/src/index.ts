@@ -3,6 +3,9 @@ import { ServerOnly } from "./import.js";
 ServerOnly.assert("@loadbearing/application");
 
 export {
+  ChunkSource,
+  DocumentIndexPublisher,
+  type DocumentIndexRequest,
   type IndexDocumentInput,
   type IndexDocumentJob,
   type IndexDocumentResult,
@@ -50,6 +53,7 @@ export {
   DocImageKey,
   DocImageOrphans,
   DocImageSweep,
+  DocIndexSubscriber,
   type DocPageDraftRecord,
   type DocPageNodeRecord,
   type DocPagePublishedRecord,
@@ -92,6 +96,8 @@ export {
   ReadDocPageUseCase,
   ReadPlatformDocNavUseCase,
   ReadPlatformDocUseCase,
+  type ReindexDocsResult,
+  ReindexDocsUseCase,
   RestoreDocRevisionUseCase,
   RevokeDocGrantUseCase,
   SaveDocGrantUseCase,
@@ -245,6 +251,7 @@ export {
   type ArchivedPartition,
   CacheStore,
   CapabilityInvalidator,
+  type ChunkFilter,
   type DeletedTenantSweep,
   type DocumentChunk,
   DomainEventPublisher,

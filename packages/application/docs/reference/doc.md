@@ -331,6 +331,32 @@ checked against the space's tree as this reader sees it, filtered once per searc
 under one, never appears. The open space's hits come first; every other space follows under its
 own name, in the order the server ranked them.
 
+### Search by meaning (`DC.2`)
+
+With an embedding provider (`EMBEDDING_PROVIDER` other than `none`), the tenant's own search is
+hybrid: full text as above, plus the semantic index. Every publish emits `doc.page.published`, and
+the `doc-index` subscriber queues the page (title, description and markdown) into the embedding
+pipeline as one document whose source id is the page's, with `sourceType: "doc"` and the page's
+`spaceId` on every chunk. Deletes emit `doc.page.deleted` or `doc.space.deleted` with every page
+removed, and the subscriber forgets them.
+
+`DocSearch` asks the vector index for `doc` chunks **inside the visible spaces only** — the
+`within` filter runs on the index's input set, so a hidden space's text is never ranked. The two
+lists are fused by page with reciprocal rank (k = 60): a page near the top of both beats one that
+leads only one. A page's text matches keep their headings and anchors; a page found by meaning
+alone is one hit, its excerpt the chunk's text with the markdown dropped. Then the tree check above
+runs on every hit, so a page deleted or hidden since it was indexed never shows.
+
+**What it costs.** One embedding call per search, so the palette's latency includes the
+provider's. A provider that fails costs the meaning half only: the search answers from full text.
+The platform's search (`/docs`) stays full text, because the platform's spaces are another tenant
+and the index is read on the requester's node.
+
+**Doc chunks never reach the shared document search.** A page is org-wide by goal, so
+`SearchDocumentsUseCase` ranks the shared corpus `except` the guarded source types, and
+`QueueDocumentIndexUseCase` refuses both the `doc` source type and a document id that is a page's.
+Pages published before `DC.2` are indexed by `pnpm ai:reindex --docs`.
+
 ## Images
 
 An image is uploaded straight from the browser to storage. `docPage.upload` checks the key,

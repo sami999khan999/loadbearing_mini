@@ -1,7 +1,8 @@
 import { type Clock, Uuid, ValidationError } from "../import.js";
-import type { QueuePublisher, VectorStore } from "../port/index.js";
-import { type Authorizer, JobKey, type Principal, QueueName } from "../primitive/index.js";
-import type { IndexTextStage } from "./index-text-stage.js";
+import type { VectorStore } from "../port/index.js";
+import type { Authorizer, Principal } from "../primitive/index.js";
+import { ChunkSource } from "./chunk-source.js";
+import type { DocumentIndexPublisher } from "./document-index.publisher.js";
 
 export interface QueueDocumentIndexInput {
   // Optional: a caller re-indexing an existing document supplies its id, and a caller
@@ -10,20 +11,6 @@ export interface QueueDocumentIndexInput {
   readonly text: string;
   readonly goalId?: string | null;
   readonly sourceType?: string;
-}
-
-// What `QueueName.EMBEDDING` carries. The text is in the bucket under `textKey`, never on
-// the job: a hundred jobs of 100 KB each is 10 MB of `noeviction` Redis.
-export interface IndexDocumentJob {
-  readonly organizationId: string;
-  readonly documentId: string;
-  readonly textKey?: string;
-  // Only on a job queued before the text moved to the bucket. Read for one release.
-  readonly text?: string;
-  readonly goalId?: string | null;
-  readonly sourceType?: string;
-  // Absent on a job queued before `CR.33`, which then indexes unconditionally.
-  readonly version?: number;
 }
 
 export interface QueuedDocumentIndex {
@@ -35,10 +22,9 @@ export interface QueuedDocumentIndex {
 export class QueueDocumentIndexUseCase {
   public constructor(
     private readonly authorizer: Authorizer,
-    private readonly queue: QueuePublisher,
+    private readonly publisher: DocumentIndexPublisher,
     private readonly vectors: VectorStore,
     private readonly clock: Clock,
-    private readonly stage: IndexTextStage,
   ) {}
 
   public async execute(
@@ -55,45 +41,33 @@ export class QueueDocumentIndexUseCase {
     if (input.text.trim().length === 0) {
       throw new ValidationError([{ field: "text", rule: "required" }]);
     }
+    // A guarded type's chunks are read under another slice's rule, and only that slice may
+    // write them: a `doc` chunk queued here would sit beside the pages with none of it.
+    if (input.sourceType !== undefined && ChunkSource.isGuarded(input.sourceType)) {
+      throw new ValidationError([{ field: "sourceType", rule: "reserved" }]);
+    }
 
     const documentId = input.documentId ?? Uuid.v7();
     if (input.documentId !== undefined) {
       const indexed = await this.vectors.sourceOf(actor.organizationId, input.documentId);
       if (indexed?.goalId) this.authorizer.assert(actor, "ai.embedding.write", indexed.goalId);
+      if (indexed && ChunkSource.isGuarded(indexed.sourceType)) {
+        throw new ValidationError([{ field: "documentId", rule: "reserved" }]);
+      }
     }
 
     // When the request was made, so a retried older job landing after a newer one
     // is skipped rather than serving the stale text (`CR.33`).
     const version = this.clock.now().getTime();
 
-    // Before the publish, so no consumer runs ahead of it. A publish that fails, or that the
-    // job id below swallows as a double submit, leaves its object to the nightly sweep.
-    const textKey = await this.stage.stage(actor.organizationId, documentId, version, input.text);
-
-    const job: IndexDocumentJob = {
+    await this.publisher.publish({
       organizationId: actor.organizationId,
       documentId,
-      textKey,
+      text: input.text,
       goalId: input.goalId ?? null,
       sourceType: input.sourceType ?? "document",
       version,
-    };
-
-    await this.queue.publish(
-      QueueName.EMBEDDING,
-      job,
-      // Keyed on the tenant *and* the document: two organizations re-indexing documents
-      // that happen to share an id must not collapse into one job. `_`, never `:`.
-      // ──
-      // The id is the caller's and BullMQ refuses a `:` in one, so `doc:1` was a 500.
-      // ──
-      // The text is in the key too: a re-index with new words returned success and
-      // enqueued nothing, because the completed job still held the id.
-      // ──
-      // In flight only, never a job id: a kept job held it for an hour after success and a
-      // week after failure, so a revert or a resubmit after an outage was swallowed.
-      { inFlightId: `${actor.organizationId}_${JobKey.of(documentId, input.text)}` },
-    );
+    });
 
     return { documentId };
   }

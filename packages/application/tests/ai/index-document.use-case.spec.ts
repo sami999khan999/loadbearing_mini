@@ -70,9 +70,14 @@ class RecordingVectorStore implements VectorStore {
   }
 
   // What is "already indexed" for the version tests; nothing, unless a test says so.
-  public indexed: { goalId: string | null; version: number | null } | null = null;
+  public indexed: { goalId: string | null; version: number | null; sourceType: string } | null =
+    null;
 
-  public sourceOf(): Promise<{ goalId: string | null; version: number | null } | null> {
+  public sourceOf(): Promise<{
+    goalId: string | null;
+    version: number | null;
+    sourceType: string;
+  } | null> {
     return Promise.resolve(this.indexed);
   }
 }
@@ -266,7 +271,7 @@ describe("IndexDocumentUseCase — versions", () => {
 
   it("skips a job older than what is indexed, before the provider is called", async () => {
     const vectors = new RecordingVectorStore();
-    vectors.indexed = { goalId: null, version: 200 };
+    vectors.indexed = { goalId: null, version: 200, sourceType: "document" };
     let called = false;
     const { useCase } = build(
       new StubEmbeddingProvider((texts) => {
@@ -291,9 +296,9 @@ describe("IndexDocumentUseCase — versions", () => {
   // lock: the check after the lock must see it and write nothing.
   it("writes nothing when a newer job commits while it waits for the lock", async () => {
     const vectors = new RecordingVectorStore();
-    vectors.indexed = { goalId: null, version: 50 };
+    vectors.indexed = { goalId: null, version: 50, sourceType: "document" };
     vectors.onLock = () => {
-      vectors.indexed = { goalId: null, version: 200 };
+      vectors.indexed = { goalId: null, version: 200, sourceType: "document" };
     };
     const { useCase } = build(one, vectors);
 
@@ -309,7 +314,7 @@ describe("IndexDocumentUseCase — versions", () => {
 
   it("indexes its own retry, and anything newer, and stamps the version", async () => {
     const vectors = new RecordingVectorStore();
-    vectors.indexed = { goalId: null, version: 100 };
+    vectors.indexed = { goalId: null, version: 100, sourceType: "document" };
     const { useCase } = build(one, vectors);
 
     const result = await useCase.execute(actor, {

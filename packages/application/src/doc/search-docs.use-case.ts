@@ -5,7 +5,8 @@ import { DocRules } from "./doc.rules.js";
 import type { DocFeaturePolicy } from "./doc-feature.policy.js";
 import type { DocSearch } from "./doc-search.js";
 
-// The Ctrl K palette's full-text half, over the actor's own organization's docs.
+// The Ctrl K palette's docs half, over the actor's own organization's docs: full text, and
+// meaning too when the deployment runs an embedding provider (`DC.2`).
 export class SearchDocsUseCase {
   public constructor(
     private readonly authorizer: Authorizer,
@@ -25,7 +26,14 @@ export class SearchDocsUseCase {
       if (await this.features.allows(scope, space.access)) spaces.push(space);
     }
     return {
-      items: await this.search.run(actor.organizationId, input.query, spaces, input.limit, scope),
+      items: await this.search.run(
+        actor.organizationId,
+        input.query,
+        spaces,
+        input.limit,
+        scope,
+        true,
+      ),
     };
   }
 }

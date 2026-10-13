@@ -106,7 +106,8 @@ const WRITES: readonly { name: string; key: PermissionKey; finds: boolean; run: 
     run: (actor, fake) =>
       new DeleteDocSpaceUseCase(
         new Authorizer(),
-        ...(DEPENDENCIES(9, fake) as [
+        ...(DEPENDENCIES(10, fake) as [
+          never,
           never,
           never,
           never,
@@ -163,7 +164,7 @@ const WRITES: readonly { name: string; key: PermissionKey; finds: boolean; run: 
     run: (actor, fake) =>
       new PublishDocPageUseCase(
         new Authorizer(),
-        ...(DEPENDENCIES(7, fake) as [never, never, never, never, never, never, never]),
+        ...(DEPENDENCIES(8, fake) as [never, never, never, never, never, never, never, never]),
       ).execute(actor, {
         pageId: PAGE,
         draftVersion: 1,
@@ -190,7 +191,7 @@ const WRITES: readonly { name: string; key: PermissionKey; finds: boolean; run: 
     run: (actor, fake) =>
       new DeleteDocPageUseCase(
         new Authorizer(),
-        ...(DEPENDENCIES(7, fake) as [never, never, never, never, never, never, never]),
+        ...(DEPENDENCIES(8, fake) as [never, never, never, never, never, never, never, never]),
       ).execute(actor, { pageId: PAGE }),
   },
   {

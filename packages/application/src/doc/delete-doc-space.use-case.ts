@@ -1,5 +1,10 @@
 import type { DocSpaceId, DocSpaceRefInput, UserId } from "../import.js";
-import type { ActivityLogger, TenantMembershipReader, UnitOfWork } from "../port/index.js";
+import type {
+  ActivityLogger,
+  DomainEventPublisher,
+  TenantMembershipReader,
+  UnitOfWork,
+} from "../port/index.js";
 import type { Authorizer, Principal } from "../primitive/index.js";
 import type { DocCache } from "./doc.cache.js";
 import { DocRules } from "./doc.rules.js";
@@ -23,6 +28,7 @@ export class DeleteDocSpaceUseCase {
     private readonly activity: ActivityLogger,
     private readonly unitOfWork: UnitOfWork,
     private readonly images: DocImageSweep,
+    private readonly events: DomainEventPublisher,
   ) {}
 
   public async execute(actor: Principal, input: DocSpaceRefInput): Promise<void> {
@@ -39,11 +45,19 @@ export class DeleteDocSpaceUseCase {
           ? candidate
           : DocRules.assertVisible(candidate, actor.userId, "doc.space", input.spaceId);
 
+      // Before the delete, which is the last moment the pages can be listed.
+      const pageIds = (await this.pages.listBySpace(actor.organizationId, input.spaceId)).map(
+        (node) => node.id,
+      );
       await this.pages.deleteBySpace(actor.organizationId, input.spaceId);
       await this.spaces.delete(actor.organizationId, input.spaceId);
       await this.activity.record(actor, "doc.space.deleted", {
         spaceId: input.spaceId,
         slug: found.slug,
+      });
+      await this.events.publish(actor, {
+        name: "doc.space.deleted",
+        payload: { spaceId: input.spaceId, pageIds },
       });
       return found;
     });
