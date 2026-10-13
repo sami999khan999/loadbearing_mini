@@ -1,9 +1,12 @@
 // After `EMBEDDING_PROVIDER` or `EMBEDDING_MODEL` changes. Queues one `reembed` job per
-// organization on the embedding queue; the worker re-embeds that tenant's stale chunks.
+// organization on the embedding queue; `--docs` queues `doc-reindex`, every published page.
 
 import { BullMqQueuePublisher } from "./src/bullmq/index.js";
 import { QueueName, Redis, sql } from "./src/import.js";
 import { Database } from "./src/pg/primitive/index.js";
+
+// The backfill for pages published before `DC.2`; a publish after it indexes itself.
+const job = process.argv.includes("--docs") ? "doc-reindex" : "reembed";
 
 const databaseUrl = process.env.DATABASE_DIRECT_URL ?? process.env.DATABASE_URL;
 if (!databaseUrl) throw new Error("DATABASE_DIRECT_URL or DATABASE_URL is required.");
@@ -27,10 +30,10 @@ try {
     await queue.publish(
       QueueName.EMBEDDING,
       { organizationId: row.id },
-      { name: "reembed", inFlightId: `reembed_${row.id}` },
+      { name: job, inFlightId: `${job}_${row.id}` },
     );
   }
-  console.log(`queued a re-embed for ${rows.rows.length} organization(s)`);
+  console.log(`queued ${job} for ${rows.rows.length} organization(s)`);
 } finally {
   await queue.close();
   connection.disconnect();

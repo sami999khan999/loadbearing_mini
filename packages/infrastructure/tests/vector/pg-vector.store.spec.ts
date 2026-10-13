@@ -58,6 +58,9 @@ afterAll(async () => {
 
 const seedOrg = () => seedOrganizationId(database);
 
+// Every source type: what a store-level spec means when the filter is not the subject.
+const ANY = Object.freeze({ kind: "except", sourceTypes: [] } as const);
+
 describe("PgVectorStore", () => {
   it("returns org-wide chunks only when the permitted scope is empty", async () => {
     const organizationId = await seedOrg();
@@ -85,10 +88,10 @@ describe("PgVectorStore", () => {
       },
     ]);
 
-    const withoutScope = await store.search(organizationId, axis(0), MODEL, [], 10);
+    const withoutScope = await store.search(organizationId, axis(0), MODEL, [], 10, ANY);
     expect(withoutScope.map((h) => h.content)).toEqual(["org-wide chunk"]);
 
-    const withScope = await store.search(organizationId, axis(0), MODEL, [goalId], 10);
+    const withScope = await store.search(organizationId, axis(0), MODEL, [goalId], 10, ANY);
     expect(withScope.map((h) => h.content).sort()).toEqual(["goal-scoped chunk", "org-wide chunk"]);
 
     await store.deleteBySource(organizationId, sourceId);
@@ -128,7 +131,7 @@ describe("PgVectorStore", () => {
       },
     ]);
 
-    const hits = await store.search(organizationId, axis(1), MODEL, [], 10);
+    const hits = await store.search(organizationId, axis(1), MODEL, [], 10, ANY);
 
     // "orthogonal" scores 0, below MIN_SCORE, so the floor removes it entirely.
     expect(hits.map((h) => h.content)).toEqual(["exact", "near"]);
@@ -159,7 +162,7 @@ describe("PgVectorStore", () => {
       },
     ]);
 
-    const hits = await store.search(organizationId, axis(0), MODEL, [], 10);
+    const hits = await store.search(organizationId, axis(0), MODEL, [], 10, ANY);
     expect(hits.map((h) => h.content)).not.toContain("other tenant chunk");
 
     await store.deleteBySource(otherOrg, sourceId);
@@ -185,7 +188,7 @@ describe("PgVectorStore", () => {
       })),
     );
 
-    await store.search(organizationId, axis(0), MODEL, [], 10);
+    await store.search(organizationId, axis(0), MODEL, [], 10, ANY);
 
     const issued = recorder.last;
     if (!issued) throw new Error("expected the search above to have been logged");
@@ -245,8 +248,8 @@ describe("PgVectorStore", () => {
     await store.deleteBySource(organizationId, sourceId);
   });
 
-  // `CR.8` and `CR.33` read these two off one chunk: where the source sits, and which
-  // request wrote it. A chunk from before versions reads as null, never as zero.
+  // `CR.8`, `CR.33` and `DC.2` read these off one chunk: where the source sits, which request
+  // wrote it, and its source type. A chunk from before versions reads as null, never as zero.
   it("answers where a source is indexed and at which version", async () => {
     const organizationId = await seedOrg();
     const sourceId = Uuid.v7();
@@ -264,12 +267,17 @@ describe("PgVectorStore", () => {
     expect(await store.sourceOf(organizationId, sourceId)).toBeNull();
 
     await store.upsert(organizationId, [chunk()]);
-    expect(await store.sourceOf(organizationId, sourceId)).toEqual({ goalId, version: null });
+    expect(await store.sourceOf(organizationId, sourceId)).toEqual({
+      goalId,
+      sourceType: "unknown",
+      version: null,
+    });
 
     await store.deleteBySource(organizationId, sourceId);
     await store.upsert(organizationId, [chunk(1_790_000_000_000)]);
     expect(await store.sourceOf(organizationId, sourceId)).toEqual({
       goalId,
+      sourceType: "unknown",
       version: 1_790_000_000_000,
     });
 
@@ -305,7 +313,7 @@ describe("PgVectorStore — models and text", () => {
       },
     ]);
 
-    const hits = await store.search(organizationId, axis(0), MODEL, [], 10);
+    const hits = await store.search(organizationId, axis(0), MODEL, [], 10, ANY);
     expect(hits.map((h) => h.content)).toEqual(["this model"]);
 
     await store.deleteBySource(organizationId, sourceId);
@@ -328,18 +336,18 @@ describe("PgVectorStore — models and text", () => {
       },
     ]);
 
-    const hits = await store.searchText(organizationId, "harbour invoices", [], 10);
+    const hits = await store.searchText(organizationId, "harbour invoices", [], 10, ANY);
     expect(hits.map((h) => h.id)).toEqual([id]);
-    expect(await store.searchText(organizationId, "nothing like it", [], 10)).toEqual([]);
+    expect(await store.searchText(organizationId, "nothing like it", [], 10, ANY)).toEqual([]);
 
     expect((await store.stale(organizationId, MODEL, 10)).map((chunk) => chunk.id)).toContain(id);
     await store.saveEmbeddings(organizationId, [{ id, embedding: axis(2) }], MODEL);
     expect((await store.stale(organizationId, MODEL, 10)).map((chunk) => chunk.id)).not.toContain(
       id,
     );
-    expect((await store.search(organizationId, axis(2), MODEL, [], 10)).map((h) => h.id)).toEqual([
-      id,
-    ]);
+    expect(
+      (await store.search(organizationId, axis(2), MODEL, [], 10, ANY)).map((h) => h.id),
+    ).toEqual([id]);
 
     await store.deleteBySource(organizationId, sourceId);
   });
@@ -392,5 +400,63 @@ describe("PgVectorStore.lockSource", () => {
     await first;
 
     expect(events).toEqual(["other locked", "first done"]);
+  });
+});
+
+describe("PgVectorStore filters (`DC.2`)", () => {
+  // A Docs page is org-wide by goal, so only the source-type filter keeps a private space's
+  // text out of the shared document search.
+  it("leaves a guarded source type out of the shared corpus, and finds it only within scope", async () => {
+    const organizationId = await seedOrg();
+    const note = Uuid.v7();
+    const page = Uuid.v7();
+    const hidden = Uuid.v7();
+    // A word no other spec writes: the organization is shared, and its chunks may outlive a run.
+    const word = `filterspec${Date.now()}`;
+    const chunk = (sourceId: string, sourceType: string, extra: Record<string, unknown>) => ({
+      id: Uuid.v7(),
+      sourceId,
+      goalId: null,
+      content: `${word} ${sourceType}`,
+      embedding: axis(0),
+      embeddingModel: MODEL,
+      metadata: { chunkIndex: 0, sourceType, ...extra },
+    });
+    await store.upsert(organizationId, [
+      chunk(note, "note", {}),
+      chunk(page, "doc", { spaceId: "space-a" }),
+      chunk(hidden, "doc", { spaceId: "space-b" }),
+    ]);
+
+    // Cleaned up whatever the assertions say: the organization is shared with every spec here.
+    try {
+      const shared = { kind: "except", sourceTypes: ["doc"] } as const;
+      const docs = {
+        kind: "within",
+        sourceType: "doc",
+        key: "spaceId",
+        values: ["space-a"],
+      } as const;
+      const noSpace = { kind: "within", sourceType: "doc", key: "spaceId", values: [] } as const;
+
+      const sources = async (hits: Promise<readonly { sourceId: string }[]>) =>
+        (await hits).map((hit) => hit.sourceId);
+
+      expect(await sources(store.search(organizationId, axis(0), MODEL, [], 10, shared))).toEqual([
+        note,
+      ]);
+      expect(await sources(store.searchText(organizationId, word, [], 10, shared))).toEqual([note]);
+      expect(await sources(store.search(organizationId, axis(0), MODEL, [], 10, docs))).toEqual([
+        page,
+      ]);
+      expect(await sources(store.searchText(organizationId, word, [], 10, docs))).toEqual([page]);
+      expect(await store.search(organizationId, axis(0), MODEL, [], 10, noSpace)).toEqual([]);
+
+      expect((await store.sourceOf(organizationId, page))?.sourceType).toBe("doc");
+    } finally {
+      for (const sourceId of [note, page, hidden]) {
+        await store.deleteBySource(organizationId, sourceId);
+      }
+    }
   });
 });

@@ -1,6 +1,7 @@
 import {
   and,
   asc,
+  type ChunkFilter,
   cosineDistance,
   type DocumentChunk,
   desc,
@@ -9,6 +10,7 @@ import {
   inArray,
   isNull,
   lt,
+  notInArray,
   type OrganizationId,
   or,
   type Placement,
@@ -105,6 +107,7 @@ export class PgVectorStore extends BaseRepository implements VectorStore {
     const [row] = await this.db
       .select({
         goalId: documentChunks.goalId,
+        sourceType: documentChunks.sourceType,
         version: sql<string | null>`${documentChunks.metadata} ->> 'version'`,
       })
       .from(documentChunks)
@@ -117,7 +120,11 @@ export class PgVectorStore extends BaseRepository implements VectorStore {
       .limit(1);
 
     if (!row) return null;
-    return { goalId: row.goalId, version: row.version === null ? null : Number(row.version) };
+    return {
+      goalId: row.goalId,
+      sourceType: row.sourceType,
+      version: row.version === null ? null : Number(row.version),
+    };
   }
 
   public async search(
@@ -126,6 +133,7 @@ export class PgVectorStore extends BaseRepository implements VectorStore {
     model: string,
     goalIds: readonly string[],
     limit: number,
+    filter: ChunkFilter,
   ): Promise<readonly SearchHit[]> {
     // The distance, not the similarity. pgvector serves the HNSW index only for an
     // ascending order on the operator itself — see docs/reference/pgvector.md.
@@ -145,6 +153,7 @@ export class PgVectorStore extends BaseRepository implements VectorStore {
         and(
           eq(documentChunks.organizationId, organizationId),
           PgVectorStore.scope(goalIds),
+          PgVectorStore.filtered(filter),
           // Another model's vector is a point in another space, and a distance to it
           // would rank noise. After a switch those chunks wait for `ai:reindex`.
           eq(documentChunks.embeddingModel, model),
@@ -162,6 +171,7 @@ export class PgVectorStore extends BaseRepository implements VectorStore {
     query: string,
     goalIds: readonly string[],
     limit: number,
+    filter: ChunkFilter,
   ): Promise<readonly SearchHit[]> {
     const tsquery = sql`websearch_to_tsquery('simple', ${query})`;
     const rank = sql<number>`ts_rank(${documentChunks.search}, ${tsquery})`;
@@ -179,6 +189,7 @@ export class PgVectorStore extends BaseRepository implements VectorStore {
         and(
           eq(documentChunks.organizationId, organizationId),
           PgVectorStore.scope(goalIds),
+          PgVectorStore.filtered(filter),
           sql`${documentChunks.search} @@ ${tsquery}`,
         ),
       )
@@ -218,6 +229,21 @@ export class PgVectorStore extends BaseRepository implements VectorStore {
           and(eq(documentChunks.organizationId, organizationId), eq(documentChunks.id, entry.id)),
         );
     }
+  }
+
+  // On the column, not the metadata, so the source-type half can use the partition's own
+  // statistics. An empty `values` matches nothing: no scope is no reader, never every one.
+  private static filtered(filter: ChunkFilter) {
+    if (filter.kind === "except") {
+      return filter.sourceTypes.length === 0
+        ? sql`true`
+        : notInArray(documentChunks.sourceType, [...filter.sourceTypes]);
+    }
+    if (filter.values.length === 0) return sql`false`;
+    return and(
+      eq(documentChunks.sourceType, filter.sourceType),
+      inArray(sql`${documentChunks.metadata} ->> ${filter.key}`, [...filter.values]),
+    );
   }
 
   // An empty scope means org-wide chunks only, never everything. If it meant "no
