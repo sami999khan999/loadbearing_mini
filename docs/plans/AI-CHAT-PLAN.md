@@ -1,6 +1,6 @@
 ---
 title: AI assistant plan — the lite port of the big kit's assistant, simpler but scalable without an architecture change
-updated: 2026-10-10
+updated: 2026-10-14
 owner: sami
 schema: plan/v1
 source: owner request 2026-10-10 — build in the big kit first, then port a simpler version here; the big kit's `plans/AI-CHAT-PLAN.md` is the full plan, checked against its open backlog the same day
@@ -28,7 +28,9 @@ Messaging, but it uses the same names (`assistant_*` tables, `assistant.*` proce
   - the same tables (partitioned and routed), use cases, contracts, permissions, rate limits and
     budget;
   - the same streaming and UI.
-- **Docs semantic search** (the big kit's `DC.2`) is ported with it. Lite's Docs search is
+- **Docs semantic search** (the big kit's `DC.2`) — **ported early, 2026-10-14**, from big kit
+  `924aaedf..37ab5c65`: the `doc-index` subscriber, the hybrid `DocSearch`, the required
+  `ChunkFilter`, and `pnpm ai:reindex --docs`. Lite's Docs search is
   full text only, and the assistant reads Docs only through `SearchDocsUseCase`, so space
   visibility stays in one place.
 - **No activity row per message.** Only `ai.assistant.thread.created|deleted` are recorded, and
