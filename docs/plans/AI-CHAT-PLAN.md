@@ -30,9 +30,8 @@ Messaging, but it uses the same names (`assistant_*` tables, `assistant.*` proce
   - the same streaming and UI.
 - **Docs semantic search** (the big kit's `DC.2`) — **ported early, 2026-10-14**, from big kit
   `924aaedf..37ab5c65`: the `doc-index` subscriber, the hybrid `DocSearch`, the required
-  `ChunkFilter`, and `pnpm ai:reindex --docs`. Lite's Docs search is
-  full text only, and the assistant reads Docs only through `SearchDocsUseCase`, so space
-  visibility stays in one place.
+  `ChunkFilter`, and `pnpm ai:reindex --docs`. The assistant reads Docs only through
+  `SearchDocsUseCase`, so space visibility stays in one place.
 - **No activity row per message.** Only `ai.assistant.thread.created|deleted` are recorded, and
   metering is the `ai_usage` row.
 - **The same stream-log rules:**
