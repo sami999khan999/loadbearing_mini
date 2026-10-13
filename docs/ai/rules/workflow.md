@@ -20,6 +20,7 @@ pnpm infra:up             # postgres, redis, minio, mailpit — the whole lite s
 pnpm smoke                # the wiring check, against live containers
 pnpm platform:grant <email>  # the first platform admin; every later one is invited
 pnpm queue:replay <queue> [job]  # put a queue's failed jobs back; they are kept a week
+pnpm queue:status | queue:pause <queue|all> | queue:resume <queue|all>  # BullMQ's global pause
 pnpm db:generate          # drizzle-kit, then partition-ddl.ts writes the PARTITION BY clause
 pnpm db:migrate | db:seed | db:studio
 pnpm db:partitions        # the runway, by hand: what the worker does monthly, for when it did not

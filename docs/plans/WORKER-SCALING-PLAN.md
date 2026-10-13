@@ -1,12 +1,14 @@
 ---
 title: Worker scaling plan — choose a worker's queues by config, with the large kit's control dashboard one copy-back away
-updated: 2026-10-10
+updated: 2026-10-14
 owner: sami
 schema: plan/v1
 source: owner request 2026-10-10; the large kit's `plans/WORKER-CONTROL-PLAN.md`, which this is the lite share of
 ---
 
 # Worker scaling (lite)
+
+> **Built 2026-10-14.** Every item below is done and checked; see "As built" at the end.
 
 ## Context
 
@@ -65,7 +67,8 @@ half is then an additive copy-back.
 - **Names:**
   - `WorkerSupervisor`, `LaneRegistry` and `QueueLimits`;
   - the env names;
-  - the ports `WorkerFleet` and `QueueControl`;
+  - the ports `WorkerFleetGateway` and `QueueControlGateway` (the big kit's built names; the
+    repo's file rules want the role suffix);
   - the table `worker_queue_settings`;
   - the permissions `platform.worker.read|manage`;
   - the route `platform/workers`.
@@ -91,3 +94,20 @@ half is then an additive copy-back.
   `queue:resume mail` it arrives. `queue:status` shows the waiting count both times.
 - `pnpm build:packages && pnpm typecheck && pnpm lint && pnpm test`, `check:architecture`,
   `check:contrast`, and the worker boot smoke with `WORKER_QUEUES=mail`.
+
+## As built (2026-10-14)
+
+- **Built as above, ported from the big kit's commit `cbabc94b`.** `QueueLimits` lives in
+  `packages/application/src/primitive/queue-limits.ts`, as it does in the big kit since `WC.1`
+  closed, because the big kit's use cases validate against it.
+- **The CLI uses the big kit's adapter, not a second implementation.** `QueueControlGateway` and
+  `BullMqQueueControlGateway` are copied unchanged, so the dashboard copy-back adds to them rather
+  than replacing the CLI's code. The script is `packages/infrastructure/queue-control.ts`.
+- **Checked on the local stack:**
+  - two workers, one with `WORKER_QUEUES=mail` and one with the other four, each started only its
+    own lanes;
+  - `WORKER_QUEUES=mial` refused to boot, naming the bad queue;
+  - `pnpm queue:pause mail`, then a password reset: the job waited (`queue:status` showed one
+    waiting, Mailpit nothing). After `queue:resume mail` it arrived, sent by the mail-only worker.
+- **The copy-back guide** is [`docs/scale/worker-control.md`](../scale/worker-control.md), with the
+  big kit's commit range and every file.
