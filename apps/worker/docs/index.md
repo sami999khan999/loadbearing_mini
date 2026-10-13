@@ -43,6 +43,10 @@ apps/worker/
 │   │   ├── notification.consumer.ts  → NotificationConsumer (digest-fanout · digest)
 │   │   └── maintenance.consumer.ts   → MaintenanceConsumer (cleanup · partitions · retention ·
 │   │                                   orphans · spares · tenant-export · tenant-delete)
+│   ├── supervisor/
+│   │   ├── index.ts
+│   │   ├── lane-registry.ts          → LaneRegistry
+│   │   └── worker-supervisor.ts      → WorkerSupervisor
 │   ├── schedule/
 │   │   ├── index.ts
 │   │   ├── cleanup.schedule.ts       03:00 daily
@@ -95,6 +99,8 @@ See [`reference/consumers.md`](reference/consumers.md) and
 
 - [The consumers](reference/consumers.md) — why maintenance is serial, why `handle()` is public, and
   why `EmbeddingConsumer` catches nothing.
+- [The supervisor](reference/supervisor.md) — lanes, `WORKER_QUEUES`, the two ceilings a process
+  checks before it starts consuming, and `pnpm queue:pause`.
 - [The schedules](reference/schedules.md) — the fixed job ids that make registration idempotent, the
   clock order, and why only the digest retries.
 - [Subscribers](reference/subscribers.md) — the contract every outbox subscriber keeps, and why

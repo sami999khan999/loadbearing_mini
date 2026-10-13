@@ -1,12 +1,5 @@
-import {
-  EmbeddingConsumer,
-  MailConsumer,
-  MaintenanceConsumer,
-  NotificationConsumer,
-  OutboxConsumer,
-} from "../consumer/index.js";
 import { Env } from "../env.js";
-import { type Container, QueueName, type RedisConnection, type Worker } from "../import.js";
+import { type Container, QueueName, type RedisConnection } from "../import.js";
 import {
   CleanupSchedule,
   DigestSchedule,
@@ -16,59 +9,26 @@ import {
   RetentionSchedule,
   SparesSchedule,
 } from "../schedule/index.js";
+import { LaneRegistry, WorkerSupervisor } from "../supervisor/index.js";
 
 export class WorkerBootstrap {
-  private readonly workers: Worker[] = [];
+  private readonly supervisor: WorkerSupervisor;
   private draining: Promise<void> | null = null;
 
   public constructor(
     private readonly container: Container,
     private readonly redis: RedisConnection,
-  ) {}
+  ) {
+    this.supervisor = new WorkerSupervisor(
+      LaneRegistry.forContainer(container, () => redis.queueClient()),
+      Env.processMaxConcurrency,
+    );
+  }
 
   public async start(): Promise<void> {
-    this.workers.push(
-      new EmbeddingConsumer(
-        this.container,
-        this.redis.queueClient(),
-        Env.embeddingConcurrency,
-      ).start(),
-    );
-
-    // Unconditional, and the reason is in `.env.example`: every mail in this system is a
-    // job, so a stopped worker is a sign-up whose verification link never arrives.
-    this.workers.push(
-      new MailConsumer(
-        this.container,
-        this.redis.queueClient(),
-        Env.mailConcurrency,
-        Env.mailRatePerMinute,
-      ).start(),
-    );
-
-    // Before the schedules register, and before the drain in particular: a repeatable
-    // job that fires the instant it lands needs somewhere to run.
-    this.workers.push(
-      new OutboxConsumer(this.container, this.redis.queueClient(), Env.eventConcurrency).start(),
-    );
-
-    this.workers.push(
-      new NotificationConsumer(
-        this.container,
-        this.redis.queueClient(),
-        Env.notificationConcurrency,
-      ).start(),
-    );
-
-    // Before the schedules register, so an entry that fires the instant it lands has
-    // somewhere to run. See docs/reference/schedules.md.
-    this.workers.push(
-      new MaintenanceConsumer(
-        this.container,
-        this.redis.queueClient(),
-        Env.maintenanceConcurrency,
-      ).start(),
-    );
+    // Before the schedules register. Mail is in the default list, and a process that leaves
+    // it out needs another service that serves it: every sign-up's mail is a job.
+    this.supervisor.start(Env.queues);
 
     // Once at boot, before the schedules: the monthly cron only helps a worker that was
     // awake on the first, and the runway running out is every write in the system failing.
@@ -86,18 +46,21 @@ export class WorkerBootstrap {
 
     this.container.logger.emit("process.started", {
       service: "worker",
-      consumers: this.workers.length,
+      // Which lanes this process serves, so a specialised service is told apart from one
+      // serving everything.
+      consumers: this.supervisor.workers.length,
+      queues: this.supervisor.workers.map((worker) => worker.name).join(","),
     });
   }
 
-  // Off the workers that actually started, never the consumers in the tree: a consumer
-  // that did not start holds no connection and must not be counted.
+  // Off the lanes that actually started, never the consumers in the tree: a lane this
+  // process does not serve holds no connection and must not be counted.
   private warnIfOversubscribed(): void {
-    // `?? 1` is BullMQ's own default. Mail is left out: a send holds an SMTP socket, never
-    // a database connection, and counting it made the defaults sum to the pool exactly.
-    const concurrency = this.workers
+    // Mail is left out: a send holds an SMTP socket, never a database connection, and
+    // counting it made the defaults sum to the pool exactly.
+    const concurrency = this.supervisor.workers
       .filter((worker) => worker.name !== QueueName.MAIL)
-      .reduce((sum, worker) => sum + (worker.opts.concurrency ?? 1), 0);
+      .reduce((sum, worker) => sum + worker.concurrency, 0);
     const poolMax = Env.databasePoolMax;
     if (concurrency <= poolMax) return;
 
@@ -119,7 +82,7 @@ export class WorkerBootstrap {
 
     // Handled before the race, never after: once the timeout has won, a rejection arriving
     // late has nowhere to land but `unhandledRejection`, which exits 1 over a clean drain.
-    const closed = Promise.all(this.workers.map((w) => w.close())).then(
+    const closed = this.supervisor.close().then(
       () => undefined,
       (error: unknown) => {
         this.container.logger.failure(error, { service: "worker", phase: "close" });
