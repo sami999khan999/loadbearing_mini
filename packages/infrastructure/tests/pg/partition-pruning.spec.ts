@@ -372,7 +372,11 @@ describe("one tenant partition, for every read there is", () => {
       "the vector search",
       PartitionedTable.DOCUMENT_CHUNKS,
       /from "document_chunks"/i,
-      () => corpus.search(organizationId, axis(0), MODEL, [], 10),
+      () =>
+        corpus.search(organizationId, axis(0), MODEL, [], 10, {
+          kind: "except",
+          sourceTypes: ["doc"],
+        }),
     ],
     [
       "the source delete",

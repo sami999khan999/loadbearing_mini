@@ -16,6 +16,9 @@ import type { DocumentChunk, OrganizationId } from "../../src/import.js";
 
 const ORG = "00000000-0000-7000-8000-000000000001" as OrganizationId;
 
+// Every source type: what a fake-level spec means when the filter is not the subject.
+const ANY = Object.freeze({ kind: "except", sourceTypes: [] } as const);
+
 const chunk = (id: string, embedding: readonly number[], goalId: string | null): DocumentChunk => ({
   id,
   sourceId: `source-${id}`,
@@ -202,11 +205,42 @@ describe("StubEmbeddingProvider", () => {
 });
 
 describe("InMemoryVectorStore", () => {
+  // `DC.2`: the same two filters the real store applies, on the same fields.
+  it("keeps a guarded type out of the shared corpus and finds it only within scope", async () => {
+    const vectors = new InMemoryVectorStore();
+    const typed = (id: string, metadata: Record<string, unknown>): DocumentChunk => ({
+      ...chunk(id, [1, 0], null),
+      metadata,
+    });
+    await vectors.upsert(ORG, [
+      typed("note", { sourceType: "note" }),
+      typed("page", { sourceType: "doc", spaceId: "space-a" }),
+      typed("hidden", { sourceType: "doc", spaceId: "space-b" }),
+    ]);
+
+    const ids = (hits: readonly { id: string }[]) => hits.map((hit) => hit.id);
+    const shared = { kind: "except", sourceTypes: ["doc"] } as const;
+    const docs = {
+      kind: "within",
+      sourceType: "doc",
+      key: "spaceId",
+      values: ["space-a"],
+    } as const;
+
+    expect(ids(await vectors.search(ORG, [1, 0], "stub-embedding", [], 10, shared))).toEqual([
+      "note",
+    ]);
+    expect(ids(await vectors.search(ORG, [1, 0], "stub-embedding", [], 10, docs))).toEqual([
+      "page",
+    ]);
+    expect((await vectors.sourceOf(ORG, "source-page"))?.sourceType).toBe("doc");
+  });
+
   it("ranks by cosine, so the nearest chunk comes back first", async () => {
     const vectors = new InMemoryVectorStore();
     await vectors.upsert(ORG, [chunk("far", [0, 1], null), chunk("near", [1, 0], null)]);
 
-    const [top] = await vectors.search(ORG, [1, 0], "stub-embedding", [], 10);
+    const [top] = await vectors.search(ORG, [1, 0], "stub-embedding", [], 10, ANY);
 
     expect(top?.id).toBe("near");
   });
@@ -218,7 +252,7 @@ describe("InMemoryVectorStore", () => {
       chunk("hidden", [1, 0], "goal-b"),
     ]);
 
-    const hits = await vectors.search(ORG, [1, 0], "stub-embedding", ["goal-a"], 10);
+    const hits = await vectors.search(ORG, [1, 0], "stub-embedding", ["goal-a"], 10, ANY);
 
     expect(hits.map((hit) => hit.id)).toEqual(["permitted"]);
   });
@@ -237,7 +271,7 @@ describe("InMemoryVectorStore", () => {
     await vectors.upsert(ORG, [chunk("a", [1, 0], null)]);
 
     expect(vectors.countFor(other)).toBe(0);
-    expect(await vectors.search(other, [1, 0], "stub-embedding", [], 10)).toEqual([]);
+    expect(await vectors.search(other, [1, 0], "stub-embedding", [], 10, ANY)).toEqual([]);
   });
 
   it("drops every chunk from one source", async () => {
@@ -259,7 +293,7 @@ describe("the fakes agree with their adapters", () => {
     const vectors = new InMemoryVectorStore();
     await vectors.upsert(ORG, [chunk("a", [1, 0], null), chunk("b", [0, 1], null)]);
 
-    const hits = await vectors.search(ORG, [1, 0], "stub-embedding", [], 10);
+    const hits = await vectors.search(ORG, [1, 0], "stub-embedding", [], 10, ANY);
 
     expect(hits.map((hit) => hit.id)).toEqual(["a"]);
   });

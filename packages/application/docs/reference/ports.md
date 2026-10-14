@@ -304,4 +304,5 @@ ambient one.
 | `UnitOfWork` | The implementation must genuinely enrol the repositories running inside `work()`; one that does not is worse than none |
 | `VectorStore.search` | `goalIds` is required so the permission filter runs on the **input** set. Filtering results means the model already saw what the actor cannot. It takes a `model` too, and compares only chunks that model wrote |
 | `VectorStore.searchText` | The same shape and scope rule, ranked by Postgres full-text search over the chunk text. What `EMBEDDING_PROVIDER=none` searches with, and it calls nobody |
+| `ChunkFilter` | Required on `search` and `searchText`, so every caller names its corpus. `except` is the shared corpus less the guarded source types (`ChunkSource.GUARDED`, today `doc`), whose chunks carry their own read rule. `within` is one guarded type narrowed by a metadata key the indexer wrote — `DocSearch` passes the reader's visible spaces. An empty `values` matches nothing |
 | `VectorStore.stale`, `saveEmbeddings` | The re-embed pass: chunks whose vector is missing or another model's, then new vectors for them with the text untouched. `ReembedChunksUseCase` is the caller |

@@ -20,7 +20,6 @@ const render = (thrown: unknown) =>
 
 const ESCALATE = "You cannot grant a scope you do not hold yourself.";
 const GENERIC_FORBIDDEN = "You do not have permission to do that.";
-const GENERIC_UNEXPECTED = "Something went wrong. Please try again.";
 
 describe("useApiKeyFailure", () => {
   it("has nothing to say about a thrown nothing", async () => {
@@ -71,14 +70,17 @@ describe("useApiKeyFailure", () => {
       ]),
     );
 
-    expect(screen.getByText(GENERIC_UNEXPECTED)).toBeDefined();
+    expect(
+      screen.getByText("name must be at least 3 characters. scopes is not valid."),
+    ).toBeDefined();
     expect(screen.queryByText("Choose at least one scope the catalog knows.")).toBeNull();
   });
 
-  it("falls back to the catalog sentence for a validation failure it does not own", async () => {
+  // The field's own sentence, not "Something went wrong": the server said which field.
+  it("falls back to the field's sentence for a validation failure it does not own", async () => {
     await render(new ValidationError([{ field: "name", rule: "required" }]));
 
-    expect(screen.getByText(GENERIC_UNEXPECTED)).toBeDefined();
+    expect(screen.getByText("name is required.")).toBeDefined();
   });
 
   // `R.3`'s call site. Over HTTP the component is handed the transport's decode, not an

@@ -11,6 +11,8 @@ export {
   type PartitionedTableEntry,
   type PartitionedTableName,
   Principal,
+  type QueueKey,
+  QueueLimits,
   QueueName,
   RetentionRules,
   Shard,

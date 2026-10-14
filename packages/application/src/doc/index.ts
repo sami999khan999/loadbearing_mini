@@ -15,6 +15,7 @@ export {
 export { DocImageKey } from "./doc-image-key.js";
 export { DocImageOrphans } from "./doc-image-orphans.js";
 export { DocImageSweep } from "./doc-image-sweep.js";
+export { DocIndexSubscriber } from "./doc-index.subscriber.js";
 export {
   type DocDraftFields,
   type DocPageDraftRecord,
@@ -61,6 +62,7 @@ export { ReadDocNavUseCase } from "./read-doc-nav.use-case.js";
 export { ReadDocPageUseCase } from "./read-doc-page.use-case.js";
 export { ReadPlatformDocUseCase } from "./read-platform-doc.use-case.js";
 export { ReadPlatformDocNavUseCase } from "./read-platform-doc-nav.use-case.js";
+export { type ReindexDocsResult, ReindexDocsUseCase } from "./reindex-docs.use-case.js";
 export { RestoreDocRevisionUseCase } from "./restore-doc-revision.use-case.js";
 export { RevokeDocGrantUseCase } from "./revoke-doc-grant.use-case.js";
 export { SaveDocGrantUseCase } from "./save-doc-grant.use-case.js";

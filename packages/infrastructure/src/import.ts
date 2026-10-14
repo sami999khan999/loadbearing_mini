@@ -52,6 +52,7 @@ export {
   type CapabilityExplanation,
   type CapabilityRepository,
   CapabilityResolution,
+  type ChunkFilter,
   type DeletedTenantSweep,
   type DocDraftFields,
   type DocGrantee,
@@ -130,6 +131,8 @@ export {
   // A value, not a type: the founder and the invitation claimer construct one to write
   // an audit row as the tenant being created or joined.
   Principal,
+  type QueueControlGateway,
+  type QueueCounts,
   type QueuedJob,
   // A value, not a type: the seed and the maintenance gateway both walk the allowlist.
   QueueName,
@@ -257,6 +260,7 @@ export {
   lte,
   ne,
   not,
+  notInArray,
   or,
   type SQL,
   sql,

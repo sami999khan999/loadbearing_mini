@@ -30,3 +30,10 @@ A redirect's headers, and those of a fetched response, cannot be changed in plac
 `SecurityHeaders.apply` copies such a response around the same body.
 
 The realtime stream is served by `apps/realtime` on its own origin and does not pass through here.
+
+## Server functions refuse a cross-site call
+
+The same file registers Start's `createCsrfMiddleware`, filtered to server functions: a call whose
+`Sec-Fetch-Site`, `Origin` or `Referer` is not this origin gets a 403. Every server function reads
+today, so this is ahead of the first that writes. `/api/*` is not filtered in: oRPC and Better
+Auth check their own origins against `AUTH_TRUSTED_ORIGINS`, which the desktop shell needs.

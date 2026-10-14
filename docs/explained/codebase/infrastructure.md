@@ -34,6 +34,7 @@ It also owns the database: the schema files, the migrations, and the scripts abo
 | `partition-ddl.ts` | The second half of `pnpm db:generate`. Drizzle cannot write `PARTITION BY`, so this rewrites the generated migration to add it. |
 | `partitions.ts` | `pnpm db:partitions`: creates the current and next two months' partitions by hand, for when the worker's monthly job did not run. `--sweep` cleans up a deleted organization's cold storage. |
 | `platform-grant.ts` | `pnpm platform:grant <email>`: makes an existing user the first super admin by adding them to the platform organization with the `platform_admin` role. Later admins are invited from the app. |
+| `queue-control.ts` | `pnpm queue:status`, `queue:pause <queue\|all>` and `queue:resume <queue\|all>`: shows each queue's depth, and pauses or resumes it for every worker. The pause survives restarts. |
 | `queue-replay.ts` | `pnpm queue:replay <queue> [job]`: puts failed jobs back on their queue. Failed jobs are kept for a week. |
 | `seed.ts` | `pnpm db:seed`: creates the starting data: the `loadbearing` organization (marked as the platform organization), its partitions, the system roles and the platform admin role. Safe to run again. |
 | `shard-env.ts` | Reads the database node URLs (`DATABASE_SHARD_<n>_URL`) for the command-line scripts. With none set there is one node. |

@@ -25,10 +25,10 @@ const wait = (ms: number): Promise<void> =>
     setTimeout(resolve, ms);
   });
 
-// The list `start()` fills. Reaching into it is what lets this spec drain a bootstrap
+// The lane list `start()` fills. Reaching into it is what lets this spec drain a bootstrap
 // without a live Redis behind a real BullMQ worker for every consumer.
 function workersOf(bootstrap: WorkerBootstrap): Closeable[] {
-  return (bootstrap as unknown as { workers: Closeable[] }).workers;
+  return (bootstrap as unknown as { supervisor: { lanes: Closeable[] } }).supervisor.lanes;
 }
 
 function harness(redisClose: () => Promise<void> = () => Promise.resolve()) {

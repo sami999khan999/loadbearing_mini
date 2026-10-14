@@ -2,6 +2,7 @@ import { UnavailableError, ValidationError } from "../import.js";
 import type { ActivityLogger, SearchHit, UnitOfWork, VectorStore } from "../port/index.js";
 import type { Authorizer, Principal } from "../primitive/index.js";
 import type { SearchMode } from "./ai-search-mode.js";
+import { ChunkSource } from "./chunk-source.js";
 
 export interface SearchDocumentsInput {
   readonly query: string;
@@ -10,6 +11,10 @@ export interface SearchDocumentsInput {
   // org-wide corpus, which is what an app with no goal feature asks for.
   readonly goalIds?: readonly string[];
 }
+
+// The shared corpus: every chunk but the guarded types. A Docs page is org-wide by goal, and
+// ranking it here would show a private space's text to anyone holding `ai.embedding.read`.
+const SHARED = Object.freeze({ kind: "except", sourceTypes: ChunkSource.GUARDED } as const);
 
 export class SearchDocumentsUseCase {
   public constructor(
@@ -35,7 +40,7 @@ export class SearchDocumentsUseCase {
 
     const hits =
       this.mode.kind === "lexical"
-        ? await this.vectors.searchText(actor.organizationId, query, goalIds, input.limit)
+        ? await this.vectors.searchText(actor.organizationId, query, goalIds, input.limit, SHARED)
         : await this.semantic(actor, query, goalIds, input.limit);
 
     // A search is a business fact — what someone looked for is the question an audit
@@ -64,6 +69,13 @@ export class SearchDocumentsUseCase {
     // return the corpus ordered by an accident.
     if (!embedding) throw new UnavailableError("embedding.provider");
 
-    return this.vectors.search(actor.organizationId, embedding, provider.model, goalIds, limit);
+    return this.vectors.search(
+      actor.organizationId,
+      embedding,
+      provider.model,
+      goalIds,
+      limit,
+      SHARED,
+    );
   }
 }

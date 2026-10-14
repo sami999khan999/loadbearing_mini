@@ -8,7 +8,11 @@ export type LogFields = Readonly<Record<string, LogValue>>;
 // One entry per code, type-only. Declaring the fields is the point: a token cannot be
 // logged unless somebody wrote a field for it here, where a reviewer sees it.
 export interface EventShape {
-  readonly "process.started": { readonly service: string; readonly consumers?: number };
+  readonly "process.started": {
+    readonly service: string;
+    readonly consumers?: number;
+    readonly queues?: string;
+  };
   readonly "process.stopping": { readonly service: string; readonly signal: string };
   readonly "process.stopped": { readonly service: string; readonly durationMs: number };
 

@@ -1,7 +1,7 @@
 import type { Principal } from "../primitive/index.js";
+import type { IndexDocumentJob } from "./document-index.publisher.js";
 import type { IndexDocumentResult, IndexDocumentUseCase } from "./index-document.use-case.js";
 import type { IndexTextStage } from "./index-text-stage.js";
-import type { IndexDocumentJob } from "./queue-document-index.use-case.js";
 
 // The embedding consumer's unit of work: the staged text out of the bucket, the index,
 // then the object deleted. A throw leaves it, so a retry or `queue:replay` still reads it.
@@ -25,6 +25,7 @@ export class IndexQueuedDocumentUseCase {
       goalId: job.goalId ?? null,
       sourceType: job.sourceType ?? "document",
       ...(job.version === undefined ? {} : { version: job.version }),
+      ...(job.metadata === undefined ? {} : { metadata: job.metadata }),
     });
 
     if (job.textKey !== undefined) await this.stage.release(job.textKey);

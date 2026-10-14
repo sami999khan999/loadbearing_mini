@@ -26,11 +26,24 @@ export interface SearchHit {
   readonly metadata: Readonly<Record<string, unknown>>;
 }
 
+// Which chunks a search may rank, required so every caller names its corpus. `except` is
+// the shared corpus; `within` is one guarded type inside the reader's scopes. See ports.md.
+export type ChunkFilter =
+  | { readonly kind: "except"; readonly sourceTypes: readonly string[] }
+  | {
+      readonly kind: "within";
+      readonly sourceType: string;
+      readonly key: string;
+      readonly values: readonly string[];
+    };
+
 // What is already indexed for one source: where it sits, and which request wrote it.
 // `version` is null for chunks written before versions existed.
 export interface IndexedSource {
   readonly goalId: string | null;
   readonly version: number | null;
+  // Read so a writer cannot replace a guarded source's chunks by naming its id.
+  readonly sourceType: string;
 }
 
 export abstract class VectorStore {
@@ -59,6 +72,7 @@ export abstract class VectorStore {
     model: string,
     goalIds: readonly string[],
     limit: number,
+    filter: ChunkFilter,
   ): Promise<readonly SearchHit[]>;
 
   // The same shape and the same scope rule, ranked by Postgres full-text search over the
@@ -68,6 +82,7 @@ export abstract class VectorStore {
     query: string,
     goalIds: readonly string[],
     limit: number,
+    filter: ChunkFilter,
   ): Promise<readonly SearchHit[]>;
 
   // Up to `limit` chunks whose vector is missing or another model's, oldest first.

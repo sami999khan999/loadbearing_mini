@@ -9,6 +9,7 @@ export {
   type TenantKey,
 } from "./partitioned-table.js";
 export { Principal, type PrincipalKind } from "./principal.js";
+export { type QueueKey, QueueLimits } from "./queue-limits.js";
 export { QueueName } from "./queue-name.js";
 export { type RealtimeChannel, RealtimeChannels } from "./realtime-channel.js";
 export { type Placement, Shard, type ShardKey, TablePlacement } from "./shard.js";

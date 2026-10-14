@@ -90,10 +90,18 @@ jobs, every one of which may hold a Postgres connection.
 - `WORKER_NOTIFICATION_CONCURRENCY` (2) — the digest fan-out is one job a day, and each tenant's
   digest waits on the mail queue, which has its own limiter.
 
+## `WORKER_QUEUES` and `WORKER_PROCESS_MAX_CONCURRENCY`
+
+`WORKER_QUEUES` is the comma list of queues this process serves; unset serves all of them.
+`WORKER_PROCESS_MAX_CONCURRENCY` (64) caps the sum of the selected lanes' concurrency, and a boot
+over it is refused. Each concurrency variable above is that lane's concurrency in one process.
+See [`supervisor.md`](./supervisor.md).
+
 ## Count your processes, and now your concurrencies
 
 The five knobs above are per instance, and they are also drawn against one pool. `WorkerBootstrap`
-sums the concurrency of the consumers that actually **started**, leaving out mail — a send holds an
+sums the concurrency of the lanes that actually **started** — `WORKER_QUEUES` may select fewer than
+all five — leaving out mail — a send holds an
 SMTP socket, never a database connection — and emits `worker.pool.oversubscribed` when the sum
 exceeds `DATABASE_POOL_MAX`. At the defaults that is 15 against 20, so the line stays quiet until you
 raise a knob or lower the pool.

@@ -108,7 +108,7 @@ It knows nothing about routing: the app passes in links and callbacks, so the sa
 | File | What it does |
 |---|---|
 | `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
-| `use-error-message.ts` | `useErrorMessage`: turns whatever an API call threw into the right sentence in the user's language, plus per-field messages. |
+| `use-error-message.ts` | `useErrorMessage`: turns whatever an API call threw into the right sentence in the user's language: what is wrong with each field when the server named them, otherwise the sentence for the error's code. |
 
 ### `packages/feature/src/i18n/`
 
@@ -204,6 +204,7 @@ It knows nothing about routing: the app passes in links and callbacks, so the sa
 |---|---|
 | `api-key.list.spec.tsx` | Tests `api-key.list.tsx`. |
 | `use-api-key-failure.spec.tsx` | Tests `use-api-key-failure.ts`. |
+| `use-error-message.spec.tsx` | Tests `use-error-message.ts`. |
 
 ### `packages/feature/tests/auth/`
 

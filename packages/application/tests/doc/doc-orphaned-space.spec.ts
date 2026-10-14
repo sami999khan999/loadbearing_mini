@@ -59,6 +59,16 @@ describe("ListOrphanedDocSpacesUseCase", () => {
 });
 
 describe("DeleteDocSpaceUseCase on another author's private space", () => {
+  // Memberships are catalog tables, which a routed transaction refuses: the real adapter
+  // threw "A catalog table inside a routed transaction" and the delete was a 500.
+  let inside = false;
+  const outsideOnly = {
+    isActiveMember: (org: unknown, userId: UserId) => {
+      if (inside) throw new Error("A catalog table inside a routed transaction.");
+      return memberships.isActiveMember(org, userId);
+    },
+  };
+
   const remove = () => {
     const deleted: string[] = [];
     const useCase = new DeleteDocSpaceUseCase(
@@ -71,14 +81,27 @@ describe("DeleteDocSpaceUseCase on another author's private space", () => {
           return Promise.resolve();
         },
       } as never,
-      memberships as never,
-      { deleteBySpace: () => Promise.resolve() } as never,
+      outsideOnly as never,
+      {
+        listBySpace: () => Promise.resolve([]),
+        deleteBySpace: () => Promise.resolve(),
+      } as never,
       { deleteBySpace: () => Promise.resolve() } as never,
       { forget: () => Promise.resolve() } as never,
       { forget: () => Promise.resolve() } as never,
       { record: () => Promise.resolve() } as never,
-      { run: (work: () => Promise<unknown>) => work() } as never,
+      {
+        run: async (work: () => Promise<unknown>) => {
+          inside = true;
+          try {
+            return await work();
+          } finally {
+            inside = false;
+          }
+        },
+      } as never,
       { sweep: () => Promise.resolve() } as never,
+      { publish: () => Promise.resolve() } as never,
     );
     return { deleted, useCase };
   };

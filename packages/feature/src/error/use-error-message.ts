@@ -8,8 +8,8 @@ import {
 } from "../import.js";
 
 export interface ErrorMessage {
-  // The sentence for the code. Always present, because `ERROR_CATALOG` is closed and
-  // `ERROR_COPY` is total over it — there is no unmapped failure.
+  // The sentence for the code, or the field sentences when there are any: no form renders
+  // `fields`, and a bad email read "Something went wrong" through the code's sentence.
   readonly message: string;
   // One per field violation, in envelope order. Empty for anything but a validation
   // failure, so a caller renders it without asking what kind of error it holds.
@@ -32,9 +32,10 @@ export function useErrorMessage() {
 }
 
 function describe(translator: Translator, envelope: ErrorEnvelope): ErrorMessage {
+  const fields = ErrorCopy.fields(translator, envelope);
   return {
-    message: ErrorCopy.message(translator, envelope),
-    fields: ErrorCopy.fields(translator, envelope),
+    message: fields.length > 0 ? fields.join(" ") : ErrorCopy.message(translator, envelope),
+    fields,
     envelope,
   };
 }

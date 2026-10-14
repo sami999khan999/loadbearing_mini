@@ -127,4 +127,19 @@ describe("ErrorNormalizer", () => {
 
     expect(ErrorNormalizer.normalize(original)).toBe(original);
   });
+
+  // oRPC rejects a bad input itself, before any handler, with the schema's issues in
+  // `data`. It used to pass as one of ours by its code and reach a form with no fields.
+  it("turns oRPC's input validation failure into field violations", () => {
+    const thrown = Object.assign(new Error("Input validation failed"), {
+      code: "BAD_REQUEST",
+      toJSON: () => ({}),
+      data: { issues: [{ code: "invalid_format", path: ["email"], message: "Invalid email" }] },
+    });
+
+    const normalized = ErrorNormalizer.normalize(thrown);
+
+    expect(normalized.code).toBe("BAD_REQUEST");
+    expect(normalized.toJSON().fields?.map((field) => field.field)).toEqual(["email"]);
+  });
 });

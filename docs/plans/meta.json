@@ -7,6 +7,8 @@
     "LITE-KIT-PLAN",
     "UI-KIT-PLAN",
     "DOCS-SYSTEM-PLAN",
+    "AI-CHAT-PLAN",
+    "WORKER-SCALING-PLAN",
     "TESTS",
     "BACKLOG"
   ]

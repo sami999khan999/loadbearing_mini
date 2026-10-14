@@ -4,7 +4,12 @@ import {
   NotFoundError,
   type PublishDocPageInput,
 } from "../import.js";
-import type { ActivityLogger, MarkdownRenderer, UnitOfWork } from "../port/index.js";
+import type {
+  ActivityLogger,
+  DomainEventPublisher,
+  MarkdownRenderer,
+  UnitOfWork,
+} from "../port/index.js";
 import type { Authorizer, Principal } from "../primitive/index.js";
 import type { DocCache } from "./doc.cache.js";
 import { DocRules } from "./doc.rules.js";
@@ -25,6 +30,7 @@ export class PublishDocPageUseCase {
     private readonly cache: DocCache,
     private readonly activity: ActivityLogger,
     private readonly unitOfWork: UnitOfWork,
+    private readonly events: DomainEventPublisher,
   ) {}
 
   public async execute(actor: Principal, input: PublishDocPageInput): Promise<DocPageDraftDto> {
@@ -86,6 +92,11 @@ export class PublishDocPageUseCase {
         spaceId: draft.spaceId,
         pageId: input.pageId,
         revisionNo,
+      });
+      // In the transaction, so the semantic index hears of exactly the publishes that landed.
+      await this.events.publish(actor, {
+        name: "doc.page.published",
+        payload: { spaceId: draft.spaceId, pageId: input.pageId, revisionNo },
       });
 
       const space = await this.spaces.findById(organizationId, draft.spaceId);

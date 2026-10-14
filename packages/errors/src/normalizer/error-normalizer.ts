@@ -18,6 +18,11 @@ export class ErrorNormalizer {
     // adopting it would hand a caller the shape this branch exists to stop.
     if (wrapped !== null) return AppError.from(wrapped) ?? new InternalError(thrown);
 
+    // oRPC's own input check: a `BAD_REQUEST` holding the schema's issues in `data`. Its
+    // code passes `isAppError`, and it reached the client with no field to point at.
+    const { data } = (thrown ?? {}) as { data?: unknown };
+    if (ErrorNormalizer.isSchemaError(data)) return ValidationError.fromIssues(data.issues);
+
     if (ErrorNormalizer.isAppError(thrown)) return thrown;
     if (ErrorNormalizer.isSchemaError(thrown)) return ValidationError.fromIssues(thrown.issues);
     return new InternalError(thrown);

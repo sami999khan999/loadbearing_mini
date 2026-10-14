@@ -8,8 +8,8 @@ import {
   Worker,
 } from "../import.js";
 
-// A `reembed` job names only the tenant, which `pnpm ai:reindex` queues; an index job is
-// an `IndexDocumentJob`.
+// A `reembed` or `doc-reindex` job names only the tenant, and `pnpm ai:reindex` queues
+// both; an index job is an `IndexDocumentJob`.
 type EmbeddingJobData = Pick<IndexDocumentJob, "organizationId"> & Partial<IndexDocumentJob>;
 
 // A thin adapter, exactly like an oRPC router. Everything worth testing lives in
@@ -76,7 +76,15 @@ export class EmbeddingConsumer {
       return;
     }
 
-    // Present on every job but a `reembed`, which returned above.
+    // Queues the tenant's published pages, each its own index job on this queue (`DC.2`).
+    if (job.name === "doc-reindex") {
+      await withShard(this.container, job.data.organizationId, () =>
+        this.container.doc.reindex.execute(principal),
+      );
+      return;
+    }
+
+    // Present on every job but the two above, which returned.
     const data = job.data as IndexDocumentJob;
     await withShard(this.container, data.organizationId, () =>
       this.container.ai.indexQueued.execute(principal, data),

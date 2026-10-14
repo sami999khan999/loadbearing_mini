@@ -61,13 +61,18 @@ the web app answer 500.
 From the plan's verification section. Users alice, bob and carol (`Correct-Horse-9`), web on
 port 23000, mail in Mailpit on 28025, with the worker running.
 
-- [ ] Sign up and verify through Mailpit, which shows that the worker's mail path works.
-- [ ] Invite a user to an org and grant a role. Enable 2FA and create an API key.
-- [ ] Toggle a flag and an entitlement in platform admin.
-- [ ] As a platform admin, export a tenant, then delete one on the accounts page. After a delete, its
+- [x] Sign up and verify through Mailpit, which shows that the worker's mail path works.
+      2026-10-10: passed; the sent job leaves Redis as it completes.
+- [x] Invite a user to an org and grant a role. Enable 2FA and create an API key.
+      2026-10-10: passed, 2FA sign-in included; the key reads members and is refused roles.
+- [~] Toggle a flag and an entitlement in platform admin.
+      2026-10-10: a plan narrowed an org's menu at once. No flag is declared, so none to toggle.
+- [x] As a platform admin, export a tenant, then delete one on the accounts page. After a delete, its
       `cold/` objects stay for 30 days and `pnpm db:partitions --sweep <id>` removes them early.
-- [ ] The dashboard shows the module nav and the member count, and the bell only for members who
+- [x] The dashboard shows the module nav and the member count, and the bell only for members who
       hold `notification.inbox.read`.
-- [ ] The docs audience matrix from `LT3`.
-- [ ] AI search in all three modes from `LT4`. With `none` there are no outbound calls.
-- [ ] A notification arrives in realtime.
+- [x] The docs audience matrix from `LT3`. 2026-10-10: public, members and owner, signed out,
+      as another member and as the author; search hides the private space. Granted not walked.
+- [~] AI search in all three modes from `LT4`. With `none` there are no outbound calls.
+      2026-10-10: `none` passed. `openai` and `gemini` wait for real keys.
+- [x] A notification arrives in realtime. 2026-10-10: the bell rose with no reload.

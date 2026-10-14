@@ -157,3 +157,18 @@ kit's `FC.13`–`FC.15`.
 - [x] `BL.17` **`deletePrefix` scanned the queue's keys too.** Measured: 250 round trips beside
   50,000 queue keys, twice per role change. The cache moves to Redis database 1, and a SCAN walks
   one database. `202d11f7`.
+
+## 6. Found walking this kit in a browser, 2026-10-10
+
+The checks in [`TESTS.md`](TESTS.md), run by hand. Shared fixes landed in the big kit first under
+its `FC.<n>`.
+
+- [x] `FC.16` A bad input read "Something went wrong": oRPC's input check now becomes field
+  violations. `cbe976af`.
+- [x] `FC.17` Forms now show what is wrong with each field. `3d6935df`.
+- [x] `FC.18` Server functions refuse a cross-site call. `4ea4eaf3`.
+- [x] `FC.19` No page hydrated in dev after `start.ts` arrived: `router.tsx` imports
+  `createIsomorphicFn` from the package. `9196d360`.
+- [x] `BL.15` follow-up: deleting a former member's space was a 500, because the membership was
+  read inside the routed transaction. It is read first now. `15ba660f`.
+

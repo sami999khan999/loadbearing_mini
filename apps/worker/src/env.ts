@@ -57,6 +57,21 @@ const Schema = z
     // Longer than your longest job, shorter than your orchestrator's SIGKILL timer: above
     // it just means the platform kills you mid-drain.
     WORKER_SHUTDOWN_TIMEOUT_MS: z.coerce.number().int().positive().default(25_000),
+    // The queues this process serves, comma separated; every queue when unset. Names are
+    // checked against the lanes at boot, because this file cannot see `QueueName`.
+    WORKER_QUEUES: z
+      .string()
+      .optional()
+      .transform((v) => {
+        const names = (v ?? "")
+          .split(",")
+          .map((name) => name.trim())
+          .filter(Boolean);
+        return names.length > 0 ? names : undefined;
+      }),
+    // The sum of every lane's concurrency in one process. A boot over it is refused, not
+    // warned about: each in-flight job may hold a pool connection.
+    WORKER_PROCESS_MAX_CONCURRENCY: z.coerce.number().int().positive().default(64),
     WORKER_EMBEDDING_CONCURRENCY: z.coerce.number().int().positive().default(4),
     // Serial by default: these jobs take table-level locks and can deadlock on the same
     // partition.
@@ -147,6 +162,14 @@ export class Env {
 
   public static get shutdownTimeoutMs(): number {
     return Env.parsed.WORKER_SHUTDOWN_TIMEOUT_MS;
+  }
+
+  public static get queues(): readonly string[] | undefined {
+    return Env.parsed.WORKER_QUEUES;
+  }
+
+  public static get processMaxConcurrency(): number {
+    return Env.parsed.WORKER_PROCESS_MAX_CONCURRENCY;
   }
 
   // Per worker instance, never global. Four instances at concurrency 4 is sixteen

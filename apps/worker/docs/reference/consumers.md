@@ -8,7 +8,7 @@ description: Five consumers, all with a public handle() — the batch sizes and 
 | Consumer | Queue | Jobs | Registered |
 |---|---|---|---|
 | `MaintenanceConsumer` | `MAINTENANCE` | cleanup · partitions · retention · orphans · spares · tenant-export · tenant-delete | always |
-| `EmbeddingConsumer` | `EMBEDDING` | index · reembed | always |
+| `EmbeddingConsumer` | `EMBEDDING` | index · reembed · doc-reindex | always |
 | `MailConsumer` | `MAIL` | send | always |
 | `OutboxConsumer` | `EVENT` | drain · deliver | always |
 | `NotificationConsumer` | `NOTIFICATION` | digest-fanout · digest | always |
@@ -72,8 +72,10 @@ a retryable failure into **permanent, silent data loss**.
 Failures are observed from the `failed` **event** instead, never from a `catch` inside the handler:
 the listener does not swallow, so BullMQ still sees the rejection and still retries.
 
-Everything worth testing lives in `IndexDocumentUseCase` and, for `reembed`, `ReembedChunksUseCase`.
-Both jobs are placed on the tenant's node with `withShard` first, because `document_chunks` is routed.
+Everything worth testing lives in `IndexDocumentUseCase`, `ReembedChunksUseCase` for `reembed`, and
+`ReindexDocsUseCase` for `doc-reindex`, which `pnpm ai:reindex --docs` queues to index every published
+Docs page. All three are placed on the tenant's node with `withShard` first, because `document_chunks`
+is routed.
 
 ## `MailConsumer` is the only thing in this system that sends
 

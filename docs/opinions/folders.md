@@ -151,6 +151,7 @@ gets the same name in every package, so `catalog/` means the same thing in `erro
 | `consumer/` | queue consumers | `apps/worker` |
 | `schedule/` | repeatable jobs | `apps/worker` |
 | `bootstrap/` | what a process assembles before it starts working | `apps/worker` |
+| `supervisor/` | the lanes a worker process runs, and the ceilings on them | `apps/worker` |
 | `component/` | one folder per exported React component | `ui` |
 | `style/` | stylesheets only, and every one the package ships | `ui`, `apps/web` |
 
