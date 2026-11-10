@@ -21,4 +21,11 @@ export const aiPermissions = {
     module: "ai",
     label: "Ask the assistant about what you can read",
   },
+  // An administrator's view of the tenant's own spend. Not `requires` the use key: who
+  // watches the meter need not ask questions.
+  "ai.usage.read": {
+    scope: "org",
+    module: "ai",
+    label: "View the organization's assistant usage",
+  },
 } as const satisfies Record<string, PermissionMeta>;
