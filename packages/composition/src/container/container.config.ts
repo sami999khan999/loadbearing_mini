@@ -106,6 +106,8 @@ export interface ContainerConfig {
     readonly orgDailyTokens?: number;
     // How many answers one person may have generating at once.
     readonly activePerUser?: number;
+    // `fake` only: a pause between words, so a load test or a walk sees a stream move.
+    readonly fakeDelayMs?: number;
   };
   // One block, naming the `driver` the container switches on. Lite has no analytics or log
   // store, so no second or third. See docs/reference/container.md.

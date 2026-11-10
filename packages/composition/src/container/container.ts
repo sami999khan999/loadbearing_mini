@@ -1762,7 +1762,7 @@ export class Container {
       case "none":
         return null;
       case "fake":
-        return new CannedAssistantModel();
+        return new CannedAssistantModel({ delayMs: config.fakeDelayMs ?? 0 });
       case "openai":
         return new OpenAiAssistantModel(
           {

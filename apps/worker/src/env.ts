@@ -58,6 +58,8 @@ const Schema = z
     ASSISTANT_ENDPOINT: z.url().optional(),
     // The longest answer in tokens, and one organization's tokens a UTC day: 0 is no cap.
     ASSISTANT_MAX_OUTPUT_TOKENS: z.coerce.number().int().positive().default(1024),
+    // `fake` only: milliseconds between words, so an answer streams like a real one.
+    ASSISTANT_FAKE_DELAY_MS: z.coerce.number().int().min(0).default(0),
     ASSISTANT_ORG_DAILY_TOKENS: z.coerce.number().int().min(0).default(0),
 
     // Per process. The cap exists to stop one runaway tab, which is local by
@@ -283,6 +285,7 @@ export class Env {
         ...(e.ASSISTANT_ENDPOINT ? { endpoint: e.ASSISTANT_ENDPOINT } : {}),
         maxOutputTokens: e.ASSISTANT_MAX_OUTPUT_TOKENS,
         orgDailyTokens: e.ASSISTANT_ORG_DAILY_TOKENS,
+        fakeDelayMs: e.ASSISTANT_FAKE_DELAY_MS,
       },
       realtime: {
         maxStreamsPerUser: e.REALTIME_MAX_STREAMS_PER_USER,
