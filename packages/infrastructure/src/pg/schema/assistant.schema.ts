@@ -1,4 +1,5 @@
 import {
+  type AssistantSource,
   check,
   index,
   integer,
@@ -59,7 +60,7 @@ export const assistantMessages = pgTable(
       .default("complete"),
     // The passages an answer was given, as ids and titles, never their text: a reopen
     // re-checks each against what the reader may see now.
-    sources: jsonb("sources").$type<readonly Record<string, unknown>[]>().notNull().default([]),
+    sources: jsonb("sources").$type<readonly AssistantSource[]>().notNull().default([]),
     model: text("model"),
     // Milliseconds, like `messages.created_at`: the keyset hands it back as a predicate.
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).notNull().defaultNow(),

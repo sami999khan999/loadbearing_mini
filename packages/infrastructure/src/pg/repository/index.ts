@@ -4,6 +4,9 @@
 export { PgAccountRepository } from "./pg-account.repository.js";
 export { PgActivityLogger } from "./pg-activity.logger.js";
 export { PgApiKeyRepository } from "./pg-api-key.repository.js";
+export { PgAssistantMessageRepository } from "./pg-assistant-message.repository.js";
+export { PgAssistantThreadRepository } from "./pg-assistant-thread.repository.js";
+export { PgAssistantUsageRepository } from "./pg-assistant-usage.repository.js";
 export { PgBootstrapMembershipEnroller } from "./pg-bootstrap-membership.enroller.js";
 export { PgCapabilityRepository } from "./pg-capability.repository.js";
 export { PgDocGrantRepository } from "./pg-doc-grant.repository.js";
