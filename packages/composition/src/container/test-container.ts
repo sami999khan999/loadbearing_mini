@@ -23,6 +23,7 @@ import {
   RecordingRealtimePublisher,
   RecordingRelayedActivityStore,
   RecordingSessionGateway,
+  ScriptedAssistantModel,
   StubEmbeddingProvider,
   StubMailRenderer,
   StubMarkdownRenderer,
@@ -30,6 +31,7 @@ import {
 } from "../fake/index.js";
 import {
   type ActivityLogger,
+  type AssistantModel,
   Authorizer,
   type CacheStore,
   type CapabilityInvalidator,
@@ -72,6 +74,7 @@ import { OrganizationShardingStrategy } from "../shard/index.js";
 // a compile error here until it is written.
 export interface TestPorts {
   readonly activity: ActivityLogger;
+  readonly assistantModel: AssistantModel;
   readonly relayedActivity: RelayedActivityStore;
   readonly cache: CacheStore;
   readonly rateLimits: RateLimitStore;
@@ -134,6 +137,7 @@ export class TestContainer {
       eachShard: (work) => work(0),
 
       activity: overrides.activity ?? new RecordingActivityLogger(),
+      assistantModel: overrides.assistantModel ?? new ScriptedAssistantModel(),
       relayedActivity: overrides.relayedActivity ?? new RecordingRelayedActivityStore(),
       cache: overrides.cache ?? new InMemoryCacheStore(),
       rateLimits: overrides.rateLimits ?? new InMemoryRateLimitStore(),

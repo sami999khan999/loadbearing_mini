@@ -4,6 +4,7 @@ import {
   AdjustEntitlementUseCase,
   ApiKeyResolver,
   AssignPlanUseCase,
+  type AssistantModel,
   AuthFactory,
   type AuthInstance,
   Authorizer,
@@ -11,6 +12,7 @@ import {
   BetterAuthSessionResolver,
   BullMqQueuePublisher,
   type CacheStore,
+  CannedAssistantModel,
   CapabilityCache,
   CapabilitySet,
   ChangeMemberRoleUseCase,
@@ -52,6 +54,7 @@ import {
   ExportOrganizationUseCase,
   FindAccountUseCase,
   FlagCache,
+  GeminiAssistantModel,
   GeminiEmbeddingProvider,
   GetDocPageUseCase,
   GetDocRevisionUseCase,
@@ -101,6 +104,7 @@ import {
   MoveDocPageUseCase,
   NotificationSubscriber,
   NullMembershipEnroller,
+  OpenAiAssistantModel,
   OpenAiEmbeddingProvider,
   OpenDocImageUseCase,
   type OrganizationFounder,
@@ -336,6 +340,9 @@ export class Container {
   // How the corpus is embedded and searched, from `EMBEDDING_PROVIDER`. Built once, so no
   // use-case names a vendor or asks which one it was handed.
   public readonly searchMode: SearchMode;
+  // Null when `ASSISTANT_PROVIDER` is `none` or unset: the assistant is off, and nothing
+  // that reaches for it may assume otherwise. Read through `hasAssistant` / `assistantModel`.
+  private readonly chatModel: AssistantModel | null;
   // The one way onto the embedding queue, for a person's index request and for the Docs
   // index alike. Built before the subscribers, which need it.
   private readonly documentIndex: DocumentIndexPublisher;
@@ -675,6 +682,7 @@ export class Container {
     // switch a compiler checks, not in a document.
     this.vectors = Container.buildVectorStore(config, this.cluster, this.transactions, this.shards);
     this.searchMode = Container.buildSearchMode(config.embedding, this.logger);
+    this.chatModel = Container.buildAssistantModel(config.assistant, this.logger);
 
     // The only catalog carrying the `email` namespace the worker's digests read. A
     // client bundle cannot reach it.
@@ -1327,6 +1335,15 @@ export class Container {
     return this.principalBuilder;
   }
 
+  public get assistantModel(): AssistantModel {
+    if (!this.chatModel) throw new Error("This container was built without an assistant model.");
+    return this.chatModel;
+  }
+
+  public get hasAssistant(): boolean {
+    return this.chatModel !== null;
+  }
+
   // **The one place a request or a job is placed.** Both run once, here, so
   // `BaseRepository.db` stays a property read — see the sharding reference.
   // ──
@@ -1614,6 +1631,49 @@ export class Container {
       imageOrphans: new DocImageOrphans(pages, this.storage, this.clock),
       reindex: new ReindexDocsUseCase(auth, spaces, pages, this.documentIndex, this.clock),
     };
+  }
+
+  // A `case` per provider, the compiler checking every one. OpenRouter is OpenAI's wire at
+  // another endpoint, so it is the same adapter; the default models are each one's small one.
+  private static buildAssistantModel(
+    config: ContainerConfig["assistant"],
+    logger: Logger,
+  ): AssistantModel | null {
+    if (!config) return null;
+    const key = config.apiKey ?? "";
+    switch (config.provider) {
+      case "none":
+        return null;
+      case "fake":
+        return new CannedAssistantModel();
+      case "openai":
+        return new OpenAiAssistantModel(
+          {
+            apiKey: key,
+            model: config.model ?? "gpt-4.1-mini",
+            ...(config.endpoint ? { endpoint: config.endpoint } : {}),
+          },
+          logger,
+        );
+      case "openrouter":
+        return new OpenAiAssistantModel(
+          {
+            apiKey: key,
+            model: config.model ?? "openai/gpt-4.1-mini",
+            endpoint: config.endpoint ?? "https://openrouter.ai/api/v1",
+          },
+          logger,
+        );
+      case "gemini":
+        return new GeminiAssistantModel(
+          {
+            apiKey: key,
+            model: config.model ?? "gemini-2.5-flash",
+            ...(config.endpoint ? { endpoint: config.endpoint } : {}),
+          },
+          logger,
+        );
+    }
   }
 
   // The one place a vendor is chosen, as a `case` the compiler checks. The default models

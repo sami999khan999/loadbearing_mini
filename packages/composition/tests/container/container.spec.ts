@@ -108,6 +108,28 @@ describe("Container — the derived stores", () => {
 
     expect(container.partitionArchive).toBeDefined();
   });
+
+  // `AI.1`: the assistant is off unless a provider is named, and says so before it is asked.
+  it("has no assistant model without a provider, and says so", () => {
+    for (const container of [build(), build({ assistant: { provider: "none" } })]) {
+      expect(container.hasAssistant).toBe(false);
+      expect(() => container.assistantModel).toThrow("without an assistant model");
+    }
+  });
+
+  it("builds the canned model for fake, and each provider's default model", () => {
+    expect(build({ assistant: { provider: "fake" } }).assistantModel.model).toBe("canned");
+    expect(build({ assistant: { provider: "openrouter", apiKey: "k" } }).assistantModel.model).toBe(
+      "openai/gpt-4.1-mini",
+    );
+    expect(build({ assistant: { provider: "gemini", apiKey: "k" } }).assistantModel.model).toBe(
+      "gemini-2.5-flash",
+    );
+    expect(
+      build({ assistant: { provider: "openai", apiKey: "k", model: "gpt-x" } }).assistantModel
+        .model,
+    ).toBe("gpt-x");
+  });
 });
 
 describe("Container — the vector driver", () => {

@@ -9,6 +9,9 @@ export {
   type ArchivedObject,
   type ArchivedPartition,
   AssignPlanUseCase,
+  type AssistantDelta,
+  AssistantModel,
+  type AssistantRequest,
   Authorizer,
   CacheStore,
   type CancellationSignal,
@@ -252,10 +255,13 @@ export { ConflictError, NotFoundError } from "@loadbearing/errors";
 // whole outside-world side of the ports below.
 export {
   BullMqQueuePublisher,
+  CannedAssistantModel,
   Database,
   DatabaseCluster,
   type DatabaseStats,
+  GeminiAssistantModel,
   GeminiEmbeddingProvider,
+  OpenAiAssistantModel,
   OpenAiEmbeddingProvider,
   PgAccountRepository,
   PgActivityLogger,

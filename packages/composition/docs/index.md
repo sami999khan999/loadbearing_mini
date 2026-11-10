@@ -73,6 +73,7 @@ shakes the rest out.
 | `storage` | `StorageGateway` | `S3StorageGateway` | one line |
 | `queue` | `QueuePublisher` | `BullMqQueuePublisher` | one line |
 | `vectors` | `VectorStore` | `PgVectorStore` | one line — pgvector → Qdrant |
+| `assistantModel` | `AssistantModel`, behind `hasAssistant` | `OpenAiAssistantModel` (OpenAI, OpenRouter), `GeminiAssistantModel`, `CannedAssistantModel` | `ASSISTANT_PROVIDER`; `none` builds none |
 | `searchMode` | `SearchMode` | lexical, or semantic over `OpenAiEmbeddingProvider` / `GeminiEmbeddingProvider` | `EMBEDDING_PROVIDER`; a new vendor is one `case` |
 | `sessions` | `SessionResolver` | `BetterAuthSessionResolver` | one line |
 | `activity` | `ActivityLogger` | `PgActivityLogger` | one line |
