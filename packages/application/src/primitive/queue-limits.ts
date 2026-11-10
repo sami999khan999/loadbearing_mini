@@ -11,6 +11,8 @@ const LIMITS: Readonly<Record<QueueKey, number>> = Object.freeze({
   [QueueName.MAINTENANCE]: 4,
   [QueueName.MAIL]: 32,
   [QueueName.EVENT]: 64,
+  // Mostly waiting on a provider's stream, holding no database connection while it does.
+  [QueueName.ASSISTANT]: 256,
 });
 
 export class QueueLimits {

@@ -69,7 +69,15 @@ export abstract class AssistantMessageRepository {
 
   public abstract deleteByThread(organizationId: OrganizationId, threadId: string): Promise<void>;
 
-  // Answers still `pending` from before `olderThan`, settled `failed`: a worker that died
-  // mid-stream leaves one. Returns how many it settled.
-  public abstract failStale(organizationId: OrganizationId, olderThan: Date): Promise<number>;
+  // The asker's answers still `pending` since `since`, for the active-generation cap. An
+  // older one is stuck, not running, and the sweep settles it.
+  public abstract countPending(
+    organizationId: OrganizationId,
+    authorId: UserId,
+    since: Date,
+  ): Promise<number>;
+
+  // Up to `limit` answers still `pending` from before `olderThan`, on the node in scope and
+  // across its tenants, settled `failed`: a worker that died mid-stream leaves one.
+  public abstract failStale(olderThan: Date, limit: number): Promise<number>;
 }

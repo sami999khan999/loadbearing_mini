@@ -115,6 +115,14 @@ export interface DocSearchMatch {
   readonly rank: number;
 }
 
+// One published section's text, as the search index holds it.
+export interface DocSectionRecord {
+  readonly pageId: DocPageId;
+  readonly anchor: string | null;
+  readonly heading: string | null;
+  readonly body: string;
+}
+
 export interface DocRevisionRecord extends DocRevisionSummaryRecord {
   readonly description: string | null;
   readonly markdown: string;
@@ -201,6 +209,13 @@ export abstract class DocPageRepository {
     spaceIds: readonly DocSpaceId[],
     limit: number,
   ): Promise<readonly DocSearchMatch[]>;
+
+  // Every section of these pages, in page order. For a caller that already holds matches
+  // the reader may see: it checks nothing, and a page it names is read whole.
+  public abstract listSections(
+    organizationId: OrganizationId,
+    pageIds: readonly DocPageId[],
+  ): Promise<readonly DocSectionRecord[]>;
 
   public abstract listRevisions(
     organizationId: OrganizationId,
