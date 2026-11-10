@@ -78,7 +78,38 @@ export class RealtimeRouter {
     }
   });
 
+  // One answer while it streams, from its own log. Authorship is asserted before the log
+  // is opened, and the stream ends with the answer's `done` frame rather than on a timer.
+  public static readonly assistant = authed.realtime.assistant.handler(async function* ({
+    input,
+    context,
+    signal,
+    lastEventId,
+  }) {
+    const startedAt = Date.now();
+    let frames = 0;
+    context.log.emit("realtime.stream.opened", { resumed: lastEventId !== undefined });
+    // Only the drain and the client's own close end it early; it is minutes long at most,
+    // so the held-stream check that guards the hour-long streams would add nothing here.
+    const ended = signal ?? new AbortController().signal;
+
+    try {
+      for await (const frame of context.container.assistant.stream.execute(
+        context.principal,
+        input,
+        ended,
+        lastEventId,
+      )) {
+        frames += 1;
+        yield withEventMeta(frame, { id: frame.id, retry: RETRY_MS });
+      }
+    } finally {
+      context.log.emit("realtime.stream.closed", { durationMs: Date.now() - startedAt, frames });
+    }
+  });
+
   public static readonly all = {
     stream: RealtimeRouter.stream,
+    assistant: RealtimeRouter.assistant,
   };
 }

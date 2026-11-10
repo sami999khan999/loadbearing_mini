@@ -36,6 +36,7 @@ calls render Markdown or sign an upload. Better Auth limits
 | `docPage.preview`, `docPage.search` | 120 a minute |
 | `docPage.publish` | 30 a minute |
 | `docPage.upload` | 60 an hour |
+| `assistant.send` | 20 a minute |
 
 The count is per principal and procedure — `rate:<procedure>:<organization>:<user>` — in a fixed
 window in the **cache** Redis, `SET NX EX` then `INCR` in one `MULTI`. Past the limit the call is a
