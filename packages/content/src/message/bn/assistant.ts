@@ -34,4 +34,9 @@ export const assistant = {
 
   "assistant.sources.title": "উৎস",
   "assistant.sources.unavailable": "আপনার জন্য আর উপলব্ধ নয়",
+
+  "assistant.usage.title": "ব্যবহার",
+  "assistant.usage.today": "আজ {limit} টোকেনের মধ্যে {tokens} টি ব্যবহার হয়েছে।",
+  "assistant.usage.todayUncapped": "আজ {tokens} টোকেন ব্যবহার হয়েছে।",
+  "assistant.usage.month": "এই মাসে: {tokens} টোকেন। উত্তর: {answers}।",
 } as const;

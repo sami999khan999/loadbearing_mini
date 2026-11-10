@@ -35,4 +35,10 @@ export const assistant = {
   "assistant.sources.title": "Sources",
   // A source the reader lost access to since the answer: its title, never a link.
   "assistant.sources.unavailable": "No longer available to you",
+
+  "assistant.usage.title": "Usage",
+  "assistant.usage.today": "{tokens} of {limit} tokens used today.",
+  "assistant.usage.todayUncapped": "{tokens} tokens used today.",
+  // Label and count, since `Translator` does not pluralise: "1 answers" otherwise.
+  "assistant.usage.month": "This month: {tokens} tokens. Answers: {answers}.",
 } as const;
