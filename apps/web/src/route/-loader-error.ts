@@ -9,7 +9,7 @@ export interface RouteNode {
 }
 
 // Every route, so no page has to remember it: `ensureQueryData` rethrows the server's
-// `NOT_FOUND`, which would otherwise render as a 500.
+// refusal, which would otherwise render as a 500. `FORBIDDEN` hides like `NOT_FOUND` (`AI.4`).
 export class LoaderError {
   private constructor() {}
 
@@ -23,6 +23,7 @@ export class LoaderError {
   }
 
   private static toNotFound(this: void, error: unknown): void {
-    if (ErrorNormalizer.normalize(error).code === "NOT_FOUND") throw notFound();
+    const { code } = ErrorNormalizer.normalize(error);
+    if (code === "NOT_FOUND" || code === "FORBIDDEN") throw notFound();
   }
 }
