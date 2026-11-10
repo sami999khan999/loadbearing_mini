@@ -27,6 +27,9 @@ export {
   type AdjustmentDto,
   type ApiKeyDto,
   ApiKeyEntity,
+  type AssistantMessageDto,
+  type AssistantSourceDto,
+  type AssistantThreadDto,
   type CapabilitiesDto,
   type DocAccessOptionsDto,
   type DocAccessRuleDto,
@@ -84,6 +87,8 @@ export {
   AccountQueries,
   ApiKeyMutations,
   ApiKeyQueries,
+  AssistantMutations,
+  AssistantQueries,
   DocMutations,
   DocQueries,
   DocumentMutations,
@@ -103,6 +108,7 @@ export {
   useApiClient,
   useAppInfiniteQuery,
   useAppQuery,
+  useAssistantStream,
 } from "@loadbearing/query";
 
 // ── @loadbearing/ui ──────────────────────────────────────────────────────────

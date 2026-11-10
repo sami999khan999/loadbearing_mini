@@ -23,6 +23,14 @@ export {
   useApiKeyFailure,
 } from "./apikey/index.js";
 export {
+  AssistantQuestionForm,
+  type AssistantQuestionFormProps,
+  AssistantThreadList,
+  type AssistantThreadListProps,
+  AssistantThreadPanel,
+  type AssistantThreadPanelProps,
+} from "./assistant/index.js";
+export {
   ForgotPasswordForm,
   type ForgotPasswordFormProps,
   ResetPasswordForm,
