@@ -15,6 +15,7 @@ export interface AssistantUsageRecord {
 export interface AssistantUsageTotal {
   readonly inputTokens: number;
   readonly outputTokens: number;
+  readonly answers: number;
 }
 
 // The meter, append-only: one row per settled answer, in `ai_usage`.

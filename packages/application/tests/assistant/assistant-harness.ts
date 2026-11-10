@@ -208,7 +208,7 @@ export class Usage implements AssistantUsageRepository {
   }
 
   public totalSince() {
-    return Promise.resolve({ inputTokens: 0, outputTokens: 0 });
+    return Promise.resolve({ inputTokens: 0, outputTokens: 0, answers: 0 });
   }
 }
 
