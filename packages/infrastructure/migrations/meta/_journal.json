@@ -43,6 +43,13 @@
       "when": 1794331797916,
       "tag": "0005_assistant_grants",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794332317012,
+      "tag": "0006_assistant_usage_grants",
+      "breakpoints": true
     }
   ]
 }

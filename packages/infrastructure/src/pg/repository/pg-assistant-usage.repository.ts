@@ -28,12 +28,14 @@ export class PgAssistantUsageRepository extends BaseRepository implements Assist
       .select({
         inputTokens: sql<string>`coalesce(sum(${aiUsage.inputTokens}), 0)`,
         outputTokens: sql<string>`coalesce(sum(${aiUsage.outputTokens}), 0)`,
+        answers: sql<string>`count(*)`,
       })
       .from(aiUsage)
       .where(and(eq(aiUsage.organizationId, organizationId), gte(aiUsage.createdAt, since)));
     return {
       inputTokens: Number(row?.inputTokens ?? 0),
       outputTokens: Number(row?.outputTokens ?? 0),
+      answers: Number(row?.answers ?? 0),
     };
   }
 }
