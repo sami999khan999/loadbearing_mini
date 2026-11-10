@@ -9,4 +9,6 @@ export const assistantProcedurePermissions = {
   "assistant.cancel": "ai.assistant.use",
   "assistant.rename": "ai.assistant.use",
   "assistant.remove": "ai.assistant.use",
+  // The meter, not the questions: an administrator's view of the tenant's spend.
+  "assistant.usage": "ai.usage.read",
 } as const satisfies Record<string, PermissionKey>;

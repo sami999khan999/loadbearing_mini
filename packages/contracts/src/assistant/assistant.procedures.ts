@@ -37,6 +37,10 @@ export class AssistantProcedures {
     .input(AssistantContract.get)
     .output(Envelope.acknowledged);
 
+  public static readonly usage = oc
+    .route({ method: "GET", path: "/assistant/usage" })
+    .output(AssistantContract.usage);
+
   public static readonly all = {
     list: AssistantProcedures.list,
     get: AssistantProcedures.get,
@@ -44,5 +48,6 @@ export class AssistantProcedures {
     cancel: AssistantProcedures.cancel,
     rename: AssistantProcedures.rename,
     remove: AssistantProcedures.remove,
+    usage: AssistantProcedures.usage,
   } as const;
 }

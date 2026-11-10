@@ -9,6 +9,7 @@ export {
   type AssistantThreadDetail,
   type AssistantThreadDto,
   type AssistantThreadPage,
+  type AssistantUsageDto,
   type GetAssistantThreadInput,
   type ListAssistantThreadsInput,
   type RenameAssistantThreadInput,

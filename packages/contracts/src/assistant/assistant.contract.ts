@@ -39,6 +39,12 @@ const message = z.object({
   completedAt: z.date().nullable(),
 });
 
+const usageTotal = z.object({
+  inputTokens: z.number().int().nonnegative(),
+  outputTokens: z.number().int().nonnegative(),
+  answers: z.number().int().nonnegative(),
+});
+
 export class AssistantContract {
   private constructor() {}
 
@@ -84,6 +90,13 @@ export class AssistantContract {
     messageId: z.uuid(),
   });
 
+  // The tenant's own spend, today and this month, UTC. A zero limit is no daily cap.
+  public static readonly usage = z.object({
+    today: usageTotal,
+    month: usageTotal,
+    dailyTokenLimit: z.number().int().nonnegative(),
+  });
+
   public static readonly rename = z.object({
     threadId: z.uuid(),
     title: z.string().trim().min(1).max(TITLE_MAX),
@@ -115,3 +128,4 @@ export type SendAssistantQuestionInput = z.infer<typeof AssistantContract.send>;
 export type AssistantSent = z.infer<typeof AssistantContract.sent>;
 export type AssistantAnswerInput = z.infer<typeof AssistantContract.answer>;
 export type RenameAssistantThreadInput = z.infer<typeof AssistantContract.rename>;
+export type AssistantUsageDto = z.infer<typeof AssistantContract.usage>;
