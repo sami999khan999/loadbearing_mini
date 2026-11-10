@@ -21,6 +21,8 @@ const Schema = z
     REDIS_QUEUE_URL: z.url(),
     // Live frames; the cache instance when unset. See docs/infra/reference/redis.md.
     REDIS_REALTIME_URL: z.url().optional(),
+    // The assistant's answer logs; the realtime instance when unset, then the cache's.
+    REDIS_ASSISTANT_URL: z.url().optional(),
 
     S3_ENDPOINT: z.url(),
     S3_REGION: z.string().min(1),
@@ -54,6 +56,9 @@ const Schema = z
     ASSISTANT_API_KEY: z.string().min(1).optional(),
     ASSISTANT_MODEL: z.string().min(1).optional(),
     ASSISTANT_ENDPOINT: z.url().optional(),
+    // The longest answer in tokens, and one organization's tokens a UTC day: 0 is no cap.
+    ASSISTANT_MAX_OUTPUT_TOKENS: z.coerce.number().int().positive().default(1024),
+    ASSISTANT_ORG_DAILY_TOKENS: z.coerce.number().int().min(0).default(0),
 
     // Per process. The cap exists to stop one runaway tab, which is local by
     // construction, and the age is what releases a channel a leaked reader is holding.
@@ -90,6 +95,10 @@ const Schema = z
     // A provider's cap, expressed once. Ten a second is under every managed sender's
     // free tier and well under a self-hosted relay's.
     WORKER_MAIL_RATE_PER_MINUTE: z.coerce.number().int().positive().default(600),
+    // An answer holds a provider stream and no database connection, so many fit. The rate
+    // is the provider contract's requests a minute, across this process's answers.
+    WORKER_ASSISTANT_CONCURRENCY: z.coerce.number().int().positive().default(32),
+    WORKER_ASSISTANT_RATE_PER_MINUTE: z.coerce.number().int().positive().default(600),
 
     // The same block the web app parses: a worker with no log output cannot be operated.
 
@@ -209,6 +218,14 @@ export class Env {
     return Env.parsed.WORKER_MAIL_RATE_PER_MINUTE;
   }
 
+  public static get assistantConcurrency(): number {
+    return Env.parsed.WORKER_ASSISTANT_CONCURRENCY;
+  }
+
+  public static get assistantRatePerMinute(): number {
+    return Env.parsed.WORKER_ASSISTANT_RATE_PER_MINUTE;
+  }
+
   public static get eventConcurrency(): number {
     return Env.parsed.WORKER_EVENT_CONCURRENCY;
   }
@@ -242,6 +259,7 @@ export class Env {
         cacheUrl: e.REDIS_CACHE_URL,
         queueUrl: e.REDIS_QUEUE_URL,
         ...(e.REDIS_REALTIME_URL ? { realtimeUrl: e.REDIS_REALTIME_URL } : {}),
+        ...(e.REDIS_ASSISTANT_URL ? { assistantUrl: e.REDIS_ASSISTANT_URL } : {}),
       },
       storage: {
         endpoint: e.S3_ENDPOINT,
@@ -263,6 +281,8 @@ export class Env {
         ...(e.ASSISTANT_API_KEY ? { apiKey: e.ASSISTANT_API_KEY } : {}),
         ...(e.ASSISTANT_MODEL ? { model: e.ASSISTANT_MODEL } : {}),
         ...(e.ASSISTANT_ENDPOINT ? { endpoint: e.ASSISTANT_ENDPOINT } : {}),
+        maxOutputTokens: e.ASSISTANT_MAX_OUTPUT_TOKENS,
+        orgDailyTokens: e.ASSISTANT_ORG_DAILY_TOKENS,
       },
       realtime: {
         maxStreamsPerUser: e.REALTIME_MAX_STREAMS_PER_USER,

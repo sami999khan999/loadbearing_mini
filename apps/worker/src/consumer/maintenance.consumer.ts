@@ -266,6 +266,10 @@ export class MaintenanceConsumer {
       now,
     );
     const lapsed = await this.container.overrides.expire.execute(SystemPrincipal.platform(), now);
+    let staleAnswers = 0;
+    await this.container.eachShard(async () => {
+      staleAnswers += await this.container.assistant.failStale.execute(SystemPrincipal.platform());
+    });
 
     this.container.logger.emit("maintenance.sweep.completed", {
       sessions: outcome.sessions,
@@ -273,6 +277,7 @@ export class MaintenanceConsumer {
       invitations: outcome.invitations,
       adjustments: expired.adjustments,
       overrides: lapsed.overrides,
+      staleAnswers,
     });
   }
 

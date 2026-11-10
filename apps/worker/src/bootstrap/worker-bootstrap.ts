@@ -14,13 +14,15 @@ import { LaneRegistry, WorkerSupervisor } from "../supervisor/index.js";
 export class WorkerBootstrap {
   private readonly supervisor: WorkerSupervisor;
   private draining: Promise<void> | null = null;
+  // Aborted first thing in a drain, so the answers in flight stop and save what they have.
+  private readonly stopping = new AbortController();
 
   public constructor(
     private readonly container: Container,
     private readonly redis: RedisConnection,
   ) {
     this.supervisor = new WorkerSupervisor(
-      LaneRegistry.forContainer(container, () => redis.queueClient()),
+      LaneRegistry.forContainer(container, () => redis.queueClient(), this.stopping.signal),
       Env.processMaxConcurrency,
     );
   }
@@ -79,6 +81,7 @@ export class WorkerBootstrap {
   private async drain(signal: string): Promise<void> {
     this.container.logger.emit("process.stopping", { service: "worker", signal });
     const startedAt = this.container.clock.now();
+    this.stopping.abort();
 
     // Handled before the race, never after: once the timeout has won, a rejection arriving
     // late has nowhere to land but `unhandledRejection`, which exits 1 over a clean drain.
