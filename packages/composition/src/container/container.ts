@@ -4,7 +4,9 @@ import {
   AdjustEntitlementUseCase,
   ApiKeyResolver,
   AssignPlanUseCase,
+  AssistantBudget,
   type AssistantModel,
+  AssistantRetrieval,
   AuthFactory,
   type AuthInstance,
   Authorizer,
@@ -12,6 +14,7 @@ import {
   BetterAuthSessionResolver,
   BullMqQueuePublisher,
   type CacheStore,
+  CancelAssistantAnswerUseCase,
   CannedAssistantModel,
   CapabilityCache,
   CapabilitySet,
@@ -29,6 +32,7 @@ import {
   type Database,
   DatabaseCluster,
   type DatabaseStats,
+  DeleteAssistantThreadUseCase,
   DeleteDocPageUseCase,
   DeleteDocSpaceUseCase,
   DeleteOrganizationUseCase,
@@ -52,10 +56,13 @@ import {
   ExpireEntitlementAdjustmentsUseCase,
   ExpirePermissionOverridesUseCase,
   ExportOrganizationUseCase,
+  FailStaleAssistantAnswersUseCase,
   FindAccountUseCase,
   FlagCache,
   GeminiAssistantModel,
   GeminiEmbeddingProvider,
+  GenerateAssistantAnswerUseCase,
+  GetAssistantThreadUseCase,
   GetDocPageUseCase,
   GetDocRevisionUseCase,
   GetDocSpaceUseCase,
@@ -74,6 +81,7 @@ import {
   InviteMemberUseCase,
   JsonLogger,
   ListApiKeysUseCase,
+  ListAssistantThreadsUseCase,
   ListDocAccessOptionsUseCase,
   ListDocGrantsUseCase,
   ListDocPagesUseCase,
@@ -115,6 +123,9 @@ import {
   PgAccountRepository,
   PgActivityLogger,
   PgApiKeyRepository,
+  PgAssistantMessageRepository,
+  PgAssistantThreadRepository,
+  PgAssistantUsageRepository,
   PgBootstrapMembershipEnroller,
   PgCapabilityRepository,
   PgDocGrantRepository,
@@ -161,6 +172,9 @@ import {
   ReadPlatformDocUseCase,
   type RealtimePublisher,
   type RealtimeSubscriber,
+  RedisAssistantBudgetStore,
+  RedisAssistantStreamPublisher,
+  RedisAssistantStreamSubscriber,
   RedisCacheStore,
   RedisConnection,
   RedisRateLimitStore,
@@ -170,6 +184,7 @@ import {
   ReindexDocsUseCase,
   ReinstateAccountUseCase,
   type RelayedActivityStore,
+  RenameAssistantThreadUseCase,
   type ReplicaHealth,
   ResendInvitationUseCase,
   RestoreDocRevisionUseCase,
@@ -187,6 +202,7 @@ import {
   SearchDocumentsUseCase,
   type SearchMode,
   SearchPlatformDocsUseCase,
+  SendAssistantQuestionUseCase,
   SendMailUseCase,
   SendNotificationDigestUseCase,
   type SessionResolver,
@@ -199,6 +215,7 @@ import {
   StaticContentSource,
   type StorageGateway,
   type StoragePolicyGateway,
+  StreamAssistantAnswerUseCase,
   SubscriberRegistry,
   SuspendAccountUseCase,
   SwitchModuleUseCase,
@@ -288,6 +305,13 @@ export class Container {
   // Not configurable: the number that matters is how far behind a reader may fall before
   // a refetch is cheaper than the memory, and it is the same on every deployment.
   private static readonly REALTIME_QUEUE_SIZE = 256;
+
+  // As long as an answer's log is kept: a reader waiting past it waits on nothing.
+  private static readonly ASSISTANT_STREAM_MAX_AGE_MS = 600_000;
+  // A short answer by default; the window the prompt builder budgets is the model's.
+  private static readonly ASSISTANT_MAX_OUTPUT_TOKENS = 1_024;
+  // Two, so one tab can ask while another is still being answered.
+  private static readonly ASSISTANT_ACTIVE_PER_USER = 2;
 
   // Two consecutive ticks before the first line, so a burst that drains is load rather
   // than an incident — and the pair has to fit inside the connect timeout, see below.
@@ -426,6 +450,19 @@ export class Container {
     readonly updatePreference: UpdateNotificationPreferenceUseCase;
     readonly deliver: DeliverNotificationUseCase;
     readonly sendDigest: SendNotificationDigestUseCase;
+  };
+  // `generate` is null without a model: the worker registers no `assistant` lane then, and
+  // `send` answers NOT_FOUND. The rest read what an earlier deploy with a model wrote.
+  public readonly assistant: {
+    readonly list: ListAssistantThreadsUseCase;
+    readonly get: GetAssistantThreadUseCase;
+    readonly send: SendAssistantQuestionUseCase;
+    readonly cancel: CancelAssistantAnswerUseCase;
+    readonly rename: RenameAssistantThreadUseCase;
+    readonly remove: DeleteAssistantThreadUseCase;
+    readonly stream: StreamAssistantAnswerUseCase;
+    readonly generate: GenerateAssistantAnswerUseCase | null;
+    readonly failStale: FailStaleAssistantAnswersUseCase;
   };
   // Inside `auth`'s block below, because a key is issued *by* someone: without an auth
   // config there is no principal to be the issuer.
@@ -623,6 +660,7 @@ export class Container {
       cacheUrl: config.redis.cacheUrl,
       queueUrl: config.redis.queueUrl,
       ...(config.redis.realtimeUrl ? { realtimeUrl: config.redis.realtimeUrl } : {}),
+      ...(config.redis.assistantUrl ? { assistantUrl: config.redis.assistantUrl } : {}),
     });
 
     this.clock = new SystemClock();
@@ -1259,6 +1297,8 @@ export class Container {
         this.routedUnitOfWork,
       ),
     };
+
+    this.assistant = this.buildAssistant(config.assistant, entitlements);
   }
 
   // Three modes, each wrapped so an invited address joins the organization that invited
@@ -1630,6 +1670,83 @@ export class Container {
       rerender: new DocRerender(pages, renderer, cache, uow),
       imageOrphans: new DocImageOrphans(pages, this.storage, this.clock),
       reindex: new ReindexDocsUseCase(auth, spaces, pages, this.documentIndex, this.clock),
+    };
+  }
+
+  // Its own method for the reason `buildDoc` is: eleven collaborators, and the retrieval
+  // reads Docs through the same search and policy the palette does.
+  private buildAssistant(
+    config: ContainerConfig["assistant"],
+    entitlements: PgEntitlementRepository,
+  ): Container["assistant"] {
+    const threads = new PgAssistantThreadRepository(this.cluster, this.transactions, this.shards);
+    const messages = new PgAssistantMessageRepository(this.cluster, this.transactions, this.shards);
+    const usage = new PgAssistantUsageRepository(this.cluster, this.transactions, this.shards);
+    const capabilities = new PgCapabilityRepository(this.cluster, this.transactions, this.shards);
+    // On the queue instance, which never evicts: an evicted count is a day's budget again.
+    const budget = new AssistantBudget(
+      new RedisAssistantBudgetStore(this.redis.queueClient()),
+      this.clock,
+      config?.orgDailyTokens ?? 0,
+    );
+    const stream = new RedisAssistantStreamPublisher(this.redis.assistantClient());
+    // Resolved on the first stream, so a process that never streams an answer dials nothing.
+    const subscriber = new RedisAssistantStreamSubscriber(
+      () => this.redis.assistantSubscriberClient(),
+      () => this.redis.assistantClient(),
+      { maxAgeMs: Container.ASSISTANT_STREAM_MAX_AGE_MS },
+    );
+    const retrieval = new AssistantRetrieval(
+      this.doc.search,
+      this.ai.searchDocuments,
+      new PgDocPageRepository(this.cluster, this.transactions, this.shards),
+      this.doc.cache,
+      new DocFeaturePolicy(this.flags, entitlements, this.cache),
+      this.vectors,
+      this.searchMode,
+    );
+    const auth = this.authorizer;
+    const uow = this.routedUnitOfWork;
+
+    return {
+      list: new ListAssistantThreadsUseCase(auth, threads),
+      get: new GetAssistantThreadUseCase(auth, threads, messages, retrieval),
+      send: new SendAssistantQuestionUseCase(
+        auth,
+        threads,
+        messages,
+        budget,
+        this.queue,
+        this.activity,
+        uow,
+        this.clock,
+        {
+          activePerUser: config?.activePerUser ?? Container.ASSISTANT_ACTIVE_PER_USER,
+          enabled: this.chatModel !== null,
+        },
+      ),
+      cancel: new CancelAssistantAnswerUseCase(auth, threads, messages, stream),
+      rename: new RenameAssistantThreadUseCase(auth, threads),
+      remove: new DeleteAssistantThreadUseCase(auth, threads, messages, this.activity, uow),
+      stream: new StreamAssistantAnswerUseCase(auth, threads, messages, retrieval, subscriber),
+      generate: this.chatModel
+        ? new GenerateAssistantAnswerUseCase(
+            threads,
+            messages,
+            usage,
+            this.tenantMemberships,
+            capabilities,
+            retrieval,
+            this.chatModel,
+            stream,
+            this.realtime,
+            budget,
+            uow,
+            this.clock,
+            config?.maxOutputTokens ?? Container.ASSISTANT_MAX_OUTPUT_TOKENS,
+          )
+        : null,
+      failStale: new FailStaleAssistantAnswersUseCase(messages, this.clock),
     };
   }
 
