@@ -1,4 +1,12 @@
 export { ActivityLogger } from "./activity.logger.js";
+export {
+  type AssistantDelta,
+  type AssistantMessage,
+  AssistantModel,
+  type AssistantRequest,
+  type AssistantRole,
+  type AssistantStopReason,
+} from "./assistant.model.js";
 export { CacheStore } from "./cache.store.js";
 export { CapabilityInvalidator } from "./capability.invalidator.js";
 export { DomainEventPublisher } from "./domain-event.publisher.js";
