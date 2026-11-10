@@ -63,6 +63,7 @@ import {
   GeminiEmbeddingProvider,
   GenerateAssistantAnswerUseCase,
   GetAssistantThreadUseCase,
+  GetAssistantUsageUseCase,
   GetDocPageUseCase,
   GetDocRevisionUseCase,
   GetDocSpaceUseCase,
@@ -463,6 +464,7 @@ export class Container {
     readonly stream: StreamAssistantAnswerUseCase;
     readonly generate: GenerateAssistantAnswerUseCase | null;
     readonly failStale: FailStaleAssistantAnswersUseCase;
+    readonly usage: GetAssistantUsageUseCase;
   };
   // Inside `auth`'s block below, because a key is issued *by* someone: without an auth
   // config there is no principal to be the issuer.
@@ -1747,6 +1749,7 @@ export class Container {
           )
         : null,
       failStale: new FailStaleAssistantAnswersUseCase(messages, this.clock),
+      usage: new GetAssistantUsageUseCase(auth, usage, this.clock, config?.orgDailyTokens ?? 0),
     };
   }
 

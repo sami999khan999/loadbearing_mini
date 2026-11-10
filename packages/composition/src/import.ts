@@ -67,6 +67,7 @@ export {
   FlagRepository,
   GenerateAssistantAnswerUseCase,
   GetAssistantThreadUseCase,
+  GetAssistantUsageUseCase,
   GetDocPageUseCase,
   GetDocRevisionUseCase,
   GetDocSpaceUseCase,
