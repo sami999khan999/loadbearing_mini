@@ -88,6 +88,12 @@ const Schema = z
     EMBEDDING_API_KEY: z.string().min(1).optional(),
     EMBEDDING_MODEL: z.string().min(1).optional(),
     EMBEDDING_DIMENSIONS: z.coerce.number().int().positive().default(1536),
+    // The AI assistant's chat model (`AI.1`). `none` turns the feature off and `fake` streams
+    // a canned answer calling nobody; the other three need the key. See assistant.md.
+    ASSISTANT_PROVIDER: z.enum(["none", "fake", "openai", "openrouter", "gemini"]).default("none"),
+    ASSISTANT_API_KEY: z.string().min(1).optional(),
+    ASSISTANT_MODEL: z.string().min(1).optional(),
+    ASSISTANT_ENDPOINT: z.url().optional(),
 
     // Per process. The cap exists to stop one runaway tab, which is local by
     // construction, and the age is what releases a channel a leaked reader is holding.
@@ -114,7 +120,7 @@ const Schema = z
     SERVER_SHUTDOWN_TIMEOUT: z.coerce.number().int().positive().default(5),
   })
   // Cross-field rules, and each earns the exception: production on http, `bootstrap` with
-  // no slug, and an embedding provider with no key.
+  // no slug, and an embedding or chat provider with no key.
   .superRefine((env, ctx) => {
     // The session cookie is `Secure` only under https, so production on http would ship it
     // in the clear. A loopback host is a production build tried locally, and is allowed.
@@ -134,6 +140,18 @@ const Schema = z
         code: "custom",
         path: ["EMBEDDING_API_KEY"],
         message: `Required when EMBEDDING_PROVIDER is "${env.EMBEDDING_PROVIDER}".`,
+      });
+    }
+
+    if (
+      env.ASSISTANT_PROVIDER !== "none" &&
+      env.ASSISTANT_PROVIDER !== "fake" &&
+      !env.ASSISTANT_API_KEY
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["ASSISTANT_API_KEY"],
+        message: `Required when ASSISTANT_PROVIDER is "${env.ASSISTANT_PROVIDER}".`,
       });
     }
 
@@ -274,6 +292,12 @@ export class Env {
         dimensions: e.EMBEDDING_DIMENSIONS,
         ...(e.EMBEDDING_API_KEY ? { apiKey: e.EMBEDDING_API_KEY } : {}),
         ...(e.EMBEDDING_MODEL ? { model: e.EMBEDDING_MODEL } : {}),
+      },
+      assistant: {
+        provider: e.ASSISTANT_PROVIDER,
+        ...(e.ASSISTANT_API_KEY ? { apiKey: e.ASSISTANT_API_KEY } : {}),
+        ...(e.ASSISTANT_MODEL ? { model: e.ASSISTANT_MODEL } : {}),
+        ...(e.ASSISTANT_ENDPOINT ? { endpoint: e.ASSISTANT_ENDPOINT } : {}),
       },
       realtime: {
         maxStreamsPerUser: e.REALTIME_MAX_STREAMS_PER_USER,
