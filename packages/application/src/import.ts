@@ -93,6 +93,7 @@ export {
   ConflictError,
   ForbiddenError,
   NotFoundError,
+  RateLimitedError,
   type SchemaIssue,
   UnavailableError,
   ValidationError,

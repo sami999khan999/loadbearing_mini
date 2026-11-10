@@ -1,3 +1,5 @@
+export { AssistantBudget } from "./assistant-budget.rules.js";
+export { AssistantBudgetStore } from "./assistant-budget.store.js";
 export {
   type AssistantMessageRecord,
   AssistantMessageRepository,
