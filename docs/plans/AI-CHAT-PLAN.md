@@ -1,12 +1,25 @@
 ---
 title: AI assistant plan — the lite port of the big kit's assistant, simpler but scalable without an architecture change
-updated: 2026-10-14
+updated: 2026-11-11
 owner: sami
 schema: plan/v1
 source: owner request 2026-10-10 — build in the big kit first, then port a simpler version here; the big kit's `plans/AI-CHAT-PLAN.md` is the full plan, checked against its open backlog the same day
 ---
 
 # AI assistant (lite)
+
+> **Built 2026-11-11**, ported from the big kit's `96377dae..9fb0c6c7` once its `AI.1` closed.
+> As built:
+> - Migrations `0004_assistant` (the three tables, regenerated from lite's own schema),
+>   `0005_assistant_grants` and `0006_assistant_usage_grants`.
+> - `ai.usage.read` backfills to roles holding `rbac.role.manage`, since lite has no
+>   `analytics.activity.read` to select by. The org admin's meter is on `/assistant`.
+> - The `assistant` lane is in the worker's `LaneRegistry` with a static concurrency.
+> - Also ported: the loader fix, so a `NOT_FOUND` or `FORBIDDEN` from a loader renders a 404,
+>   and `ASSISTANT_FAKE_DELAY_MS`.
+> - Checked against `pnpm dev` with `fake`: an answer streamed with three Docs sources, the meter
+>   counted it, and missing pages answer 404. A browser walk and real provider keys are owed;
+>   see [`TESTS.md`](TESTS.md).
 
 The full plan is the big kit's `plans/AI-CHAT-PLAN.md`. It covers sizing for 100K concurrent users,
 the request flow, every step, and the security rules. This file is what lite takes of it.

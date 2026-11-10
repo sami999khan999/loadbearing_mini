@@ -24,9 +24,9 @@ Checkboxes: `[ ]` todo, `[~]` in progress, `[!]` blocked, `[x]` done, `[-]` drop
 ## 2. The docs system — gaps shared with the big kit
 
 The docs slice is the same code in both kits, so each gap here is open in the big kit too, under
-the ID given; fix it once and port it. Found 2026-10-10. Semantic search over docs is not here:
-decision 7 in [`DOCS-SYSTEM-PLAN.md`](DOCS-SYSTEM-PLAN.md) replaces it with whole-docs full text.
-What is still owed by that plan is there and in [`TESTS.md`](TESTS.md): the latency budgets
+the ID given; fix it once and port it. Found 2026-10-10. Semantic search over docs, which
+decision 7 in [`DOCS-SYSTEM-PLAN.md`](DOCS-SYSTEM-PLAN.md) first replaced with full text, was ported
+from the big kit's `DC.2` on 2026-10-14, and Docs search is hybrid. What is still owed by that plan is there and in [`TESTS.md`](TESTS.md): the latency budgets
 (`DS0.2`) and the hand checks.
 
 - [x] `BL.2` **No diff between revisions.** The history lists every publish and restores one into
