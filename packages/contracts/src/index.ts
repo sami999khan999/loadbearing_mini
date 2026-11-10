@@ -8,6 +8,23 @@ export {
   type RevokeApiKeyInput,
 } from "./apikey/index.js";
 export {
+  type AssistantAnswerInput,
+  AssistantContract,
+  type AssistantFrame,
+  type AssistantMessageDto,
+  AssistantProcedures,
+  type AssistantSent,
+  type AssistantSourceDto,
+  type AssistantStatus,
+  type AssistantThreadDetail,
+  type AssistantThreadDto,
+  type AssistantThreadPage,
+  type GetAssistantThreadInput,
+  type ListAssistantThreadsInput,
+  type RenameAssistantThreadInput,
+  type SendAssistantQuestionInput,
+} from "./assistant/index.js";
+export {
   type CreateDocPageInput,
   type CreateDocSpaceInput,
   DocAccessContract,
