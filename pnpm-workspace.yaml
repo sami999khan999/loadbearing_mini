@@ -125,6 +125,9 @@ catalog:
   rehype-stringify: ^10.0.1
   hast-util-to-string: ^3.0.1
   unist-util-visit: ^5.1.0
+  # An assistant answer, rendered in the browser as it streams. On the same unified major
+  # as the server's renderer, and it never renders raw HTML.
+  react-markdown: ^10.1.0
 
   # ════════════════════════════════════════════════════════════════════════════
   # Tier 3 — framework-scoped

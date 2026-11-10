@@ -16,6 +16,7 @@ index is. The docs slice in `feature` composes them and passes every string in.
 | `CommandDialog`, `SearchTrigger`, `useHotkey` | The Ctrl K palette, the field that opens it, and the key binding |
 | `Card`, `CardGrid` | A card that is one whole link, and the grid of them |
 | `Prose` | Sanitised server HTML styled as an article. Each code block gets a copy button |
+| `MarkdownText` | Untrusted Markdown rendered in the browser, such as a streaming assistant answer. `react-markdown` with GFM and `rehype-sanitize`; raw HTML is dropped and a script link stripped. Same `ui-prose` styles |
 | `CodeBlock` | The same code frame, for code composed in React |
 | `Toc` | "On this page", with the heading under the reader marked |
 | `ThemeToggle` | Light and dark as a radio pair. A mode the palette lacks is disabled |

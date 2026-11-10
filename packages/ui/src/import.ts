@@ -47,6 +47,11 @@ export {
   useState,
   useSyncExternalStore,
 } from "react";
+// ── react-markdown · remark-gfm · rehype-sanitize ───────────────────────────────
+// `MarkdownText` only: a streamed answer, rendered in the browser and never as raw HTML.
+export { default as ReactMarkdown } from "react-markdown";
+export { default as rehypeSanitize } from "rehype-sanitize";
+export { default as remarkGfm } from "remark-gfm";
 export { twMerge } from "tailwind-merge";
 
 // ── uqr ──────────────────────────────────────────────────────────────────────
