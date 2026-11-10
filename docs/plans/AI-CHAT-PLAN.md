@@ -15,6 +15,7 @@ source: owner request 2026-10-10 — build in the big kit first, then port a sim
 > - `ai.usage.read` backfills to roles holding `rbac.role.manage`, since lite has no
 >   `analytics.activity.read` to select by. The org admin's meter is on `/assistant`.
 > - The `assistant` lane is in the worker's `LaneRegistry` with a static concurrency.
+> - Answers render as Markdown (`MarkdownText` in `ui`, from the big kit on 2026-11-11).
 > - Also ported: the loader fix, so a `NOT_FOUND` or `FORBIDDEN` from a loader renders a 404,
 >   and `ASSISTANT_FAKE_DELAY_MS`.
 > - Checked against `pnpm dev` with `fake`: an answer streamed with three Docs sources, the meter
