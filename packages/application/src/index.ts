@@ -38,6 +38,20 @@ export {
   RevokeApiKeyUseCase,
 } from "./apikey/index.js";
 export {
+  type AssistantMessageRecord,
+  AssistantMessageRepository,
+  type AssistantMessageRole,
+  type AssistantMessageStatus,
+  type AssistantSettlement,
+  type AssistantSource,
+  type AssistantThreadCursor,
+  type AssistantThreadRecord,
+  AssistantThreadRepository,
+  type AssistantUsageRecord,
+  AssistantUsageRepository,
+  type AssistantUsageTotal,
+} from "./assistant/index.js";
+export {
   CreateDocPageUseCase,
   CreateDocSpaceUseCase,
   DeleteDocPageUseCase,
