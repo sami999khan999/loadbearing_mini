@@ -12,6 +12,7 @@ import {
   Dialog,
   Field,
   Input,
+  MarkdownText,
   StatusBadge,
   useApiClient,
   useAppQuery,
@@ -167,8 +168,8 @@ interface AnswerProps {
   readonly onStop: () => void;
 }
 
-// Plain text with its line breaks kept. A model's Markdown reads as written, and nothing
-// it produces is ever rendered as HTML.
+// The model's Markdown, rendered as it streams. Raw HTML in it is dropped and a script link
+// stripped, so nothing a source said can run here.
 function Answer({ message, live, sourceHref, onStop }: AnswerProps) {
   const { t } = useMessages("assistant");
   const text = live ? live.text : message.content;
@@ -179,7 +180,7 @@ function Answer({ message, live, sourceHref, onStop }: AnswerProps) {
   return (
     <div className="flex flex-col gap-2" aria-busy={writing}>
       <strong>{t("assistant.title")}</strong>
-      {text.length > 0 ? <p className="whitespace-pre-wrap">{text}</p> : null}
+      {text.length > 0 ? <MarkdownText text={text} /> : null}
       <div aria-live="polite" className="flex flex-wrap items-center gap-2">
         {writing ? (
           <>
