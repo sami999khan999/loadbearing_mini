@@ -73,6 +73,9 @@ export {
 } from "./pg/index.js";
 export {
   RedisAssistantBudgetStore,
+  type RedisAssistantStreamConfig,
+  RedisAssistantStreamPublisher,
+  RedisAssistantStreamSubscriber,
   RedisCacheStore,
   type RedisConfig,
   RedisConnection,

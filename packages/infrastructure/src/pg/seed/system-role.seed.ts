@@ -56,13 +56,20 @@ const ROLES: readonly SystemRole[] = Object.freeze([
       "member.invite",
       ...NOTIFICATION,
       ...DOC_AUTHOR,
+      "ai.assistant.use",
     ],
   },
   {
     key: "member",
     name: "Member",
     scope: "org",
-    permissions: ["member.read", ...NOTIFICATION, "doc.page.read"],
+    permissions: [
+      "member.read",
+      ...NOTIFICATION,
+      "doc.page.read",
+      // It answers only from what its asker may read, so it is everyone's who reads docs.
+      "ai.assistant.use",
+    ],
   },
   // Never `guest`: an inbox is something you hold, and a guest holds no memberships to
   // be notified about.

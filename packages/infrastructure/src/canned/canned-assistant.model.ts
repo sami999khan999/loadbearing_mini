@@ -25,7 +25,9 @@ export class CannedAssistantModel extends AssistantModel {
     signal?: CancellationSignal,
   ): AsyncGenerator<AssistantDelta> {
     const question = [...request.messages].reverse().find((message) => message.role === "user");
-    const answer = `This is a canned answer to: ${question?.content ?? ""}`;
+    // The question alone: the turn opens with the fenced passages, which are not the ask.
+    const asked = (question?.content ?? "").split("Question: ").at(-1) ?? "";
+    const answer = `This is a canned answer to: ${asked}`;
     const words = answer.split(/(?<= )/);
     let written = 0;
 

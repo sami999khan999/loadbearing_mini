@@ -8,6 +8,9 @@ export interface RedisConfig {
   // Live frames. Absent, or equal to the cache's, and they ride the cache instance with no
   // extra socket; set apart, sessions and permissions stop sharing a CPU with fan-out.
   readonly realtimeUrl?: string;
+  // The assistant's answer logs. Absent, or the realtime instance's, and they share it; set
+  // apart, a burst of answers stops competing with fan-out. An eviction loses an answer's tail.
+  readonly assistantUrl?: string;
   // Deliberately not the project name: a literal here survives a rename and comes back as
   // a cache that reads nothing, so the real value is a deployment decision.
   readonly keyPrefix?: string;
@@ -15,7 +18,13 @@ export interface RedisConfig {
 
 // Which instance a consumer is asking about. The health check takes it rather than
 // exposing the clients, so `Container` never names `Redis` (17).
-export type RedisRole = "cache" | "queue" | "subscriber" | "realtime";
+export type RedisRole =
+  | "cache"
+  | "queue"
+  | "subscriber"
+  | "realtime"
+  | "assistant"
+  | "assistant-subscriber";
 
 // Two URLs, one class. Which connection a consumer gets is a property of what
 // it is doing, not a wiring decision two same-typed arguments could get backwards.
@@ -46,6 +55,19 @@ export class RedisConnection {
   // rather than a second use of `client()`. A process that never streams never opens it.
   public subscriberClient(): Redis {
     return this.resolve("subscriber");
+  }
+
+  // Where answer logs are written and read. The realtime client unless an instance of its
+  // own is configured, so the default opens nothing new.
+  public assistantClient(): Redis {
+    return this.separateAssistant() ? this.resolve("assistant") : this.realtimeClient();
+  }
+
+  // The answer streams' subscriber connection, shared with realtime's on the same instance.
+  public assistantSubscriberClient(): Redis {
+    return this.separateAssistant()
+      ? this.resolve("assistant-subscriber")
+      : this.subscriberClient();
   }
 
   // Whether a role has ever been resolved, without resolving it. Health reports `null`
@@ -104,6 +126,12 @@ export class RedisConnection {
 
     if (role === "realtime") return this.create(realtimeUrl, { keyPrefix: prefix });
 
+    const assistantUrl = this.config.assistantUrl ?? realtimeUrl;
+    if (role === "assistant-subscriber") {
+      return this.create(assistantUrl, { keyPrefix: prefix, enableAutoPipelining: false });
+    }
+    if (role === "assistant") return this.create(assistantUrl, { keyPrefix: prefix });
+
     return this.create(this.config.cacheUrl, { keyPrefix: prefix });
   }
 
@@ -120,6 +148,11 @@ export class RedisConnection {
   private separateRealtime(): boolean {
     const { realtimeUrl, cacheUrl } = this.config;
     return realtimeUrl !== undefined && realtimeUrl !== cacheUrl;
+  }
+
+  private separateAssistant(): boolean {
+    const { assistantUrl, realtimeUrl, cacheUrl } = this.config;
+    return assistantUrl !== undefined && assistantUrl !== (realtimeUrl ?? cacheUrl);
   }
 
   public async close(): Promise<void> {

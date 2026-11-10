@@ -396,6 +396,28 @@ describe("PgDocPageRepository", () => {
     expect(await pages().search(organizationId, word, [elsewhere], 5)).toEqual([]);
   });
 
+  it("reads every section of many pages in page order, in one statement", async () => {
+    const first = await newPage(`sections-${Uuid.v7().slice(-8)}`);
+    const second = await newPage(`sections-${Uuid.v7().slice(-8)}`);
+    await pages().saveSections(organizationId, spaceId, first, [
+      { anchor: null, heading: null, body: "intro" },
+      { anchor: "two", heading: "Two", body: "second" },
+    ]);
+    await pages().saveSections(organizationId, spaceId, second, [
+      { anchor: "only", heading: "Only", body: "alone" },
+    ]);
+
+    counter.count = 0;
+    const read = await pages(counted).listSections(organizationId, [first, second]);
+    expect(counter.count).toBe(1);
+    expect(read.filter((row) => row.pageId === first).map((row) => row.body)).toEqual([
+      "intro",
+      "second",
+    ]);
+    expect(read.find((row) => row.pageId === second)?.anchor).toBe("only");
+    expect(await pages().listSections(organizationId, [])).toEqual([]);
+  });
+
   it("deletes a subtree with its revisions and sections", async () => {
     const root = await newPage(`gone-${Uuid.v7().slice(-8)}`);
     const child = await newPage("gone-child", root);

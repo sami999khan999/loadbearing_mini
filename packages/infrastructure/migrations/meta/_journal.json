@@ -36,6 +36,13 @@
       "when": 1794331653587,
       "tag": "0004_assistant",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794331797916,
+      "tag": "0005_assistant_grants",
+      "breakpoints": true
     }
   ]
 }

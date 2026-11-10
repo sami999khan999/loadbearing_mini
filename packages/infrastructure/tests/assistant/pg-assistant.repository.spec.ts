@@ -150,13 +150,37 @@ describe("PgAssistantMessageRepository", () => {
     await messages.insert(fresh);
 
     try {
-      expect(await messages.failStale(organizationId, at(10))).toBeGreaterThanOrEqual(1);
+      // Across the node's tenants, so other specs' stale rows may be swept with this one.
+      expect(await messages.failStale(at(10), 500)).toBeGreaterThanOrEqual(1);
       expect((await messages.findInThread(organizationId, threadId, stale.id))?.status).toBe(
         "failed",
       );
       expect((await messages.findInThread(organizationId, threadId, fresh.id))?.status).toBe(
         "pending",
       );
+    } finally {
+      await messages.deleteByThread(organizationId, threadId);
+    }
+  });
+
+  it("counts the asker's pending answers since a moment, and no one else's", async () => {
+    const organizationId = (await seedOrganizationId(database)) as never;
+    const threadId = Uuid.v7();
+    const old = message(organizationId, threadId, 1, "assistant");
+    const running = message(organizationId, threadId, 20, "assistant");
+    const theirs = { ...message(organizationId, threadId, 21, "assistant"), authorId: OTHER };
+    for (const each of [old, running, theirs]) await messages.insert(each);
+
+    try {
+      expect(await messages.countPending(organizationId, AUTHOR, at(10))).toBe(1);
+      await messages.settle(organizationId, threadId, running.id, {
+        content: "",
+        status: "cancelled",
+        sources: [],
+        model: null,
+        completedAt: at(22),
+      });
+      expect(await messages.countPending(organizationId, AUTHOR, at(10))).toBe(0);
     } finally {
       await messages.deleteByThread(organizationId, threadId);
     }

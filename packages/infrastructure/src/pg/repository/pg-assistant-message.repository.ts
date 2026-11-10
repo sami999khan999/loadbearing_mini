@@ -3,11 +3,15 @@ import {
   type AssistantMessageRepository,
   type AssistantSettlement,
   and,
+  count,
   desc,
   eq,
+  gte,
+  inArray,
   lt,
   type OrganizationId,
   type Placement,
+  type UserId,
 } from "../../import.js";
 import { BaseRepository } from "../primitive/index.js";
 import { assistantMessages } from "../schema/index.js";
@@ -96,14 +100,42 @@ export class PgAssistantMessageRepository
       );
   }
 
-  // Off the partial `pending` index: the sweep reads only what is stuck.
-  public async failStale(organizationId: OrganizationId, olderThan: Date): Promise<number> {
+  // Off the partial `pending` index, which holds only what is generating or stuck.
+  public async countPending(
+    organizationId: OrganizationId,
+    authorId: UserId,
+    since: Date,
+  ): Promise<number> {
+    const [row] = await this.db
+      .select({ value: count() })
+      .from(assistantMessages)
+      .where(
+        and(
+          eq(assistantMessages.organizationId, organizationId),
+          eq(assistantMessages.status, "pending"),
+          gte(assistantMessages.createdAt, since),
+          eq(assistantMessages.authorId, authorId),
+        ),
+      );
+    return Number(row?.value ?? 0);
+  }
+
+  // The node's tenants at once, off each partition's partial `pending` index: the sweep
+  // reads only what is stuck. A batch is chosen first, so one statement locks only it.
+  public async failStale(olderThan: Date, limit: number): Promise<number> {
+    const stuck = this.db
+      .select({ id: assistantMessages.id })
+      .from(assistantMessages)
+      .where(
+        and(eq(assistantMessages.status, "pending"), lt(assistantMessages.createdAt, olderThan)),
+      )
+      .limit(limit);
     const updated = await this.db
       .update(assistantMessages)
       .set({ status: "failed", completedAt: new Date() })
       .where(
         and(
-          eq(assistantMessages.organizationId, organizationId),
+          inArray(assistantMessages.id, stuck),
           eq(assistantMessages.status, "pending"),
           lt(assistantMessages.createdAt, olderThan),
         ),
