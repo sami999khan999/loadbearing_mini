@@ -7,6 +7,11 @@ export {
   type AssistantSource,
 } from "./assistant-message.repository.js";
 export {
+  type AssistantPassage,
+  AssistantPromptBuilder,
+  type AssistantPromptInput,
+} from "./assistant-prompt.builder.js";
+export {
   type AssistantThreadCursor,
   type AssistantThreadRecord,
   AssistantThreadRepository,
