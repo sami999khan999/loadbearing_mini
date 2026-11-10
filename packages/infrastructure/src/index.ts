@@ -5,8 +5,19 @@ ServerOnly.assert("@loadbearing/infrastructure");
 // One folder per external system, so `ls src/` answers "what does this depend on?". A
 // folder says the seam is implemented, not that the container is started.
 export { BullMqQueueControlGateway, BullMqQueuePublisher } from "./bullmq/index.js";
-export { type GeminiEmbeddingConfig, GeminiEmbeddingProvider } from "./gemini/index.js";
-export { type OpenAiEmbeddingConfig, OpenAiEmbeddingProvider } from "./openai/index.js";
+export { type CannedAssistantConfig, CannedAssistantModel } from "./canned/index.js";
+export {
+  type GeminiAssistantConfig,
+  GeminiAssistantModel,
+  type GeminiEmbeddingConfig,
+  GeminiEmbeddingProvider,
+} from "./gemini/index.js";
+export {
+  type OpenAiAssistantConfig,
+  OpenAiAssistantModel,
+  type OpenAiEmbeddingConfig,
+  OpenAiEmbeddingProvider,
+} from "./openai/index.js";
 export {
   BaseRepository,
   Database,

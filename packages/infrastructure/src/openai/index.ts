@@ -1,3 +1,4 @@
+export { type OpenAiAssistantConfig, OpenAiAssistantModel } from "./openai-assistant.model.js";
 export {
   type OpenAiEmbeddingConfig,
   OpenAiEmbeddingProvider,
