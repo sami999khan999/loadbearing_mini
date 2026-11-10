@@ -179,3 +179,5 @@ Lite declares no flags, so nothing calls it yet. The big kit's widget flags are 
 
 - [Docs](reference/doc.md) — why the platform's docs are the platform organization's rows, a
   page rendered once and read from one row, and who may read a public or granted space.
+- [Assistant](reference/assistant.md) — the asker rebuilt in the worker, retrieval that searches
+  as them, one log per answer, settling once, and what reaches the provider.
