@@ -30,4 +30,13 @@ export class AssistantQueries {
       staleTime: 0,
     });
   }
+
+  // A minute: the meter moves as answers settle, and nobody watches it tick.
+  public static usage(client: ApiClient) {
+    return queryOptions({
+      queryKey: QueryKeys.assistant.usage(),
+      queryFn: ({ signal }) => client.assistant.usage(undefined, { signal }),
+      staleTime: 60_000,
+    });
+  }
 }

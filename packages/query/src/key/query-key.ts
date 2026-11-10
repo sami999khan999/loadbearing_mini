@@ -47,6 +47,7 @@ export class QueryKeys {
     lists: () => ["assistant", "list"] as const,
     list: (params: unknown) => ["assistant", "list", params] as const,
     get: (threadId: string) => ["assistant", "get", threadId] as const,
+    usage: () => ["assistant", "usage"] as const,
   };
 
   public static readonly notification = {
