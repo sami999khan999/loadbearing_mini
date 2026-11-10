@@ -2,6 +2,12 @@
 
 export { AccountMutations, AccountQueries } from "./account/index.js";
 export { ApiKeyMutations, ApiKeyQueries } from "./apikey/index.js";
+export {
+  AssistantMutations,
+  AssistantQueries,
+  type AssistantStreamState,
+  useAssistantStream,
+} from "./assistant/index.js";
 export { DocMutations, DocQueries } from "./doc/index.js";
 export { DocumentMutations } from "./document/index.js";
 export { QueryKeys } from "./key/index.js";
