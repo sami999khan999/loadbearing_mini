@@ -46,6 +46,9 @@ export {
   AccountPanel,
   ActiveSessionList,
   ApiKeyList,
+  AssistantQuestionForm,
+  AssistantThreadList,
+  AssistantThreadPanel,
   ChangeEmailForm,
   ChangePasswordForm,
   CreateApiKeyForm,
@@ -125,6 +128,7 @@ export {
 export {
   ApiClientProvider,
   ApiKeyQueries,
+  AssistantQueries,
   createQueryClient,
   DocQueries,
   MemberQueries,
