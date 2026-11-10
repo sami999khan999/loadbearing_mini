@@ -70,6 +70,8 @@ export interface EventShape {
     readonly adjustments: number;
     // Per-person grants past their expiry, removed and audited the same way.
     readonly overrides: number;
+    // Assistant answers a worker stopped streaming and never settled, now `failed`.
+    readonly staleAnswers: number;
   };
   readonly "maintenance.partitions.ensured": {
     readonly table: string;
