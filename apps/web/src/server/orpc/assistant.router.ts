@@ -30,6 +30,10 @@ export class AssistantRouter {
     return { ok: true as const };
   });
 
+  public static readonly usage = authed.assistant.usage.handler(({ context }) =>
+    context.container.assistant.usage.execute(context.principal),
+  );
+
   public static readonly all = {
     list: AssistantRouter.list,
     get: AssistantRouter.get,
@@ -37,5 +41,6 @@ export class AssistantRouter {
     cancel: AssistantRouter.cancel,
     rename: AssistantRouter.rename,
     remove: AssistantRouter.remove,
+    usage: AssistantRouter.usage,
   };
 }

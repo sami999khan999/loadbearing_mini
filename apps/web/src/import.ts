@@ -53,6 +53,7 @@ export {
   AssistantQuestionForm,
   AssistantThreadList,
   AssistantThreadPanel,
+  AssistantUsagePanel,
   ChangeEmailForm,
   ChangePasswordForm,
   CreateApiKeyForm,
