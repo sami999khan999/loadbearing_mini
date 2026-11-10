@@ -28,6 +28,8 @@ const Schema = z
     REDIS_QUEUE_URL: z.url(),
     // Live frames; the cache instance when unset. See docs/infra/reference/redis.md.
     REDIS_REALTIME_URL: z.url().optional(),
+    // The assistant's answer logs; the realtime instance when unset, then the cache's.
+    REDIS_ASSISTANT_URL: z.url().optional(),
 
     S3_ENDPOINT: z.url(),
     S3_REGION: z.string().min(1),
@@ -94,6 +96,10 @@ const Schema = z
     ASSISTANT_API_KEY: z.string().min(1).optional(),
     ASSISTANT_MODEL: z.string().min(1).optional(),
     ASSISTANT_ENDPOINT: z.url().optional(),
+    // One organization's tokens a UTC day (0 is no cap), checked before a question is
+    // queued, and how many answers one person may have generating at once.
+    ASSISTANT_ORG_DAILY_TOKENS: z.coerce.number().int().min(0).default(0),
+    ASSISTANT_ACTIVE_PER_USER: z.coerce.number().int().positive().default(2),
 
     // Per process. The cap exists to stop one runaway tab, which is local by
     // construction, and the age is what releases a channel a leaked reader is holding.
@@ -259,6 +265,7 @@ export class Env {
         cacheUrl: e.REDIS_CACHE_URL,
         queueUrl: e.REDIS_QUEUE_URL,
         ...(e.REDIS_REALTIME_URL ? { realtimeUrl: e.REDIS_REALTIME_URL } : {}),
+        ...(e.REDIS_ASSISTANT_URL ? { assistantUrl: e.REDIS_ASSISTANT_URL } : {}),
       },
       storage: {
         endpoint: e.S3_ENDPOINT,
@@ -298,6 +305,8 @@ export class Env {
         ...(e.ASSISTANT_API_KEY ? { apiKey: e.ASSISTANT_API_KEY } : {}),
         ...(e.ASSISTANT_MODEL ? { model: e.ASSISTANT_MODEL } : {}),
         ...(e.ASSISTANT_ENDPOINT ? { endpoint: e.ASSISTANT_ENDPOINT } : {}),
+        orgDailyTokens: e.ASSISTANT_ORG_DAILY_TOKENS,
+        activePerUser: e.ASSISTANT_ACTIVE_PER_USER,
       },
       realtime: {
         maxStreamsPerUser: e.REALTIME_MAX_STREAMS_PER_USER,
