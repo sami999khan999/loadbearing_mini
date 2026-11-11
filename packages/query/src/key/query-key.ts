@@ -61,6 +61,9 @@ export class QueryKeys {
     // every page and the list on one, so they cannot share a lifetime.
     unreadCount: () => ["notification", "unreadCount"] as const,
     preferences: () => ["notification", "preferences"] as const,
+    pushKey: () => ["notification", "push", "key"] as const,
+    // This browser's own subscription, read from the browser rather than the server.
+    pushDevice: () => ["notification", "push", "device"] as const,
   };
 
   // Above the tenant, so nothing here is keyed by organization: switching tenants
