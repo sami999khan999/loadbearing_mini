@@ -51,8 +51,10 @@ export function withoutComments(source) {
       out += char;
       i += 1;
       while (i < source.length && source[i] !== char) {
-        out += source[i];
-        i += source[i] === "\\" ? 2 : 1;
+        // Both halves of an escape: dropping the second turned `"\0"` into `"\"`, an open string.
+        const step = source[i] === "\\" ? 2 : 1;
+        out += source.slice(i, i + step);
+        i += step;
       }
       out += source[i] ?? "";
       continue;
