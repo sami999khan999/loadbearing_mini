@@ -42,6 +42,7 @@ export {
   PgPersonalOrganizationEnroller,
   PgPlatformPolicyRepository,
   PgPlatformReader,
+  PgPushSubscriptionRepository,
   PgRoleRepository,
   PgShardMapReader,
   PgShardResolver,

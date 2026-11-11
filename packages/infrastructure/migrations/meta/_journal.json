@@ -50,6 +50,13 @@
       "when": 1794332317012,
       "tag": "0006_assistant_usage_grants",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794431234001,
+      "tag": "0007_push_subscriptions",
+      "breakpoints": true
     }
   ]
 }

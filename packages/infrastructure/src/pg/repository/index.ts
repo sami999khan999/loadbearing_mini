@@ -31,6 +31,7 @@ export { PgPermissionOverrideRepository } from "./pg-permission-override.reposit
 export { PgPersonalOrganizationEnroller } from "./pg-personal-organization.enroller.js";
 export { PgPlatformReader } from "./pg-platform.reader.js";
 export { PgPlatformPolicyRepository } from "./pg-platform-policy.repository.js";
+export { PgPushSubscriptionRepository } from "./pg-push-subscription.repository.js";
 export { PgRoleRepository } from "./pg-role.repository.js";
 export { PgShardResolver } from "./pg-shard.resolver.js";
 export { PgShardMapReader } from "./pg-shard-map.reader.js";
