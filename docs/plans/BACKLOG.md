@@ -172,3 +172,14 @@ its `FC.<n>`.
 - [x] `BL.15` follow-up: deleting a former member's space was a 500, because the membership was
   read inside the routed transaction. It is read first now. `15ba660f`.
 
+## 7. Ported from the big kit, 2026-11-12
+
+- [x] `BL.18` **Web push**, the big kit's `26.3`: a `PushSender` port and a `web-push` adapter,
+  VAPID keys from `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`VAPID_SUBJECT` (all or none),
+  `push_subscriptions` partitioned by tenant, a service worker at `/push-worker`, and `push` as a
+  third channel in the grid at `immediate` or `off`. Membership is this kit's one category, and
+  its push default is off, so nothing buzzes until a person turns it on. **Proof:** the full
+  suite; against `pnpm dev`, a new owner subscribed, a digest push was refused, the grid showed
+  push, and unsubscribing removed the row. Not checked: a real browser receiving one.
+- [x] `BL.19` **The architecture check's comment pass dropped the second half of an escape**, so
+  `"\0"` read as an open string and every later quote paired wrongly. Big kit: `ef77091a`.
