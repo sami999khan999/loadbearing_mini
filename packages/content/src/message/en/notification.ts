@@ -32,6 +32,16 @@ export const notification = {
   "notification.preference.category.membership": "People and roles",
   "notification.preference.channel.in_app": "In the app",
   "notification.preference.channel.email": "By email",
+  "notification.preference.channel.push": "On this device",
+  "notification.push.title": "Push on this device",
+  "notification.push.description":
+    "Alerts from this browser, even with the tab closed. Turn it on in each browser you use.",
+  "notification.push.enable": "Turn on push",
+  "notification.push.disable": "Turn off push",
+  "notification.push.on": "Push is on for this browser.",
+  "notification.push.unsupported": "This browser cannot receive push notifications.",
+  "notification.push.denied":
+    "Push was not allowed. Allow notifications for this site in the browser, then try again.",
   "notification.preference.mode.immediate": "Straight away",
   "notification.preference.mode.digest": "Once a day",
   "notification.preference.mode.off": "Off",
