@@ -8,6 +8,8 @@ export {
   type NotificationKind,
   type NotificationMode,
   type NotificationPreferenceDto,
+  type PushEndpointInput,
+  type PushSubscriptionInput,
   type UpdateNotificationPreferenceInput,
 } from "./notification.contract.js";
 export { NotificationEntity } from "./notification.entity.js";

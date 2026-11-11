@@ -9,7 +9,8 @@ const kind = z.enum(["member.joined", "member.role.changed"]);
 // how they are contacted is not choosing per message type, they are choosing per topic.
 const category = z.enum(["membership"]);
 
-const channel = z.enum(["in_app", "email"]);
+// `push` is a browser's own notification (`26.3`), reaching a person with the tab closed.
+const channel = z.enum(["in_app", "email", "push"]);
 
 // `digest` is "collect these and send one message a day"; `off` is "in-app only". The
 // three are what a preferences grid offers per category and channel.
@@ -61,11 +62,27 @@ export class NotificationContract {
     mode,
   });
 
-  public static readonly preferenceUpdate = z.object({
-    category,
-    channel,
-    mode,
+  // A digest push means nothing: a push is one alert now, or none (`26.3`).
+  public static readonly preferenceUpdate = z
+    .object({ category, channel, mode })
+    .refine((input) => input.channel !== "push" || input.mode !== "digest", {
+      path: ["mode"],
+      message: "digest",
+    });
+
+  // Null when this deployment has no VAPID keys, and the settings page then offers no push.
+  public static readonly pushKey = z.object({ publicKey: z.string().nullable() });
+
+  // The browser's `PushSubscription.toJSON()`, less `expirationTime`, which no browser sets.
+  public static readonly pushSubscription = z.object({
+    endpoint: z.url({ protocol: /^https$/ }).max(1000),
+    keys: z.object({
+      p256dh: z.string().min(1).max(200),
+      auth: z.string().min(1).max(100),
+    }),
   });
+
+  public static readonly pushEndpoint = z.object({ endpoint: z.string().min(1).max(1000) });
 }
 
 export type NotificationDto = z.infer<typeof NotificationContract.entity>;
@@ -76,6 +93,8 @@ export type NotificationMode = z.infer<typeof mode>;
 export type NotificationPreferenceDto = z.infer<typeof NotificationContract.preference>;
 export type ListNotificationsInput = z.infer<typeof NotificationContract.listQuery>;
 export type MarkNotificationReadInput = z.infer<typeof NotificationContract.markRead>;
+export type PushSubscriptionInput = z.infer<typeof NotificationContract.pushSubscription>;
+export type PushEndpointInput = z.infer<typeof NotificationContract.pushEndpoint>;
 export type UpdateNotificationPreferenceInput = z.infer<
   typeof NotificationContract.preferenceUpdate
 >;
