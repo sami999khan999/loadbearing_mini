@@ -76,6 +76,13 @@ export interface ContainerConfig {
     // Better Auth's own: the worker sends invitation mail and has no auth config at all.
     readonly baseUrl: string;
   };
+  // VAPID keys for web push (`26.3`). Absent, the settings page offers no push and a
+  // `push` preference reaches nobody; both keys are generated once and kept.
+  readonly push?: {
+    readonly publicKey: string;
+    readonly privateKey: string;
+    readonly subject: string;
+  };
   // `none` is lexical search over the chunk text and no outbound call. The other two need
   // a key, and a model defaults per provider when unset. See docs/reference/container.md.
   readonly embedding: {

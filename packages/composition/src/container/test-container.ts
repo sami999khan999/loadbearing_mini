@@ -19,6 +19,7 @@ import {
   RecordingMailPublisher,
   RecordingMaintenanceGateway,
   RecordingPartitionArchiveGateway,
+  RecordingPushSender,
   RecordingQueuePublisher,
   RecordingRealtimePublisher,
   RecordingRelayedActivityStore,
@@ -49,6 +50,7 @@ import {
   type OutboxGateway,
   type PartitionArchiveGateway,
   type Principal,
+  type PushSender,
   type QueuePublisher,
   type RateLimitStore,
   type RealtimePublisher,
@@ -85,6 +87,7 @@ export interface TestPorts {
   readonly embeddings: EmbeddingProvider;
   readonly mailPublisher: MailPublisher;
   readonly mailRenderer: MailRenderer;
+  readonly pushSender: PushSender;
   readonly markdownRenderer: MarkdownRenderer;
   readonly maintenance: MaintenanceGateway;
   readonly organizations: OrganizationReader;
@@ -150,6 +153,7 @@ export class TestContainer {
       embeddings: overrides.embeddings ?? new StubEmbeddingProvider(),
       mailPublisher: overrides.mailPublisher ?? new RecordingMailPublisher(),
       mailRenderer: overrides.mailRenderer ?? new StubMailRenderer(),
+      pushSender: overrides.pushSender ?? new RecordingPushSender(),
       markdownRenderer: overrides.markdownRenderer ?? new StubMarkdownRenderer(),
       maintenance: overrides.maintenance ?? new RecordingMaintenanceGateway(),
       organizations: overrides.organizations ?? new InMemoryOrganizationReader(),
