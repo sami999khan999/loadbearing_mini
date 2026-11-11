@@ -94,6 +94,7 @@ export {
   PlatformNav,
   PlatformStatusPanel,
   ProfileForm,
+  PushDeviceForm,
   ReplicaSwitchPanel,
   ResetPasswordForm,
   RoleList,

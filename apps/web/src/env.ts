@@ -80,6 +80,14 @@ const Schema = z
     // Never defaulted: an address the sending domain does not authorise bounces or lands
     // in spam, silently.
     EMAIL_FROM: z.string().min(1),
+    // Web push (`26.3`): all three or none. `npx web-push generate-vapid-keys` makes the
+    // pair once; changing it orphans every browser already subscribed.
+    VAPID_PUBLIC_KEY: z.string().min(1).optional(),
+    VAPID_PRIVATE_KEY: z.string().min(1).optional(),
+    VAPID_SUBJECT: z
+      .string()
+      .regex(/^(mailto:|https:)/)
+      .optional(),
     // The origin a link in a message points at. Separate from `AUTH_URL`, which is Better
     // Auth's own: the worker sends invitation mail and parses no auth configuration.
     APP_BASE_URL: z.url(),
@@ -294,6 +302,15 @@ export class Env {
             : undefined,
       },
       email: { url: e.SMTP_URL, from: e.EMAIL_FROM, baseUrl: e.APP_BASE_URL },
+      ...(e.VAPID_PUBLIC_KEY && e.VAPID_PRIVATE_KEY && e.VAPID_SUBJECT
+        ? {
+            push: {
+              publicKey: e.VAPID_PUBLIC_KEY,
+              privateKey: e.VAPID_PRIVATE_KEY,
+              subject: e.VAPID_SUBJECT,
+            },
+          }
+        : {}),
       embedding: {
         provider: e.EMBEDDING_PROVIDER,
         dimensions: e.EMBEDDING_DIMENSIONS,
