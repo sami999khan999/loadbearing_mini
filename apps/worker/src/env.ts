@@ -40,6 +40,14 @@ const Schema = z
     // rather than optional.
     SMTP_URL: z.string().min(1),
     EMAIL_FROM: z.string().min(1),
+    // Web push (`26.3`): all three or none. `npx web-push generate-vapid-keys` makes the
+    // pair once; changing it orphans every browser already subscribed.
+    VAPID_PUBLIC_KEY: z.string().min(1).optional(),
+    VAPID_PRIVATE_KEY: z.string().min(1).optional(),
+    VAPID_SUBJECT: z
+      .string()
+      .regex(/^(mailto:|https:)/)
+      .optional(),
     // Required here too, and this is the process that needs it: the worker renders the
     // invitation link, and it parses no auth configuration to borrow an origin from.
     APP_BASE_URL: z.url(),
@@ -272,6 +280,15 @@ export class Env {
         forcePathStyle: e.S3_FORCE_PATH_STYLE,
       },
       email: { url: e.SMTP_URL, from: e.EMAIL_FROM, baseUrl: e.APP_BASE_URL },
+      ...(e.VAPID_PUBLIC_KEY && e.VAPID_PRIVATE_KEY && e.VAPID_SUBJECT
+        ? {
+            push: {
+              publicKey: e.VAPID_PUBLIC_KEY,
+              privateKey: e.VAPID_PRIVATE_KEY,
+              subject: e.VAPID_SUBJECT,
+            },
+          }
+        : {}),
       embedding: {
         provider: e.EMBEDDING_PROVIDER,
         dimensions: e.EMBEDDING_DIMENSIONS,
