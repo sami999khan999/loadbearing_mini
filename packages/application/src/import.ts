@@ -77,6 +77,8 @@ export {
   type PaginationQuery,
   type PreviewDocPageInput,
   type PublishDocPageInput,
+  type PushEndpointInput,
+  type PushSubscriptionInput,
   type ReadDocPageInput,
   type RealtimeEventName,
   type RealtimeMessage,

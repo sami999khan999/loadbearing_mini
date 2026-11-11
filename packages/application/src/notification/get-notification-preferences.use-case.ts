@@ -9,7 +9,7 @@ export interface ResolvedPreference {
   readonly mode: NotificationMode;
 }
 
-const CHANNELS: readonly NotificationChannel[] = Object.freeze(["in_app", "email"]);
+const CHANNELS: readonly NotificationChannel[] = Object.freeze(["in_app", "email", "push"]);
 
 export class GetNotificationPreferencesUseCase {
   public constructor(

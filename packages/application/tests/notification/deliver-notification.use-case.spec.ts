@@ -21,6 +21,7 @@ import type {
   CacheStore,
   MailPublisher,
   MailRequest,
+  PushPayload,
   RealtimePublisher,
 } from "../../src/port/index.js";
 import { Principal, type RealtimeChannel } from "../../src/primitive/index.js";
@@ -350,5 +351,93 @@ describe("DeliverNotificationUseCase", () => {
     await deliver.execute(system(), roleChanged());
 
     expect(cache.deleted).toContain(`notification:unread:${ORG}:${TARGET}`);
+  });
+});
+
+// `26.3`: push is a third channel, `immediate` or `off`, sent to every device a person
+// subscribed, at most once per event per device, and a device the service retired is dropped.
+describe("DeliverNotificationUseCase, push", () => {
+  const pushOn: PreferenceRecord = {
+    userId: TARGET,
+    category: "membership",
+    channel: "push",
+    mode: "immediate",
+  };
+
+  const withPush = (
+    preferences: readonly PreferenceRecord[],
+    outcome: "sent" | "gone",
+    claimed = true,
+  ) => {
+    const sent: { endpoint: string; payload: PushPayload }[] = [];
+    const deleted: (string | null)[] = [];
+    const pushCache = new Cache();
+    pushCache.setIfAbsent = () => Promise.resolve(claimed);
+    const useCase = new DeliverNotificationUseCase(
+      new Notifications(),
+      new Preferences(preferences),
+      new Recipients(),
+      new Mail(),
+      new Realtime(),
+      pushCache,
+      { run: (work: () => Promise<unknown>) => work() } as never,
+      {
+        subscriptions: {
+          forUsers: () =>
+            Promise.resolve([
+              { userId: TARGET, endpoint: "https://push.test/a", p256dh: "k", auth: "a" },
+            ]),
+          delete: (_org: unknown, endpoint: string, userId: string | null) => {
+            deleted.push(userId === null ? endpoint : null);
+            return Promise.resolve();
+          },
+        } as never,
+        sender: {
+          send: (target: { endpoint: string }, payload: PushPayload) => {
+            sent.push({ endpoint: target.endpoint, payload });
+            return Promise.resolve(outcome);
+          },
+        } as never,
+      },
+    );
+    return { useCase, sent, deleted };
+  };
+
+  it("pushes the kind and its link, in the recipient's locale, when push is on", async () => {
+    const { useCase, sent } = withPush([pushOn], "sent");
+
+    await useCase.execute(system(), roleChanged());
+
+    expect(sent).toEqual([
+      {
+        endpoint: "https://push.test/a",
+        payload: { kind: "member.role.changed", link: "/settings/members", locale: "en" },
+      },
+    ]);
+  });
+
+  // Membership's default for push is off: a role change pushes nothing until chosen.
+  it("pushes nothing at the default for membership", async () => {
+    const { useCase, sent } = withPush([], "sent");
+
+    await useCase.execute(system(), roleChanged());
+
+    expect(sent).toEqual([]);
+  });
+
+  it("sends a redelivered event to no device twice", async () => {
+    const { useCase, sent } = withPush([pushOn], "sent", false);
+
+    await useCase.execute(system(), roleChanged());
+
+    expect(sent).toEqual([]);
+  });
+
+  it("deletes a subscription the push service says is gone", async () => {
+    const { useCase, deleted } = withPush([pushOn], "gone");
+
+    await useCase.execute(system(), roleChanged());
+
+    expect(deleted).toEqual(["https://push.test/a"]);
   });
 });

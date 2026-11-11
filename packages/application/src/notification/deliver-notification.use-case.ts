@@ -5,7 +5,13 @@ import {
   type UserId,
   Uuid,
 } from "../import.js";
-import type { CacheStore, MailPublisher, RealtimePublisher, UnitOfWork } from "../port/index.js";
+import type {
+  CacheStore,
+  MailPublisher,
+  PushSender,
+  RealtimePublisher,
+  UnitOfWork,
+} from "../port/index.js";
 import { type Principal, RealtimeChannels } from "../primitive/index.js";
 import { CountUnreadNotificationsUseCase } from "./count-unread-notifications.use-case.js";
 import { NotificationPolicy, type PolicyRow } from "./notification.policy.js";
@@ -15,6 +21,7 @@ import type {
   PreferenceRecord,
 } from "./notification-preference.repository.js";
 import type { NotificationRecipientReader, Recipient } from "./notification-recipient.reader.js";
+import type { PushSubscriptionRepository } from "./push-subscription.repository.js";
 
 // One page of recipients, and §6's fan-out is measured rather than trusted now — see
 // `packages/infrastructure/docs/reference/fan-out.md`.
@@ -23,6 +30,9 @@ const RECIPIENT_LIMIT = 500;
 // How many recipients are notified together. The cap above is the ceiling on the whole
 // audience, so one chunk is usually the whole of it.
 const NOTIFY_CHUNK = 100;
+
+// How long a push is remembered as sent, so a redelivered event alerts nobody twice.
+const PUSH_DEDUPE_SECONDS = 86_400;
 
 // What the subscriber hands in: the event, nothing else. It asserts no permission —
 // see docs/reference/ports.md.
@@ -35,6 +45,11 @@ export class DeliverNotificationUseCase {
     private readonly realtime: RealtimePublisher,
     private readonly cache: CacheStore,
     private readonly unitOfWork: UnitOfWork,
+    // Absent when the deployment has no VAPID keys; `push` preferences then reach nobody.
+    private readonly push: {
+      readonly subscriptions: PushSubscriptionRepository;
+      readonly sender: PushSender;
+    } | null = null,
   ) {}
 
   public async execute(actor: Principal, event: DomainEvent): Promise<void> {
@@ -66,6 +81,7 @@ export class DeliverNotificationUseCase {
     // Mail is deduped on the event and the recipient, so the repeat costs a frame at most.
     await this.notifyInApp(event, audience, modes, row);
     await this.notifyByEmail(event, audience, modes, row);
+    await this.notifyByPush(event, audience, modes, row);
     void actor;
   }
 
@@ -178,6 +194,50 @@ export class DeliverNotificationUseCase {
       }));
 
     if (mails.length > 0) await this.mail.publishMany(mails);
+  }
+
+  // Best effort, like the frame: a push that fails is an alert missed, and the bell still
+  // has the row. One read for the audience's devices, and a dead one is deleted.
+  private async notifyByPush(
+    event: DomainEvent,
+    recipients: readonly Recipient[],
+    modes: readonly PreferenceRecord[],
+    row: PolicyRow,
+  ): Promise<void> {
+    if (!this.push) return;
+    const push = this.push;
+    const wanting = new Map(
+      recipients
+        .filter(
+          (recipient) =>
+            DeliverNotificationUseCase.modeFor(modes, recipient.userId, "push", event) ===
+            "immediate",
+        )
+        .map((recipient) => [recipient.userId, recipient.locale] as const),
+    );
+    if (wanting.size === 0) return;
+
+    const targets = await push.subscriptions.forUsers(event.organizationId, [...wanting.keys()]);
+    const link = row.link(event);
+    for (let index = 0; index < targets.length; index += NOTIFY_CHUNK) {
+      await Promise.all(
+        targets.slice(index, index + NOTIFY_CHUNK).map(async (target) => {
+          const first = await this.cache.setIfAbsent(
+            `notification:push:${event.id}:${target.endpoint}`,
+            true,
+            PUSH_DEDUPE_SECONDS,
+          );
+          if (!first) return;
+          const locale = wanting.get(target.userId) ?? "en";
+          const outcome = await push.sender
+            .send(target, { kind: row.kind, link, locale })
+            .catch(() => "failed" as const);
+          if (outcome === "gone") {
+            await push.subscriptions.delete(event.organizationId, target.endpoint, null);
+          }
+        }),
+      );
+    }
   }
 
   private static modeFor(
