@@ -93,7 +93,7 @@ export function DocEditorForm({ draft, viewLink, onDirtyChange }: DocEditorFormP
           // Functional: the upload took a while, and the author kept typing through it.
           setMarkdown((text) => {
             const cut = at ?? text.length;
-            return `${text.slice(0, cut)}![${alt}](${url})${text.slice(cut)}`;
+            return blockAt(text, cut, `![${alt}](${url})`);
           });
           edits.current += 1;
           setDirty(true);
@@ -333,4 +333,16 @@ export function DocEditorForm({ draft, viewLink, onDirtyChange }: DocEditorFormP
       </div>
     </form>
   );
+}
+
+// On its own lines, so a caret at the start of `# Heading` cannot glue the image to the
+// heading's marker and turn the whole line into a paragraph.
+function blockAt(text: string, cut: number, block: string): string {
+  const before = text.slice(0, cut);
+  const after = text.slice(cut);
+  const lead =
+    before === "" || before.endsWith("\n\n") ? "" : before.endsWith("\n") ? "\n" : "\n\n";
+  const trail =
+    after === "" || after.startsWith("\n\n") ? "" : after.startsWith("\n") ? "\n" : "\n\n";
+  return `${before}${lead}${block}${trail}${after}`;
 }
