@@ -93,6 +93,8 @@ export const doc = {
   "doc.tree.label": "Pages",
   "doc.tree.add": "Add",
   "doc.tree.addUnder": "Add under {title}",
+  "doc.tree.parent": "Place under",
+  "doc.tree.topLevel": "At the top level",
   "doc.tree.moveUp": "Move {title} up",
   "doc.tree.moveDown": "Move {title} down",
   "doc.tree.indent": "Move {title} under the one above",

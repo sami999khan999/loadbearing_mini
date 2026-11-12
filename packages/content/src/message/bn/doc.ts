@@ -88,6 +88,8 @@ export const doc: NamespaceBundle<"doc"> = {
   "doc.tree.label": "পাতাসমূহ",
   "doc.tree.add": "যোগ করুন",
   "doc.tree.addUnder": "{title}-এর নিচে যোগ করুন",
+  "doc.tree.parent": "যার অধীনে রাখবেন",
+  "doc.tree.topLevel": "শীর্ষ স্তরে",
   "doc.tree.moveUp": "{title} উপরে সরান",
   "doc.tree.moveDown": "{title} নিচে সরান",
   "doc.tree.indent": "{title} উপরেরটির নিচে সরান",
