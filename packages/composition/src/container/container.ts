@@ -1762,8 +1762,16 @@ export class Container {
         },
       ),
       cancel: new CancelAssistantAnswerUseCase(auth, threads, messages, stream),
-      rename: new RenameAssistantThreadUseCase(auth, threads),
-      remove: new DeleteAssistantThreadUseCase(auth, threads, messages, this.activity, uow),
+      rename: new RenameAssistantThreadUseCase(auth, threads, this.realtime, this.clock),
+      remove: new DeleteAssistantThreadUseCase(
+        auth,
+        threads,
+        messages,
+        this.activity,
+        uow,
+        this.realtime,
+        this.clock,
+      ),
       stream: new StreamAssistantAnswerUseCase(auth, threads, messages, retrieval, subscriber),
       generate: this.chatModel
         ? new GenerateAssistantAnswerUseCase(
