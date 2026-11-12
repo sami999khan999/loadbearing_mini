@@ -31,7 +31,8 @@ export function OrganizationSwitcher({
   if (!user) return null;
 
   return (
-    <span className="ui-organization-switcher inline-flex items-center gap-2">
+    // Stacked: it sits at the head of the shell's sidebar, which is narrower than one row.
+    <span className="ui-organization-switcher flex flex-col gap-1.5">
       <label className={fieldClassName.label} htmlFor="organization-switcher">
         {t("nav.organization")}
       </label>
@@ -48,7 +49,7 @@ export function OrganizationSwitcher({
           label: candidate.name,
         }))}
       />
-      <Button variant="ghost" onClick={onCreate}>
+      <Button variant="ghost" className="self-start px-2" onClick={onCreate}>
         {t("nav.organizationNew")}
       </Button>
     </span>
