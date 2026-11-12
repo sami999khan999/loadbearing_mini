@@ -1,17 +1,17 @@
 ---
 title: Plans
-description: Live plans for the lite kit. Finished plans move to archive/ with a row here.
+description: What is left to do in the lite kit, and how to pick the work up. Every finished plan is in archive/.
 ---
 
 # Plans
 
-| Plan | Status |
+Two live files. Everything finished, every plan, the test ledger and every closed backlog entry,
+is in [`archive/`](archive/index.md).
+
+| File | What it holds |
 |---|---|
-| [`HANDOFF.md`](./HANDOFF.md) | **Start here.** Where the build stopped and how to pick it up. |
-| [`LITE-KIT-PLAN.md`](./LITE-KIT-PLAN.md) | Every item done. Tests owed in `TESTS.md`. |
-| [`UI-KIT-PLAN.md`](./UI-KIT-PLAN.md) | Tailwind v4, Base UI and `cn` in `packages/ui`. Every item done; manual checks owed in `TESTS.md`. |
-| [`DOCS-SYSTEM-PLAN.md`](./DOCS-SYSTEM-PLAN.md) | Feature-linked doc access, whole-docs search, and the Fumadocs-style reader finished. Every item done but the `DS0.2` latency budgets. |
-| [`AI-CHAT-PLAN.md`](./AI-CHAT-PLAN.md) | The AI Assistant: ask OpenAI, OpenRouter or Gemini about data the reader may see. Ported from the big kit; simpler, and scales by config and copy-backs. **Built 2026-11-11**; a browser walk owed in `TESTS.md`. |
-| [`WORKER-SCALING-PLAN.md`](./WORKER-SCALING-PLAN.md) | Choose a worker's queues by config (`WORKER_QUEUES`), queue pause CLI; the large kit's worker dashboard is a copy-back. **Built 2026-10-14.** |
-| [`TESTS.md`](./TESTS.md) | Every test run the build still owes, by plan item. |
-| [`BACKLOG.md`](./BACKLOG.md) | The open ledger. Empty. |
+| [`BACKLOG.md`](BACKLOG.md) | **The only open ledger.** Every item not done, each pointing at the archived plan it came from. |
+| [`HANDOFF.md`](HANDOFF.md) | How to pick the work up on any machine: the commits, what is verified, and the traps that cost time. |
+
+A new plan is written here while it is built, and moves to `archive/` with a row in its index
+once its last box is ticked; what it leaves open becomes a backlog entry.

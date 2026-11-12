@@ -83,4 +83,4 @@ several databases.
 - [`docs/ai/rules/data.md`](../ai/rules/data.md) — the rules that keep these fixes config-only.
 - [`docs/opinions/data-and-scale.md`](../opinions/data-and-scale.md) — the big kit's full argument
   for which store owns what, and the order scaling moves happen in.
-- [`docs/plans/`](../plans/index.md) — the plan that produced this kit.
+- [`docs/plans/archive/LITE-KIT-PLAN.md`](../plans/archive/LITE-KIT-PLAN.md) — the plan that produced this kit.

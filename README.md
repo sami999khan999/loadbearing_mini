@@ -136,4 +136,4 @@ be wrong about. Each store comes back by its page in [`docs/scale/`](docs/scale/
 - **[`docs/scale/`](docs/scale/index.md)** — what lite removed, when a project needs each piece back,
   and how to port it from the big kit. [`back-ports.md`](docs/scale/back-ports.md) lists what lite
   added that the big kit still owes.
-- **[`docs/plans/`](docs/plans/index.md)** — the live plan, the handoff, and the test runs still owed.
+- **[`docs/plans/`](docs/plans/index.md)** — the backlog of what is left, the handoff, and every finished plan in `archive/`.
