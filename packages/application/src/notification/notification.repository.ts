@@ -14,6 +14,8 @@ export interface NotificationRecord {
   readonly category: NotificationCategory;
   readonly params: Readonly<Record<string, string>>;
   readonly link: string | null;
+  // The events this row stands for, 1 for most; more for a grouped one (`26.7`).
+  readonly count: number;
   readonly readAt: Date | null;
   readonly createdAt: Date;
 }
@@ -63,6 +65,16 @@ export abstract class NotificationRepository {
   // One statement for N recipients, and `ON CONFLICT DO NOTHING` on the dedupe index.
   // Returns how many rows were new, which is what tells the caller whom to notify.
   public abstract saveMany(records: readonly NewNotification[]): Promise<readonly UserId[]>;
+
+  // Counts one more event on each holder's unread row about this subject (`26.7`), once
+  // per event: a redelivery finds `last_event_id` already set to it and changes nothing.
+  public abstract countIntoUnread(
+    organizationId: OrganizationId,
+    userIds: readonly UserId[],
+    kind: NotificationKind,
+    subjectId: string,
+    eventId: string,
+  ): Promise<void>;
 
   // Who already holds an unread one about this thing, other than the event's own, so a
   // retry does not suppress itself. One indexed query for the whole audience.

@@ -1,6 +1,11 @@
 const ACTIVITY_LOG = "activity_log";
 const OUTBOX_EVENT = "outbox_event";
 const NOTIFICATIONS = "notifications";
+const MESSAGES = "messages";
+const MESSAGE_REACTIONS = "message_reactions";
+const MESSAGE_ATTACHMENTS = "message_attachments";
+const CONVERSATIONS = "conversations";
+const CONVERSATION_MEMBERS = "conversation_members";
 const NOTIFICATION_PREFERENCES = "notification_preferences";
 const PUSH_SUBSCRIPTIONS = "push_subscriptions";
 const DOCUMENT_CHUNKS = "document_chunks";
@@ -58,6 +63,42 @@ const ALL = Object.freeze([
     tenantKey: "organization_id",
     column: "created_at",
     retentionMonths: 12,
+  }),
+  // Ahead of the two tables that reference it, which is what makes the reverse of this
+  // list a safe drop order. It grows with the tenant, so it takes no month level.
+  Object.freeze({
+    name: CONVERSATIONS,
+    tenantKey: "organization_id",
+    column: null,
+    retentionMonths: null,
+  }),
+  Object.freeze({
+    name: CONVERSATION_MEMBERS,
+    tenantKey: "organization_id",
+    column: null,
+    retentionMonths: null,
+  }),
+  // Never dropped by the calendar: messages are domain data, so the month level buys a
+  // manageable table and a ready archive path rather than a retention policy.
+  Object.freeze({
+    name: MESSAGES,
+    tenantKey: "organization_id",
+    column: "created_at",
+    retentionMonths: null,
+  }),
+  // A message's reactions (`26.1`), in its month, kept as long as the message is.
+  Object.freeze({
+    name: MESSAGE_REACTIONS,
+    tenantKey: "organization_id",
+    column: "created_at",
+    retentionMonths: null,
+  }),
+  // And its files' rows, the same way. The bytes are in storage under `msg/`.
+  Object.freeze({
+    name: MESSAGE_ATTACHMENTS,
+    tenantKey: "organization_id",
+    column: "created_at",
+    retentionMonths: null,
   }),
   Object.freeze({
     name: NOTIFICATION_PREFERENCES,
@@ -159,6 +200,11 @@ export class PartitionedTable {
   public static readonly ACTIVITY_LOG = ACTIVITY_LOG;
   public static readonly OUTBOX_EVENT = OUTBOX_EVENT;
   public static readonly NOTIFICATIONS = NOTIFICATIONS;
+  public static readonly MESSAGES = MESSAGES;
+  public static readonly MESSAGE_REACTIONS = MESSAGE_REACTIONS;
+  public static readonly MESSAGE_ATTACHMENTS = MESSAGE_ATTACHMENTS;
+  public static readonly CONVERSATIONS = CONVERSATIONS;
+  public static readonly CONVERSATION_MEMBERS = CONVERSATION_MEMBERS;
   public static readonly NOTIFICATION_PREFERENCES = NOTIFICATION_PREFERENCES;
   public static readonly PUSH_SUBSCRIPTIONS = PUSH_SUBSCRIPTIONS;
   public static readonly DOCUMENT_CHUNKS = DOCUMENT_CHUNKS;

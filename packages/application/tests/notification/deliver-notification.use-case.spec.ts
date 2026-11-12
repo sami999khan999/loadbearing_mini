@@ -57,6 +57,20 @@ class Notifications implements NotificationRepository {
 
   public suppressionQueries = 0;
 
+  public readonly counted: { userIds: readonly string[]; subjectId: string; eventId: string }[] =
+    [];
+
+  public countIntoUnread(
+    _organizationId: unknown,
+    userIds: readonly string[],
+    _kind: unknown,
+    subjectId: string,
+    eventId: string,
+  ): Promise<void> {
+    if (userIds.length > 0) this.counted.push({ userIds, subjectId, eventId });
+    return Promise.resolve();
+  }
+
   public unreadSubjectHolders(
     _organizationId: unknown,
     userIds: readonly (typeof TARGET)[],
@@ -135,6 +149,18 @@ class Recipients implements NotificationRecipientReader {
 
   public users(): Promise<readonly Recipient[]> {
     return Promise.resolve(this.members);
+  }
+
+  public conversationMembersAmong(
+    _organizationId: unknown,
+    _conversationId: unknown,
+    userIds: readonly string[],
+  ): Promise<readonly Recipient[]> {
+    return Promise.resolve(
+      (this as unknown as { members?: readonly Recipient[] }).members?.filter((member) =>
+        userIds.includes(member.userId),
+      ) ?? [],
+    );
   }
 
   public conversationMembers(): Promise<readonly Recipient[]> {
@@ -242,6 +268,69 @@ beforeEach(() => {
 });
 
 describe("DeliverNotificationUseCase", () => {
+  const channelMessage = (mentions: readonly string[]) =>
+    ({
+      id: "018f8c00-0000-7000-8000-000000000023",
+      organizationId: ORG,
+      name: "message.sent",
+      actorId: ACTOR,
+      occurredAt: new Date("2026-08-15T00:00:00Z"),
+      payload: {
+        conversationId: "018f8c00-0000-7000-8000-0000000000c2",
+        messageId: "018f8c00-0000-7000-8000-0000000000d2",
+        conversationKind: "channel",
+        mentions,
+      },
+    }) as unknown as DomainEvent;
+
+  // `26.7`: a channel message notifies nobody, unless it names people in the room.
+  it("notifies the members a channel message mentions, and only them", async () => {
+    const deliver = build([], [recipient(TARGET)]);
+
+    await deliver.execute(system(), channelMessage([TARGET]));
+
+    expect(notifications.saved).toHaveLength(1);
+    expect(notifications.saved[0]).toMatchObject({ userId: TARGET, kind: "message.mentioned" });
+  });
+
+  it("notifies nobody for a mention of someone outside the room, or no mention at all", async () => {
+    const deliver = build([], [recipient(TARGET)]);
+
+    await deliver.execute(system(), channelMessage(["018f8c00-0000-7000-8000-0000000000ee"]));
+    await deliver.execute(system(), channelMessage([]));
+
+    expect(notifications.saved).toHaveLength(0);
+  });
+
+  // `26.7`: a reader with an unread item about this conversation gets it counted, not a
+  // second item, and someone without one gets a fresh row.
+  it("counts a direct message into the reader's unread item instead of writing another", async () => {
+    const deliver = build([], [recipient(TARGET)]);
+    notifications.unreadSubjects = ["018f8c00-0000-7000-8000-0000000000c1"];
+
+    await deliver.execute(system(), {
+      id: "018f8c00-0000-7000-8000-000000000022",
+      organizationId: ORG,
+      name: "message.sent",
+      actorId: ACTOR,
+      occurredAt: new Date("2026-08-15T00:00:00Z"),
+      payload: {
+        conversationId: "018f8c00-0000-7000-8000-0000000000c1",
+        messageId: "018f8c00-0000-7000-8000-0000000000d1",
+        conversationKind: "direct",
+      },
+    } as unknown as DomainEvent);
+
+    expect(notifications.saved).toHaveLength(0);
+    expect(notifications.counted).toEqual([
+      {
+        userIds: [TARGET],
+        subjectId: "018f8c00-0000-7000-8000-0000000000c1",
+        eventId: "018f8c00-0000-7000-8000-000000000022",
+      },
+    ]);
+  });
+
   it("writes one row for the member a role change was about", async () => {
     const deliver = build();
 

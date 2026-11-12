@@ -61,8 +61,18 @@ describe("GetNotificationPreferencesUseCase", () => {
 
     // Every category the policy names, times the three channels — the complete grid, not
     // the stored rows. A form rendering only what was saved shows an empty screen on day one.
-    expect(resolved.map((entry) => entry.category)).toEqual(Array(3).fill("membership"));
-    expect(resolved.map((entry) => entry.channel)).toEqual(["in_app", "email", "push"]);
+    expect(resolved.map((entry) => entry.category)).toEqual([
+      ...Array(3).fill("membership"),
+      ...Array(3).fill("messaging"),
+    ]);
+    expect(resolved.map((entry) => entry.channel)).toEqual([
+      "in_app",
+      "email",
+      "push",
+      "in_app",
+      "email",
+      "push",
+    ]);
     expect(resolved.every((entry) => entry.mode !== undefined)).toBe(true);
   });
 

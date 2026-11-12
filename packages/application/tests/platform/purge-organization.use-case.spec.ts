@@ -201,12 +201,15 @@ describe("PurgeOrganizationUseCase", () => {
     expect(maintenance.cutoffs.map((call) => call.table)).toEqual([
       "activity_log",
       "notifications",
+      "messages",
+      "message_reactions",
+      "message_attachments",
       "doc_revision",
       "assistant_messages",
       "ai_usage",
     ]);
     expect(parts.archive.calls.every((call) => call.organizationId === TENANT)).toBe(true);
-    expect(result.archived).toBe(5);
+    expect(result.archived).toBe(8);
   });
 
   // The order is the behaviour: archive, then drop, then delete the row. A drop before
@@ -222,11 +225,15 @@ describe("PurgeOrganizationUseCase", () => {
 
   // Only a prefix names either, so nothing else would ever delete them: the doc images,
   // and the index text a job still queued for this tenant would have read.
-  it("sweeps the tenant's doc images and staged index text", async () => {
+  it("sweeps the tenant's doc images, staged index text and message attachments", async () => {
     const { parts, useCase } = build();
     await useCase.execute(input);
 
-    expect(parts.sweep.prefixes).toEqual([`doc/${TENANT}/`, `embedding/${TENANT}/`]);
+    expect(parts.sweep.prefixes).toEqual([
+      `doc/${TENANT}/`,
+      `embedding/${TENANT}/`,
+      `msg/${TENANT}/`,
+    ]);
   });
 
   // `24.1` dropped the cascade that did this, and a partition drop never reaches

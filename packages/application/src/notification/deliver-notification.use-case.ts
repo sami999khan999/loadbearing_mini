@@ -1,4 +1,5 @@
 import {
+  type ConversationId,
   type DomainEvent,
   type NotificationChannel,
   type NotificationMode,
@@ -53,10 +54,10 @@ export class DeliverNotificationUseCase {
   ) {}
 
   public async execute(actor: Principal, event: DomainEvent): Promise<void> {
-    const row = NotificationPolicy.rowFor(event.name);
-    // `applies` is the per-event half of the row: a message in a channel matches the
-    // name and still produces nothing.
-    if (!row || !NotificationPolicy.applies(event)) return;
+    // A message in a channel matches its name and still produces nothing, unless it
+    // names people: then it is a mention, delivered to them alone (`26.7`).
+    const row = NotificationPolicy.rowForEvent(event);
+    if (!row) return;
 
     const audience = await this.suppressed(event, await this.audienceFor(event, row), row);
     if (audience.length === 0) return;
@@ -97,6 +98,29 @@ export class DeliverNotificationUseCase {
         const recipient = await this.recipients.user(organizationId, subject);
         return recipient ? [recipient] : [];
       }
+      case "conversationMembers": {
+        const conversationId = DeliverNotificationUseCase.conversationOf(event);
+        if (!conversationId) return [];
+
+        const all = await this.recipients.conversationMembers(
+          organizationId,
+          conversationId,
+          RECIPIENT_LIMIT,
+        );
+        return all.filter((recipient) => recipient.userId !== event.actorId);
+      }
+      case "mentionedMembers": {
+        const conversationId = DeliverNotificationUseCase.conversationOf(event);
+        const named = NotificationPolicy.mentions(event) as readonly UserId[];
+        if (!conversationId || named.length === 0) return [];
+
+        const members = await this.recipients.conversationMembersAmong(
+          organizationId,
+          conversationId,
+          named,
+        );
+        return members.filter((recipient) => recipient.userId !== event.actorId);
+      }
       case "organizationMembers": {
         const all = await this.recipients.organizationMembers(
           organizationId,
@@ -112,7 +136,7 @@ export class DeliverNotificationUseCase {
   }
 
   // Drops anyone who already has an unread one about this subject, in one query for the
-  // whole audience — asking once per member would be up to five hundred queries.
+  // whole audience — a channel message used to ask once per member, up to five hundred.
   private async suppressed(
     event: DomainEvent,
     audience: readonly Recipient[],
@@ -129,7 +153,19 @@ export class DeliverNotificationUseCase {
       event.id,
     );
 
+    // Grouped rather than dropped (`26.7`): the bell keeps one item, and it counts.
+    await this.notifications.countIntoUnread(
+      event.organizationId,
+      [...holding],
+      row.kind,
+      subjectId,
+      event.id,
+    );
     return audience.filter((recipient) => !holding.has(recipient.userId));
+  }
+
+  private static conversationOf(event: DomainEvent): ConversationId | null {
+    return "conversationId" in event.payload ? event.payload.conversationId : null;
   }
 
   // Best effort, and after the row is written: a failed publish is a missing frame, and

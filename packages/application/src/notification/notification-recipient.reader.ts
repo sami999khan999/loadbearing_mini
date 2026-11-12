@@ -1,4 +1,4 @@
-import type { Locale, OrganizationId, PermissionKey, UserId } from "../import.js";
+import type { ConversationId, Locale, OrganizationId, PermissionKey, UserId } from "../import.js";
 
 export interface Recipient {
   readonly userId: UserId;
@@ -7,8 +7,8 @@ export interface Recipient {
   readonly locale: Locale;
 }
 
-// A read seam and never a write one: a write method here would make a derived view of
-// membership authoritative.
+// A read seam and never a write one, for the reason `LogReader` names: a write method
+// here would make a derived view of membership authoritative.
 export abstract class NotificationRecipientReader {
   // Every method takes the tenant first. A recipient list that cannot be scoped is a
   // cross-tenant leak with an email address attached.
@@ -23,6 +23,22 @@ export abstract class NotificationRecipientReader {
 
   public abstract users(
     organizationId: OrganizationId,
+    userIds: readonly UserId[],
+  ): Promise<readonly Recipient[]>;
+
+  // No permission argument, unlike `organizationMembers`: membership of the conversation
+  // is the authorization, and everyone in one can already read what is in it.
+  public abstract conversationMembers(
+    organizationId: OrganizationId,
+    conversationId: ConversationId,
+    limit: number,
+  ): Promise<readonly Recipient[]>;
+
+  // Of `userIds`, the ones who are members of the conversation (`26.7`): a mention of
+  // someone outside the room notifies nobody, whatever the token said.
+  public abstract conversationMembersAmong(
+    organizationId: OrganizationId,
+    conversationId: ConversationId,
     userIds: readonly UserId[],
   ): Promise<readonly Recipient[]>;
 }

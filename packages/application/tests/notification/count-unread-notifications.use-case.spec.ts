@@ -40,6 +40,20 @@ class Counting implements NotificationRepository {
     return Promise.resolve([]);
   }
 
+  public readonly counted: { userIds: readonly string[]; subjectId: string; eventId: string }[] =
+    [];
+
+  public countIntoUnread(
+    _organizationId: unknown,
+    userIds: readonly string[],
+    _kind: unknown,
+    subjectId: string,
+    eventId: string,
+  ): Promise<void> {
+    if (userIds.length > 0) this.counted.push({ userIds, subjectId, eventId });
+    return Promise.resolve();
+  }
+
   public unreadSubjectHolders(): Promise<ReadonlySet<never>> {
     return Promise.resolve(new Set());
   }
