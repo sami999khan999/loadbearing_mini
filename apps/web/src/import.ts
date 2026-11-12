@@ -150,6 +150,8 @@ export {
 // ── @loadbearing/ui ──────────────────────────────────────────────────────────
 export {
   AlertDialog,
+  AppLayout,
+  appLayoutClassName,
   type BadgeTone,
   Button,
   type ButtonVariant,
@@ -180,6 +182,7 @@ export {
   QrCode,
   readerClassName,
   Select,
+  Sidebar,
   StatusBadge,
   Textarea,
   type ThemeKey,

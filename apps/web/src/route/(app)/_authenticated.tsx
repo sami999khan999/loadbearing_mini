@@ -1,22 +1,37 @@
-import { createFileRoute, Link, Outlet, useNavigate, useRouter } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  Link,
+  Outlet,
+  useLocation,
+  useNavigate,
+  useRouter,
+} from "@tanstack/react-router";
 import { Endpoint } from "~/endpoint.js";
 import {
+  AppLayout,
   AuthClient,
+  appLayoutClassName,
+  Button,
   Can,
   CapabilitySet,
   type ClientNamespace,
+  Icon,
   ModuleNav,
   NotificationBell,
   NotificationQueries,
   OrganizationClient,
   OrganizationSwitcher,
+  type ReactNode,
   RealtimeProvider,
   ROUTES,
+  Sidebar,
   SignOutButton,
   useApiClient,
   useCapabilities,
+  useEffect,
   useMemo,
   useMessages,
+  useState,
 } from "~/import.js";
 import { Pending } from "~/route/-boundary.js";
 import { RouteGuard } from "~/route/-guard.js";
@@ -86,60 +101,123 @@ function AuthenticatedLayout() {
   const signedOut = refresh("/sign-in");
   const switched = refresh("/");
 
+  // Closed by every navigation: a drawer left open would cover the page just asked for.
+  const [open, setOpen] = useState(false);
+  const pathname = useLocation({ select: (location) => location.pathname });
+  useEffect(() => {
+    if (pathname) setOpen(false);
+  }, [pathname]);
+
+  const link = (to: string, label: string, icon: ReactNode = null) => (
+    <Link
+      key={to}
+      to={to}
+      className={appLayoutClassName.link}
+      activeProps={{ className: appLayoutClassName.linkActive, "aria-current": "page" }}
+    >
+      {icon}
+      {label}
+    </Link>
+  );
+
+  const sidebar = (
+    <Sidebar
+      label={t("nav.menu")}
+      open={open}
+      onOpenChange={setOpen}
+      closeLabel={t("nav.menuClose")}
+      header={
+        <>
+          {
+            // A mask painted with --fg, not an `<img>`: an image's `currentColor` is always
+            // black, which drew the logo black in every dark theme.
+          }
+          <span
+            role="img"
+            aria-label={logo.alt}
+            className="ui-app__logo block bg-fg"
+            style={{
+              width: logo.width,
+              height: logo.height,
+              maskImage: `url("${logo.src}")`,
+              maskRepeat: "no-repeat",
+              maskSize: "contain",
+            }}
+          />
+          <OrganizationSwitcher
+            organization={organization}
+            onSwitched={switched}
+            onCreate={() => void navigate({ to: "/organization/new" })}
+          />
+        </>
+      }
+      footer={
+        <>
+          <LocaleSwitcher appearance={appearance} current={appearanceSnapshot.locale} />
+          <SignOutButton auth={auth} onSignedOut={signedOut} />
+        </>
+      }
+    >
+      {
+        // The gated half, from `ContentSource.nav()` joined to `MODULE_GATES`. A link
+        // hidden here still answers FORBIDDEN if the path is typed by hand.
+      }
+      <ModuleNav
+        items={nav}
+        capabilities={capabilities}
+        className={appLayoutClassName.nav}
+        renderLink={(route, label, icon) => link(route, label, icon)}
+      />
+      {
+        // Ungated on purpose: your own account and security pages need no capability,
+        // which is why `account.routes.ts` declares no gate for them.
+      }
+      <p className={appLayoutClassName.section}>{t("nav.yourAccount")}</p>
+      <nav aria-label={t("nav.account")} className={appLayoutClassName.nav}>
+        {link("/settings/account", t("nav.account"))}
+        {link("/settings/security", t("nav.security"))}
+      </nav>
+    </Sidebar>
+  );
+
+  const topbar = (
+    <>
+      <Button
+        variant="ghost"
+        className="lg:hidden"
+        aria-label={t("nav.menuOpen")}
+        onClick={() => setOpen(true)}
+      >
+        <Icon name="menu" size={18} />
+      </Button>
+      <span className="ml-auto" />
+      {
+        // An affordance, so `<Can>`: the inbox route and its procedures are the gate.
+        <Can permission="notification.inbox.read" capabilities={capabilities}>
+          <NotificationBell href={ROUTES.notification.inbox} />
+        </Can>
+      }
+    </>
+  );
+
   return (
     <RealtimeProvider client={api} organizationId={session.user?.activeOrganizationId ?? null}>
       {
         // First in the tab order and visible only while focused: without it a keyboard
-        // reader walks the whole header again on every navigation.
+        // reader walks the whole sidebar again on every navigation.
       }
       <a className="ui-skip-link" href="#main">
         {t("nav.skip")}
       </a>
-      <header>
-        <img src={logo.src} width={logo.width} height={logo.height} alt={logo.alt} />
-        <OrganizationSwitcher
-          organization={organization}
-          onSwitched={switched}
-          onCreate={() => void navigate({ to: "/organization/new" })}
-        />
+      <AppLayout sidebar={sidebar} topbar={topbar}>
         {
-          // An affordance, so `<Can>`: the inbox route and its procedures are the gate.
-          <Can permission="notification.inbox.read" capabilities={capabilities}>
-            <NotificationBell href={ROUTES.notification.inbox} />
-          </Can>
+          // The landmark the skip link targets, and the one a screen reader jumps to.
+          // `tabIndex={-1}` so the anchor moves focus rather than only scrolling.
         }
-        {
-          // Ungated on purpose: your own account and security pages need no capability,
-          // which is why `account.routes.ts` declares no gate for them.
-          <nav aria-label={t("nav.account")}>
-            <Link to="/settings/account">{t("nav.account")}</Link>
-            <Link to="/settings/security">{t("nav.security")}</Link>
-          </nav>
-        }
-        {
-          // The gated half, from `ContentSource.nav()` joined to `MODULE_GATES`. A link
-          // hidden here still answers FORBIDDEN if the path is typed by hand.
-        }
-        <ModuleNav
-          items={nav}
-          capabilities={capabilities}
-          renderLink={(route, label, icon) => (
-            <Link key={route} to={route}>
-              {icon}
-              {label}
-            </Link>
-          )}
-        />
-        <LocaleSwitcher appearance={appearance} current={appearanceSnapshot.locale} />
-        <SignOutButton auth={auth} onSignedOut={signedOut} />
-      </header>
-      {
-        // The landmark the skip link targets, and the one a screen reader jumps to.
-        // `tabIndex={-1}` so the anchor moves focus rather than only scrolling.
-      }
-      <main id="main" tabIndex={-1}>
-        <Outlet />
-      </main>
+        <main id="main" tabIndex={-1} className="outline-none">
+          <Outlet />
+        </main>
+      </AppLayout>
     </RealtimeProvider>
   );
 }
