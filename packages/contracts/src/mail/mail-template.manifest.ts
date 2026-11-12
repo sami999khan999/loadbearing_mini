@@ -32,6 +32,13 @@ const TEMPLATES = {
     name: z.string().max(200),
     organization: z.string().min(1).max(200),
     url: z.string().max(URL_MAX),
+    // What is waiting, by kind (`26.7`). Defaulted, so a job queued before it still renders.
+    lines: z
+      .array(z.object({ kind: z.string().min(1).max(64), count: z.number().int().positive() }))
+      .max(10)
+      .default([]),
+    // Where the reader turns the digest off: their own notification preferences.
+    preferencesUrl: z.string().max(URL_MAX).default("/settings/notifications"),
   }),
 } as const;
 

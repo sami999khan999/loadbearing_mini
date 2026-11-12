@@ -6,4 +6,6 @@ export const realtimeProcedurePermissions = {
   "realtime.stream": "core.realtime.subscribe",
   // Authorship of the answer is the use-case's check, as membership is the conversation's.
   "realtime.assistant": "ai.assistant.use",
+  // Membership is the use-case's check; this is the permission to read conversations at all.
+  "realtime.conversation": "messaging.conversation.read",
 } as const satisfies Record<string, PermissionKey>;

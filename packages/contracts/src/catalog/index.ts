@@ -4,6 +4,7 @@ import { assistantProcedurePermissions } from "./assistant.permissions.js";
 import { docProcedurePermissions } from "./doc.permissions.js";
 import { documentProcedurePermissions } from "./document.permissions.js";
 import { memberProcedurePermissions } from "./member.permissions.js";
+import { messagingProcedurePermissions } from "./messaging.permissions.js";
 import { notificationProcedurePermissions } from "./notification.permissions.js";
 import { overrideProcedurePermissions } from "./override.permissions.js";
 import { platformProcedurePermissions } from "./platform.permissions.js";
@@ -15,6 +16,7 @@ import { roleProcedurePermissions } from "./role.permissions.js";
 export const PROCEDURE_PERMISSIONS: Readonly<Record<string, PermissionKey>> = {
   ...roleProcedurePermissions,
   ...memberProcedurePermissions,
+  ...messagingProcedurePermissions,
   ...notificationProcedurePermissions,
   ...realtimeProcedurePermissions,
   ...apiKeyProcedurePermissions,

@@ -3,11 +3,16 @@ import { Identifiers, Keyset } from "../primitive/index.js";
 
 // A closed enum, and it is a wire shape rather than an implementation detail: the client
 // renders copy from `kind`, so adding one without copy is a compile error there.
-const kind = z.enum(["member.joined", "member.role.changed"]);
+const kind = z.enum([
+  "member.joined",
+  "member.role.changed",
+  "message.received",
+  "message.mentioned",
+]);
 
 // What a preference is set against. Coarser than `kind` on purpose — a person choosing
 // how they are contacted is not choosing per message type, they are choosing per topic.
-const category = z.enum(["membership"]);
+const category = z.enum(["membership", "messaging"]);
 
 // `push` is a browser's own notification (`26.3`), reaching a person with the tab closed.
 const channel = z.enum(["in_app", "email", "push"]);
@@ -34,6 +39,8 @@ export class NotificationContract {
     // Where clicking it goes, as a declared route. Nullable because not every
     // notification has somewhere to be.
     link: z.string().nullable(),
+    // The events this item stands for: "3 new" on a conversation still unread (`26.7`).
+    count: z.number().int().positive(),
     readAt: z.date().nullable(),
     createdAt: z.date(),
   });
