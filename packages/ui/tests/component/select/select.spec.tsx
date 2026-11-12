@@ -21,6 +21,18 @@ describe("Select", () => {
     expect(form && new FormData(form).get("role")).toBe("admin");
   });
 
+  // `WK.2`. A picker that resets to nothing after each pick drew an empty box.
+  it("shows its placeholder while nothing is chosen, and the choice once one is", () => {
+    const { rerender } = render(
+      <Select label="React" placeholder="React" value={null} options={OPTIONS} />,
+    );
+    expect(screen.getByRole("combobox").textContent).toContain("React");
+
+    rerender(<Select label="React" placeholder="React" value="admin" options={OPTIONS} />);
+    expect(screen.getByRole("combobox").textContent).toContain("Admin");
+    expect(screen.getByRole("combobox").textContent).not.toContain("React");
+  });
+
   it("is named after its label and the selected option", () => {
     render(<Select label="Role" value="member" options={OPTIONS} />);
     expect(screen.getByRole("combobox", { name: "Role: Member" })).toBeDefined();

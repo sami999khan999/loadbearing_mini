@@ -39,6 +39,9 @@ export interface SelectProps {
   readonly "aria-invalid"?: true;
   // For a list still loading: `disabled` alone says nothing about why.
   readonly "aria-busy"?: boolean;
+  // Shown, muted, while nothing is chosen. A picker that resets after each pick is
+  // otherwise an empty box with only its accessible name to say what it is.
+  readonly placeholder?: string;
 }
 
 const TRIGGER: Readonly<Record<SelectVariant, string>> = Object.freeze({
@@ -81,6 +84,7 @@ export function Select({
   variant = "field",
   placement = "below",
   className,
+  placeholder,
   ...association
 }: SelectProps) {
   const container = usePortalContainer();
@@ -125,7 +129,8 @@ export function Select({
         <BaseSelect.Value className="ui-select__value flex min-w-0 items-center gap-2">
           {(current: string | null) => {
             const selected = options.find((option) => option.value === current);
-            return selected ? content(selected, variant === "menu") : null;
+            if (selected) return content(selected, variant === "menu");
+            return placeholder ? <span className="text-fg-muted">{placeholder}</span> : null;
           }}
         </BaseSelect.Value>
         <BaseSelect.Icon className="ui-menu__chevron ml-auto flex shrink-0 text-fg-muted">
