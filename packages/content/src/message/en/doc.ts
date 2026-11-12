@@ -157,7 +157,8 @@ export const doc = {
   "doc.grant.target.user": "Their email address",
   "doc.grant.target.plan": "The plan's key",
   "doc.grant.reason": "Reason",
-  "doc.grant.reasonHint": "Say why, so whoever reviews this later knows whether it can go.",
+  "doc.grant.reasonHint":
+    "Required. Say why, so whoever reviews this later knows whether it can go.",
   "doc.grant.expires": "Ends on",
   "doc.grant.expiresHint": "Leave empty to keep it until it is revoked.",
   "doc.grant.save": "Grant access",
