@@ -36,6 +36,9 @@ const mount = (onDirtyChange?: (dirty: boolean) => void, markdown = "hello") =>
     {
       docPage: {
         preview: vi.fn(() => Promise.resolve({ html: "" })),
+        save: vi.fn((input: { draftVersion: number }) =>
+          Promise.resolve({ ...draft, status: "draft", draftVersion: input.draftVersion + 1 }),
+        ),
         upload: vi.fn(() =>
           Promise.resolve({ url: IMAGE_URL, post: { url: "http://storage.test/", fields: {} } }),
         ),
@@ -97,5 +100,22 @@ describe("DocEditorForm", () => {
 
     await waitFor(() => expect(textarea.value).toBe(`![shot](${IMAGE_URL})\n\n# Welcome\n\nBody.`));
     vi.unstubAllGlobals();
+  });
+
+  // `WK.3`. Autosave ran and the badge went back to "Draft": nothing said it had saved.
+  it("says the draft saved once autosave lands, and forgets it at the next key", async () => {
+    await mount();
+    const title = await screen.findByLabelText("Title");
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      fireEvent.change(title, { target: { value: "Intro 2" } });
+      await vi.advanceTimersByTimeAsync(2_500);
+      await waitFor(() => expect(screen.getByRole("status").textContent).toBe("Draft saved."));
+
+      fireEvent.change(title, { target: { value: "Intro 3" } });
+      expect(screen.getByRole("status").textContent).toBe("");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

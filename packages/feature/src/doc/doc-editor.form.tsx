@@ -75,6 +75,8 @@ export function DocEditorForm({ draft, viewLink, onDirtyChange }: DocEditorFormP
   const [dirty, setDirty] = useState(false);
   const [tab, setTab] = useState<Tab>("write");
   const [status, setStatus] = useState(draft.status);
+  // True from a save that left nothing unsaved until the next edit or publish (`WK.3`).
+  const [justSaved, setJustSaved] = useState(false);
 
   const isPage = draft.kind === "page";
 
@@ -97,6 +99,7 @@ export function DocEditorForm({ draft, viewLink, onDirtyChange }: DocEditorFormP
           });
           edits.current += 1;
           setDirty(true);
+          setJustSaved(false);
         },
       },
     );
@@ -110,6 +113,7 @@ export function DocEditorForm({ draft, viewLink, onDirtyChange }: DocEditorFormP
       set(value);
       edits.current += 1;
       setDirty(true);
+      setJustSaved(false);
     };
 
   const input = () => ({
@@ -130,7 +134,10 @@ export function DocEditorForm({ draft, viewLink, onDirtyChange }: DocEditorFormP
       onSuccess: (saved) => {
         setVersion(saved.draftVersion);
         setStatus(saved.status);
-        if (edits.current === sent) setDirty(false);
+        if (edits.current === sent) {
+          setDirty(false);
+          setJustSaved(true);
+        }
         then?.(saved);
       },
     });
@@ -163,6 +170,7 @@ export function DocEditorForm({ draft, viewLink, onDirtyChange }: DocEditorFormP
           onSuccess: (published) => {
             setVersion(published.draftVersion);
             setStatus(published.status);
+            setJustSaved(false);
           },
         },
       );
@@ -185,6 +193,12 @@ export function DocEditorForm({ draft, viewLink, onDirtyChange }: DocEditorFormP
         >
           {dirty ? t("doc.editor.unsaved") : t(`doc.page.status.${status}`)}
         </StatusBadge>
+        {
+          // Polite and always mounted, so a reader hears autosave land without losing focus.
+        }
+        <span role="status" className="text-fg-muted text-sm">
+          {save.isPending ? t("doc.editor.saving") : justSaved ? t("doc.editor.saved") : ""}
+        </span>
         {viewLink}
       </div>
 
