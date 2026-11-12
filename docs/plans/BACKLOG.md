@@ -218,9 +218,10 @@ the four that lite shares are open below under the big kit's IDs.
   `doc.editor.saved` strings are unused.
 - [x] `WK.5` **Revoking a doc grant drops focus to the page.**
 - [x] `WK.6` **A grant's reason is required, and the field does not say so.**
-- [ ] `WK.7` **The app shell has no layout**, a bare `<header>`. A decision for both kits.
+- [x] `WK.7` **The app shell had no layout.** Decided 2026-11-12: `AppLayout` and the `Sidebar`,
+  as in the big kit; lite's bell stays behind `<Can>`, having no widgets. `dbc59b0..585a270`.
 
 Closed 2026-11-12 with the big kit's fixes: `WK.3` a status line says "Saving…" then "Draft
 saved." (`36a21d5`); `WK.5` focus moves to the grant panel's heading after a revoke, and `WK.6`
 target and reason carry `required`, the hint starting "Required." (`90c80c9`, `47760da`). The
-`Select` placeholder from the big kit's `WK.2` came too (`3ad33e8`). `WK.7` stays a decision.
+`Select` placeholder from the big kit's `WK.2` came too (`3ad33e8`).
