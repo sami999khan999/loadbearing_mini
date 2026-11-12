@@ -193,3 +193,29 @@ The big kit's other fixes since 2026-10-14 were checked on 2026-11-12 and need n
 two smoke specs never needed a signed-up user. Lite archives no revision months, so the doc-image
 fix has nothing to keep. The load-script types and the usage report prefetch touch files lite does
 not have.
+
+## 8. From the big kit's browser walk, 2026-11-12
+
+The big kit walked its shared screens in a browser and fixed five things in code lite shares,
+ported here under its commits. Its `plans/BACKLOG.md` §23 holds what it found and did not fix;
+the four that lite shares are open below under the big kit's IDs.
+
+- [x] `BL.21` **An uploaded image was glued to the block at the caret.** The caret sits at 0 after
+  Preview, so `# Welcome` became `![…](…)# Welcome`. It goes on its own lines now.
+  `doc-editor.form.spec`. Big kit `fc0d6151`; here `54723dd`.
+- [x] `BL.22` **The Assistant's rename field had no name and ignored Enter.** The label pointed
+  at an id the input did not have. `assistant-thread.panel.spec`. Big kit `6020e67c`; here
+  `58d0b70`.
+- [x] `BL.23` **A thread rename or delete never reached the author's other tabs.** Only a settled
+  answer published `assistant.changed`. `assistant-thread.use-case.spec`. Big kit
+  `67567aae`, `3fd4e7a2`; here `7ae3c2a`, `fc75599`.
+- [x] `BL.24` **The page tree's parent picker was labelled "Add", like its button**, with "—"
+  for the top level. `doc-page-tree.list.spec`. Big kit `7a990cad`, `ded58e6f`; here `0738a8e`,
+  `24b17d5`.
+- [x] `BL.25` **The not-found, error and pending states all drew a check mark.** Big kit
+  `876fa6bd`; here `3fd4197`.
+- [ ] `WK.3` **The editor never says a draft saved.** The `doc.editor.saving` and
+  `doc.editor.saved` strings are unused.
+- [ ] `WK.5` **Revoking a doc grant drops focus to the page.**
+- [ ] `WK.6` **A grant's reason is required, and the field does not say so.**
+- [ ] `WK.7` **The app shell has no layout**, a bare `<header>`. A decision for both kits.
