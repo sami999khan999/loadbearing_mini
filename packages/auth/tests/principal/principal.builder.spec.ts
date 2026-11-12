@@ -73,30 +73,31 @@ async function build(options: {
       : null,
   );
 
-  const capabilities = new CapabilityCache(
-    new RecordingCapabilityRepository(
-      new Map([
-        // The cookie holds everything; the key's issuer holds one permission. That gap
-        // is what makes "which credential won" observable.
-        [`${ORG}:${COOKIE_USER}`, holding("rbac.role.read", "rbac.role.manage", "member.read")],
-        [`${ORG}:${KEY_ISSUER}`, holding("member.read")],
-      ]),
-      new Map(
-        options.platform
-          ? [
-              [
-                COOKIE_USER,
-                CapabilitySet.from({
-                  wildcard: false,
-                  org: { grants: [], denies: [] },
-                  goals: {},
-                  platform: { grants: options.platform, denies: [] },
-                }),
-              ],
-            ]
-          : [],
-      ),
+  const repository = new RecordingCapabilityRepository(
+    new Map([
+      // The cookie holds everything; the key's issuer holds one permission. That gap
+      // is what makes "which credential won" observable.
+      [`${ORG}:${COOKIE_USER}`, holding("rbac.role.read", "rbac.role.manage", "member.read")],
+      [`${ORG}:${KEY_ISSUER}`, holding("member.read")],
+    ]),
+    new Map(
+      options.platform
+        ? [
+            [
+              COOKIE_USER,
+              CapabilitySet.from({
+                wildcard: false,
+                org: { grants: [], denies: [] },
+                goals: {},
+                platform: { grants: options.platform, denies: [] },
+              }),
+            ],
+          ]
+        : [],
     ),
+  );
+  const capabilities = new CapabilityCache(
+    repository,
     new MapCacheStore(),
     new StubPlatformReader(),
   );
@@ -110,7 +111,7 @@ async function build(options: {
     memberships,
   );
 
-  return { builder, sessions, keyRepository };
+  return { builder, sessions, keyRepository, repository };
 }
 
 async function keyRecord(): Promise<ApiKeyRecord> {
@@ -211,26 +212,27 @@ describe("PrincipalBuilder — the platform axis", () => {
   });
 });
 
-// What a held stream re-reads each minute. A principal captured at open keeps every right
-// it had, so a deactivation or a revoked key would never reach the stream (`RV.1`).
-describe("PrincipalBuilder.refresh", () => {
+// What held streams re-read each minute. A principal captured at open keeps every right it
+// had, so a deactivation or a revoked key would never reach the stream (`RV.1`).
+describe("PrincipalBuilder.refreshAll", () => {
+  const ACTIVE = new Set([COOKIE_USER, KEY_ISSUER]);
+
   it("rebuilds a user principal from the current capabilities", async () => {
     const { builder } = await build({ session: true });
-    const stale = new Principal(ORG, COOKIE_USER, holding("doc.page.write"));
+    const stale = new Principal(ORG, COOKIE_USER, holding("messaging.conversation.read"));
 
-    const fresh = await builder.refresh(stale);
+    const [fresh] = await builder.refreshAll(ORG, [stale], ACTIVE);
 
     expect(fresh?.kind).toBe("user");
     expect(fresh?.can("rbac.role.manage")).toBe(true);
-    expect(fresh?.can("doc.page.write")).toBe(false);
+    expect(fresh?.can("messaging.conversation.read")).toBe(false);
   });
 
-  it("returns null for a user whose membership was deactivated", async () => {
-    const { builder } = await build({ session: true, active: false });
+  it("returns null for a user the active set leaves out", async () => {
+    const { builder } = await build({ session: true });
+    const held = new Principal(ORG, COOKIE_USER, holding("member.read"));
 
-    expect(
-      await builder.refresh(new Principal(ORG, COOKIE_USER, holding("member.read"))),
-    ).toBeNull();
+    expect(await builder.refreshAll(ORG, [held], new Set())).toEqual([null]);
   });
 
   // The declared scopes are not in hand, so the old set is narrowed by the issuer's fresh
@@ -239,18 +241,46 @@ describe("PrincipalBuilder.refresh", () => {
     const { builder } = await build({ session: true });
     const key = Principal.apiKey(ORG, COOKIE_USER, holding("member.read"));
 
-    const fresh = await builder.refresh(key);
+    const [fresh] = await builder.refreshAll(ORG, [key], ACTIVE);
 
     expect(fresh?.kind).toBe("api_key");
     expect(fresh?.can("member.read")).toBe(true);
     expect(fresh?.can("rbac.role.manage")).toBe(false);
   });
 
-  it("returns null for an api key whose issuer was deactivated", async () => {
-    const { builder } = await build({ session: true, active: false });
+  it("returns null for an api key whose issuer is no longer active", async () => {
+    const { builder } = await build({ session: true });
+    const key = Principal.apiKey(ORG, KEY_ISSUER, holding("member.read"));
+
+    expect(await builder.refreshAll(ORG, [key], new Set([COOKIE_USER]))).toEqual([null]);
+  });
+
+  // `RV.4`. Every held stream of the tenant in one call, answered in order, and every
+  // capability miss resolved together rather than once per stream.
+  it("answers many in order, with one resolution for every miss", async () => {
+    const { builder, repository } = await build({ session: true });
+    const held = [
+      new Principal(ORG, COOKIE_USER, CapabilitySet.empty()),
+      Principal.apiKey(ORG, KEY_ISSUER, holding("member.read")),
+      new Principal(ORG, COOKIE_USER, CapabilitySet.empty()),
+    ];
+
+    const fresh = await builder.refreshAll(ORG, held, ACTIVE);
+
+    expect(fresh.map((principal) => principal?.kind)).toEqual(["user", "api_key", "user"]);
+    expect(repository.batches).toEqual([[COOKIE_USER, KEY_ISSUER]]);
+    expect(repository.platformBatches).toEqual([[COOKIE_USER]]);
+    expect(repository.calls).toEqual([]);
+  });
+
+  // The tenant is the call's, never the principal's: one from elsewhere is refused rather
+  // than refreshed against a tenant it does not belong to.
+  it("refuses a principal of another tenant", async () => {
+    const { builder } = await build({ session: true });
+    const other = Identifiers.organizationId.parse("018f8c00-0000-7000-8000-0000000000ee");
 
     expect(
-      await builder.refresh(Principal.apiKey(ORG, KEY_ISSUER, holding("member.read"))),
-    ).toBeNull();
+      await builder.refreshAll(ORG, [new Principal(other, COOKIE_USER, holding())], ACTIVE),
+    ).toEqual([null]);
   });
 });

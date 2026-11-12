@@ -57,6 +57,30 @@ export class CapabilityCache {
     return resolved;
   }
 
+  // `forUser` for many members of one tenant: a cache read each, and every miss resolved
+  // together, so a cold minute is four statements for the tenant rather than four a user.
+  public async forUsers(
+    organizationId: OrganizationId,
+    userIds: readonly UserId[],
+  ): Promise<ReadonlyMap<UserId, CapabilitySet>> {
+    return this.readThroughAll(
+      userIds,
+      (userId) => CapabilityCache.keyFor(organizationId, userId),
+      (missed) => this.repository.resolveForAll(organizationId, missed),
+    );
+  }
+
+  // The platform axis the same way, two statements for every miss together.
+  public async platformForUsers(
+    userIds: readonly UserId[],
+  ): Promise<ReadonlyMap<UserId, CapabilitySet>> {
+    return this.readThroughAll(
+      userIds,
+      (userId) => `${CapabilityCache.PLATFORM_PREFIX}${userId}`,
+      (missed) => this.repository.resolvePlatformForAll(missed),
+    );
+  }
+
   // Called on every RBAC write. Stale in this direction means a revoked permission keeps
   // working — a security bug wearing a caching bug's clothes.
   public async invalidate(organizationId: OrganizationId, userId: UserId): Promise<void> {
@@ -87,6 +111,38 @@ export class CapabilityCache {
   public async invalidateAll(): Promise<void> {
     await this.cache.deletePrefix(CapabilityCache.PREFIX);
     this.repeat(() => this.cache.deletePrefix(CapabilityCache.PREFIX));
+  }
+
+  // Absent from what `resolve` returns is the empty set, never a hole in the map: the
+  // caller asked about every one of these users and gets an answer for each.
+  private async readThroughAll(
+    userIds: readonly UserId[],
+    keyOf: (userId: UserId) => string,
+    resolve: (missed: readonly UserId[]) => Promise<ReadonlyMap<UserId, CapabilitySet>>,
+  ): Promise<ReadonlyMap<UserId, CapabilitySet>> {
+    const asked = [...new Set(userIds)];
+    const cached = await Promise.all(
+      asked.map((userId) => this.cache.get<CapabilitySetDto>(keyOf(userId))),
+    );
+
+    const found = new Map<UserId, CapabilitySet>();
+    const missed: UserId[] = [];
+    asked.forEach((userId, at) => {
+      const dto = cached[at];
+      if (dto) found.set(userId, CapabilitySet.from(dto));
+      else missed.push(userId);
+    });
+    if (missed.length === 0) return found;
+
+    const resolved = await resolve(missed);
+    await Promise.all(
+      missed.map((userId) => {
+        const set = resolved.get(userId) ?? CapabilitySet.empty();
+        found.set(userId, set);
+        return this.cache.set(keyOf(userId), set.toJSON(), CapabilityCache.TTL_SECONDS);
+      }),
+    );
+    return found;
   }
 
   // `CR.9`. A read-through that queried before the revoke committed can `SET` after the

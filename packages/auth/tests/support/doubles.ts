@@ -19,6 +19,9 @@ import type { RequestHeaders, ResolvedSession, SessionResolver } from "../../src
 export class RecordingCapabilityRepository implements CapabilityRepository {
   public readonly calls: { organizationId: string; userId: string }[] = [];
   public readonly platformCalls: string[] = [];
+  // One entry per batched resolution, holding who it was asked about.
+  public readonly batches: (readonly string[])[] = [];
+  public readonly platformBatches: (readonly string[])[] = [];
 
   public constructor(
     private readonly sets: ReadonlyMap<string, CapabilitySet>,
@@ -32,6 +35,19 @@ export class RecordingCapabilityRepository implements CapabilityRepository {
     const set = this.sets.get(`${organizationId}:${userId}`);
     if (!set) throw new Error(`No capability set staged for ${organizationId}:${userId}`);
     return Promise.resolve(set);
+  }
+
+  public async resolveForAll(
+    organizationId: OrganizationId,
+    userIds: readonly UserId[],
+  ): Promise<ReadonlyMap<UserId, CapabilitySet>> {
+    this.batches.push(userIds);
+    const resolved = new Map<UserId, CapabilitySet>();
+    for (const userId of userIds) {
+      const set = this.sets.get(`${organizationId}:${userId}`);
+      if (set) resolved.set(userId, set);
+    }
+    return Promise.resolve(resolved);
   }
 
   // Never asked here: the builder and the cache only resolve.
@@ -49,6 +65,17 @@ export class RecordingCapabilityRepository implements CapabilityRepository {
   public resolvePlatformFor(userId: UserId): Promise<CapabilitySet> {
     this.platformCalls.push(userId);
     return Promise.resolve(this.platformSets.get(userId) ?? CapabilitySet.empty());
+  }
+
+  public resolvePlatformForAll(
+    userIds: readonly UserId[],
+  ): Promise<ReadonlyMap<UserId, CapabilitySet>> {
+    this.platformBatches.push(userIds);
+    return Promise.resolve(
+      new Map(
+        userIds.map((userId) => [userId, this.platformSets.get(userId) ?? CapabilitySet.empty()]),
+      ),
+    );
   }
 }
 

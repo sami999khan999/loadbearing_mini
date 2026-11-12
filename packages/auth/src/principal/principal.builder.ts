@@ -32,20 +32,50 @@ export class PrincipalBuilder {
     return this.forUser(session.organizationId, session.userId);
   }
 
-  // What a held stream asks each minute: the principal it opened with, as it stands now.
-  // `null` once deactivated. A key only narrows — its declared scopes are not in hand here.
-  public async refresh(principal: Principal): Promise<Principal | null> {
-    const { organizationId, userId } = principal;
-
-    if (principal.kind === "user") return this.forUser(organizationId, userId);
-    if (principal.kind === "system") return principal;
-
-    const [active, issuer] = await Promise.all([
-      this.memberships.isActive(userId, organizationId),
-      this.capabilities.forUser(organizationId, userId),
+  // What held streams ask each minute: each principal as it stands now, `null` once inactive.
+  // `active` is the caller's one `activeMemberIds` read, shared with the user streams.
+  public async refreshAll(
+    organizationId: OrganizationId,
+    principals: readonly Principal[],
+    active: ReadonlySet<UserId>,
+  ): Promise<readonly (Principal | null)[]> {
+    const held = principals.filter(
+      (principal) =>
+        principal.organizationId === organizationId &&
+        principal.kind !== "system" &&
+        active.has(principal.userId),
+    );
+    const [tenant, platform] = await Promise.all([
+      this.capabilities.forUsers(
+        organizationId,
+        held.map((principal) => principal.userId),
+      ),
+      this.capabilities.platformForUsers(
+        held.filter((principal) => principal.kind === "user").map((principal) => principal.userId),
+      ),
     ]);
-    if (!active) return null;
-    return Principal.apiKey(organizationId, userId, principal.capabilities.intersect(issuer));
+
+    return principals.map((principal) => {
+      if (principal.organizationId !== organizationId) return null;
+      if (principal.kind === "system") return principal;
+      const granted = tenant.get(principal.userId);
+      if (!active.has(principal.userId) || !granted) return null;
+
+      // A key only narrows: its declared scopes are not in hand here.
+      if (principal.kind === "api_key") {
+        return Principal.apiKey(
+          organizationId,
+          principal.userId,
+          principal.capabilities.intersect(granted),
+        );
+      }
+      return PrincipalBuilder.merged(
+        organizationId,
+        principal.userId,
+        granted,
+        platform.get(principal.userId) ?? CapabilitySet.empty(),
+      );
+    });
   }
 
   private async forUser(organizationId: OrganizationId, userId: UserId): Promise<Principal | null> {
@@ -60,13 +90,21 @@ export class PrincipalBuilder {
       this.capabilities.platformFor(userId),
     ]);
 
-    // Merged rather than chosen between: a platform admin switched into a customer tenant
-    // is still a platform admin, and is still only a member of that tenant.
+    return PrincipalBuilder.merged(organizationId, userId, tenant, platform);
+  }
+
+  // Merged rather than chosen between: a platform admin switched into a customer tenant
+  // is still a platform admin, and is still only a member of that tenant.
+  private static merged(
+    organizationId: OrganizationId,
+    userId: UserId,
+    tenant: CapabilitySet,
+    platform: CapabilitySet,
+  ): Principal {
     const capabilities = CapabilitySet.from({
       ...tenant.toJSON(),
       platform: platform.toJSON().platform,
     });
-
     return new Principal(organizationId, userId, capabilities, "user");
   }
 }
