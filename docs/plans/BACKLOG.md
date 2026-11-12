@@ -183,3 +183,13 @@ its `FC.<n>`.
   push, and unsubscribing removed the row. Not checked: a real browser receiving one.
 - [x] `BL.19` **The architecture check's comment pass dropped the second half of an escape**, so
   `"\0"` read as an open string and every later quote paired wrongly. Big kit: `ef77091a`.
+- [x] `BL.20` **A resume point that was not a stream id was handed to Redis as a range.** A
+  reconnecting client whose `after` named no entry got an `XRANGE` Redis refuses, not the log from
+  the start. It is now read as a first open. Big kit: `94488b67`. `redis-assistant-stream.spec`
+  fails without it. `f0fb8a8`.
+
+The big kit's other fixes since 2026-10-14 were checked on 2026-11-12 and need no port. The loader
+404s and the escape fix are here already, and the assistant spec's month fix is identical. Lite's
+two smoke specs never needed a signed-up user. Lite archives no revision months, so the doc-image
+fix has nothing to keep. The load-script types and the usage report prefetch touch files lite does
+not have.
