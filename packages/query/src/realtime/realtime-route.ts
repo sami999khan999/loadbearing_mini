@@ -19,6 +19,13 @@ export class RealtimeRoutes {
       request(QueryKeys.notification.unreadCount());
       request(QueryKeys.notification.lists());
     },
+    // The user-stream frames. A conversation's own frames ride the conversation channel
+    // and are handled by the component that opened it, not by this table.
+    "conversation.changed": (request, payload) => RealtimeRoutes.conversation(request, payload),
+    "conversation.read": (request, payload) => RealtimeRoutes.conversation(request, payload),
+    "message.sent": (request, payload) => RealtimeRoutes.message(request, payload),
+    "message.edited": (request, payload) => RealtimeRoutes.message(request, payload),
+    "message.deleted": (request, payload) => RealtimeRoutes.message(request, payload),
     // An answer settled, maybe in another tab: the list's order moved, and the thread holds it.
     "assistant.changed": (request, payload) => {
       request(QueryKeys.assistant.lists());
@@ -38,7 +45,30 @@ export class RealtimeRoutes {
     for (const route of Object.values(RealtimeRoutes.TABLE)) route(request, {});
   }
 
+  // The routes of the frames published with `replay: false`, which a resume cannot hand
+  // back: on every reopen they are refetched whole instead.
+  public static reopened(request: Request): void {
+    RealtimeRoutes.TABLE["conversation.changed"](request, {});
+  }
+
   public static names(): readonly RealtimeEventName[] {
     return Object.keys(RealtimeRoutes.TABLE) as readonly RealtimeEventName[];
+  }
+
+  private static conversation(request: Request, payload: Payload): void {
+    if (!payload.conversationId) {
+      request(QueryKeys.conversation.all());
+      return;
+    }
+    request(QueryKeys.conversation.lists());
+    request(QueryKeys.conversation.get(payload.conversationId));
+  }
+
+  private static message(request: Request, payload: Payload): void {
+    request(
+      payload.conversationId
+        ? QueryKeys.message.list(payload.conversationId)
+        : QueryKeys.message.all(),
+    );
   }
 }

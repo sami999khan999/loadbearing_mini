@@ -66,6 +66,25 @@ export class QueryKeys {
     pushDevice: () => ["notification", "push", "device"] as const,
   };
 
+  // Two namespaces rather than one: a conversation list and the messages inside one
+  // change at different rates, and a send must not invalidate the whole inbox.
+  public static readonly conversation = {
+    all: () => ["conversation"] as const,
+    list: (params: unknown) => ["conversation", "list", params] as const,
+    lists: () => ["conversation", "list"] as const,
+    get: (conversationId: string) => ["conversation", "get", conversationId] as const,
+    presence: (conversationId: string) => ["conversation", "presence", conversationId] as const,
+  };
+
+  public static readonly message = {
+    all: () => ["message"] as const,
+    // The cursor is not in the key, as everywhere else: it lives in the page data, and a
+    // key that carried it would make every page a separate entry nothing invalidates.
+    list: (conversationId: string) => ["message", "list", conversationId] as const,
+    // Under `message`, so a frame that invalidates the room's messages reaches its threads.
+    thread: (messageId: string) => ["message", "thread", messageId] as const,
+  };
+
   // Above the tenant, so nothing here is keyed by organization: switching tenants
   // does not change what a platform admin is looking at.
   public static readonly platform = {
