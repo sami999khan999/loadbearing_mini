@@ -93,6 +93,8 @@ export const doc = {
   "doc.tree.label": "Pages",
   "doc.tree.add": "Add",
   "doc.tree.addUnder": "Add under {title}",
+  "doc.tree.parent": "Place under",
+  "doc.tree.topLevel": "At the top level",
   "doc.tree.moveUp": "Move {title} up",
   "doc.tree.moveDown": "Move {title} down",
   "doc.tree.indent": "Move {title} under the one above",
@@ -155,7 +157,8 @@ export const doc = {
   "doc.grant.target.user": "Their email address",
   "doc.grant.target.plan": "The plan's key",
   "doc.grant.reason": "Reason",
-  "doc.grant.reasonHint": "Say why, so whoever reviews this later knows whether it can go.",
+  "doc.grant.reasonHint":
+    "Required. Say why, so whoever reviews this later knows whether it can go.",
   "doc.grant.expires": "Ends on",
   "doc.grant.expiresHint": "Leave empty to keep it until it is revoked.",
   "doc.grant.save": "Grant access",

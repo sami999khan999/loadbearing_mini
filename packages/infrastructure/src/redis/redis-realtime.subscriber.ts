@@ -11,6 +11,7 @@ import {
   Uuid,
 } from "../import.js";
 import { RealtimeLog } from "./realtime-log.js";
+import { StreamLease } from "./stream-lease.js";
 
 export interface RedisRealtimeConfig {
   readonly maxStreamsPerUser: number;
@@ -56,6 +57,9 @@ export class RedisRealtimeSubscriber extends RealtimeSubscriber {
       ? [options.owner]
       : channels.filter((channel) => RealtimeChannels.isUser(channel));
     this.assertUnderCap(capped);
+    const streamId = Uuid.v7();
+    let leased: readonly RealtimeChannel[] = [];
+    let renewal: ReturnType<typeof setInterval> | null = null;
 
     const queue: RealtimeMessage[] = [];
     let dropped = false;
@@ -89,6 +93,7 @@ export class RedisRealtimeSubscriber extends RealtimeSubscriber {
     };
     this.live.add(live);
     signal.addEventListener("abort", onAbort);
+
     for (const channel of capped) this.count(channel, 1);
 
     try {
@@ -96,6 +101,13 @@ export class RedisRealtimeSubscriber extends RealtimeSubscriber {
       // After the attach, so nothing published between the read and the subscribe is lost;
       // a frame both read and heard is dropped from the live queue by its id.
       if (options?.after !== undefined) await this.resume(channels, options.after, queue);
+      // The cluster-wide half (`26.6`): a lease per stream, counted across every process.
+      // After the attach, so taking it costs the stream no frame published meanwhile.
+      leased = await this.lease(capped, streamId);
+      if (leased.length > 0) {
+        const held = leased;
+        renewal = setInterval(() => void this.renew(held, streamId), StreamLease.RENEW_MS);
+      }
 
       while (!signal.aborted && Date.now() < deadline) {
         if (dropped) {
@@ -115,6 +127,8 @@ export class RedisRealtimeSubscriber extends RealtimeSubscriber {
         });
       }
     } finally {
+      if (renewal) clearInterval(renewal);
+      await this.release(leased, streamId);
       signal.removeEventListener("abort", onAbort);
       for (const channel of capped) this.count(channel, -1);
       await this.detach(channels, push);
@@ -163,12 +177,56 @@ export class RedisRealtimeSubscriber extends RealtimeSubscriber {
   private assertUnderCap(channels: readonly RealtimeChannel[]): void {
     for (const channel of channels) {
       const open = this.streamsPerChannel.get(channel) ?? 0;
-      // Per process, not per cluster. A cap that needed a shared counter would need a
-      // round trip on every stream open, and the failure it prevents is one runaway tab.
+      // The cheap first check, in memory: one runaway tab never reaches Redis. The lease
+      // in `lease()` is what holds the cap across processes (`26.6`).
       if (open >= this.config.maxStreamsPerUser) {
         throw new RateLimitedError("realtime.stream");
       }
     }
+  }
+
+  // Without a plain client (a spec) there is no lease, and the per-process cap stands alone.
+  // An unreachable Redis takes no lease rather than refusing every stream.
+  private async lease(
+    owners: readonly RealtimeChannel[],
+    streamId: string,
+  ): Promise<readonly RealtimeChannel[]> {
+    if (!this.log || owners.length === 0) return [];
+    const redis = this.log();
+    const taken: RealtimeChannel[] = [];
+    for (const owner of owners) {
+      const ok = await StreamLease.acquire(
+        redis,
+        owner,
+        streamId,
+        this.config.maxStreamsPerUser,
+        Date.now(),
+      ).catch(() => null);
+      if (ok === false) {
+        await this.release(taken, streamId);
+        throw new RateLimitedError("realtime.stream");
+      }
+      if (ok) taken.push(owner);
+    }
+    return taken;
+  }
+
+  private async renew(owners: readonly RealtimeChannel[], streamId: string): Promise<void> {
+    if (!this.log) return;
+    const redis = this.log();
+    await Promise.all(
+      owners.map((owner) =>
+        StreamLease.renew(redis, owner, streamId, Date.now()).catch(() => undefined),
+      ),
+    );
+  }
+
+  private async release(owners: readonly RealtimeChannel[], streamId: string): Promise<void> {
+    if (!this.log || owners.length === 0) return;
+    const redis = this.log();
+    await Promise.all(
+      owners.map((owner) => StreamLease.release(redis, owner, streamId).catch(() => undefined)),
+    );
   }
 
   private count(channel: RealtimeChannel, delta: number): void {

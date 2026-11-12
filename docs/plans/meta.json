@@ -1,15 +1,5 @@
 {
   "title": "Plans",
-  "description": "Live plans for the lite kit",
-  "pages": [
-    "index",
-    "HANDOFF",
-    "LITE-KIT-PLAN",
-    "UI-KIT-PLAN",
-    "DOCS-SYSTEM-PLAN",
-    "AI-CHAT-PLAN",
-    "WORKER-SCALING-PLAN",
-    "TESTS",
-    "BACKLOG"
-  ]
+  "description": "What is left in the lite kit, and every finished plan",
+  "pages": ["index", "BACKLOG", "HANDOFF", "archive"]
 }

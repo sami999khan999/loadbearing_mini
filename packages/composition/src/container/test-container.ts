@@ -3,6 +3,7 @@ import {
   InMemoryCacheStore,
   InMemoryOrganizationReader,
   InMemoryOutboxGateway,
+  InMemoryPresenceReader,
   InMemoryRateLimitStore,
   InMemoryRealtimeHub,
   InMemoryRealtimeSubscriber,
@@ -49,6 +50,7 @@ import {
   type OrganizationReader,
   type OutboxGateway,
   type PartitionArchiveGateway,
+  type PresenceReader,
   type Principal,
   type PushSender,
   type QueuePublisher,
@@ -87,6 +89,7 @@ export interface TestPorts {
   readonly embeddings: EmbeddingProvider;
   readonly mailPublisher: MailPublisher;
   readonly mailRenderer: MailRenderer;
+  readonly presence: PresenceReader;
   readonly pushSender: PushSender;
   readonly markdownRenderer: MarkdownRenderer;
   readonly maintenance: MaintenanceGateway;
@@ -153,6 +156,7 @@ export class TestContainer {
       embeddings: overrides.embeddings ?? new StubEmbeddingProvider(),
       mailPublisher: overrides.mailPublisher ?? new RecordingMailPublisher(),
       mailRenderer: overrides.mailRenderer ?? new StubMailRenderer(),
+      presence: overrides.presence ?? new InMemoryPresenceReader(),
       pushSender: overrides.pushSender ?? new RecordingPushSender(),
       markdownRenderer: overrides.markdownRenderer ?? new StubMarkdownRenderer(),
       maintenance: overrides.maintenance ?? new RecordingMaintenanceGateway(),

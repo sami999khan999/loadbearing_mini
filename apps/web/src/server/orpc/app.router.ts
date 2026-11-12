@@ -5,6 +5,8 @@ import { DocPageRouter } from "./doc-page.router.js";
 import { DocSpaceRouter } from "./doc-space.router.js";
 import { DocumentRouter } from "./document.router.js";
 import { MemberRouter } from "./member.router.js";
+import { MessageRouter } from "./message.router.js";
+import { ConversationRouter } from "./messaging.router.js";
 import { NotificationRouter } from "./notification.router.js";
 import { OverrideRouter } from "./override.router.js";
 import { PlatformRouter } from "./platform.router.js";
@@ -18,6 +20,8 @@ export const appRouter = {
   apiKey: ApiKeyRouter.all,
   document: DocumentRouter.all,
   notification: NotificationRouter.all,
+  conversation: ConversationRouter.all,
+  message: MessageRouter.all,
   platform: PlatformRouter.all,
   override: OverrideRouter.all,
   docSpace: DocSpaceRouter.all,

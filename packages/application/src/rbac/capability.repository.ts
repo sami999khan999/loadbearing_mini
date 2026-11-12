@@ -35,6 +35,13 @@ export abstract class CapabilityRepository {
     userId: UserId,
   ): Promise<CapabilitySet>;
 
+  // `resolveFor` for many users of one tenant, still four statements: the user is a column
+  // of each, not a loop around them. A user with no rows maps to an empty set.
+  public abstract resolveForAll(
+    organizationId: OrganizationId,
+    userIds: readonly UserId[],
+  ): Promise<ReadonlyMap<UserId, CapabilitySet>>;
+
   // The same four statements as `resolveFor`, unfolded. Never cached: the inspector reads
   // it to answer "why", and a cached answer to that question is the wrong one.
   public abstract explainFor(
@@ -45,6 +52,11 @@ export abstract class CapabilityRepository {
   // Keyed on the user alone: the tier is one organization, and the answer does not
   // change with whichever tenant the session is pointed at. **Only** the platform axis.
   public abstract resolvePlatformFor(userId: UserId): Promise<CapabilitySet>;
+
+  // The same two statements for many users at once, every one of them present in the map.
+  public abstract resolvePlatformForAll(
+    userIds: readonly UserId[],
+  ): Promise<ReadonlyMap<UserId, CapabilitySet>>;
 
   // What the org's plan allows, adjustments and the kill switch included. `resolveFor`
   // already applies it; this is for a caller that must know the ceiling itself.

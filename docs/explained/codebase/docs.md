@@ -18,7 +18,7 @@ description: The written rules, the arguments behind them, the build order, the 
 
 These pages (`explained/`) are listed in the guide's own index rather than here.
 
-This page covers 97 files.
+This page covers 102 files.
 
 ## Every file
 
@@ -103,13 +103,23 @@ This page covers 97 files.
 
 | File | What it does |
 |---|---|
-| `BACKLOG.md` | The only open ledger for the lite kit — work found and not yet planned. Items graduate into a plan or are dropped. |
-| `DOCS-SYSTEM-PLAN.md` | The finished plan for the docs system: access links to modules, permissions, flags and plans; whole-docs search; and the reader features. |
+| `BACKLOG.md` | The only open ledger for the lite kit: every item not done, each waiting on a key, a quiet machine, a public URL or a flag. |
 | `HANDOFF.md` | Where the lite kit's build stopped, what is verified, and exactly how to pick it up on any machine or in a fresh session. |
+| `index.md` | Contents page for the plans: the two live files, and that everything finished is in `archive/`. |
+| `meta.json` | Sidebar title, description and page order for this docs folder. |
+
+### `docs/plans/archive/`
+
+| File | What it does |
+|---|---|
+| `AI-CHAT-PLAN.md` | The finished plan for the AI Assistant, ported from the big kit. |
+| `DOCS-SYSTEM-PLAN.md` | The finished plan for the docs system: access links to modules, permissions, flags and plans; whole-docs search; and the reader features. |
+| `DONE.md` | Every closed backlog entry, by its original section and ID, with the proof it closed on. |
 | `LITE-KIT-PLAN.md` | The plan that cut this small kit from the big kit, and how it can grow back. |
-| `TESTS.md` | Every test run the lite kit build still owes, by plan item, with the commands, so the build can go ahead on typecheck alone and the runs can be done in one pass. |
+| `TESTS.md` | The test runs the build owed, by plan item, and the standard pass used to check a change. |
 | `UI-KIT-PLAN.md` | The finished plan that moved the UI to Tailwind v4, Base UI and `cn`. |
-| `index.md` | Live plans for the lite kit. Finished plans move to archive/ with a row here. |
+| `WORKER-SCALING-PLAN.md` | The finished plan that lets a worker choose its queues by config, with the queue pause CLI. |
+| `index.md` | Contents page for the archived plans. |
 | `meta.json` | Sidebar title, description and page order for this docs folder. |
 
 ### `docs/scale/`
@@ -121,7 +131,7 @@ This page covers 97 files.
 | `beyond-the-big-kit.md` | The scaling moves the big kit has designed for but not built — new work in either kit, landing as new adapters rather than a rewrite. |
 | `index.md` | What the lite kit cannot do at larger scale, and how each limit is fixed by bringing back a piece of the big kit — written to be read without access to the big kit's repository history. |
 | `logs.md` | Bringing back Loki and Alloy, so logs from every server land in one searchable place — mostly infrastructure, because the app already writes the right format. |
-| `messaging.md` | Bringing back direct and group messages — a product feature left out of lite, which rides on the realtime app lite already runs. |
+| `messaging.md` | How direct and group messages were brought back into lite on 2026-11-12, kept for the next port. |
 | `meta.json` | Sidebar title, description and page order for this docs folder. |
 | `pgbouncer.md` | Putting a connection pooler in front of Postgres — config only, because lite's code is already written as if one were there. |
 | `porting.md` | The general procedure for bringing a piece of the big kit back into the lite kit — getting the source, the copy order, migrations, wiring, and the checks that prove it worked. |

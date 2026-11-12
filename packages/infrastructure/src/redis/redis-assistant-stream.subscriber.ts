@@ -56,7 +56,7 @@ export class RedisAssistantStreamSubscriber extends AssistantStreamSubscriber {
       const missed = await AssistantLog.since(this.log(), messageId, after);
       queue.unshift(...missed);
 
-      let last = after;
+      let last = AssistantLog.isEntryId(after) ? after : undefined;
       while (!signal.aborted && Date.now() < deadline) {
         const next = queue.shift();
         if (!next) {

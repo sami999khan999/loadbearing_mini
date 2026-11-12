@@ -235,7 +235,8 @@ export class MaintenanceConsumer {
 
     await this.container.eachShard(async (node) => {
       const orphaned = await this.container.maintenance.orphanedTenants();
-      if (orphaned.length === 0) return;
+      const dangling = await this.container.maintenance.danglingConversations();
+      if (orphaned.length === 0 && dangling.members === 0 && dangling.messages === 0) return;
 
       // The ids, not just the count: with no foreign key left this is the only place a
       // leaked tenant is named, and a number alone cannot be chased.
@@ -243,6 +244,8 @@ export class MaintenanceConsumer {
         node,
         tenants: orphaned.length,
         organizationIds: orphaned.join(","),
+        members: dangling.members,
+        messages: dangling.messages,
       });
     });
   }

@@ -1,3 +1,4 @@
+import type { ConversationRepository } from "@loadbearing/application";
 import { Identifiers, type OrganizationId, type UserId } from "@loadbearing/contracts";
 import { SystemClock, Uuid } from "@loadbearing/core";
 import { eq, inArray } from "drizzle-orm";
@@ -41,7 +42,12 @@ beforeAll(async () => {
     new PgActivityLogger(cluster, scope, shards, new SystemClock()),
     new RecordingLogger(),
   ).found(userId, "Recipient target", `recipient-${Uuid.v7()}`);
-  reader = new PgNotificationRecipientReader(cluster, scope, shards);
+  reader = new PgNotificationRecipientReader(
+    cluster,
+    scope,
+    shards,
+    {} as unknown as ConversationRepository,
+  );
 });
 
 afterAll(async () => {

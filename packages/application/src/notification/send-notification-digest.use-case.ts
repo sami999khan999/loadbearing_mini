@@ -25,7 +25,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 // The categories a preference can be stored against. Read per page rather than per
 // person, so the page costs one query each instead of one per recipient.
-const CATEGORIES: readonly NotificationCategory[] = Object.freeze(["membership"]);
+const CATEGORIES: readonly NotificationCategory[] = Object.freeze(["membership", "messaging"]);
 
 const storedKey = (userId: UserId, category: NotificationCategory) => `${userId}:${category}`;
 
@@ -109,6 +109,8 @@ export class SendNotificationDigestUseCase {
             name: person.name,
             organization,
             url: "/notifications",
+            lines: SendNotificationDigestUseCase.linesOf(digestable),
+            preferencesUrl: "/settings/notifications",
           },
           organizationId: input.organizationId,
           userId: person.userId,
@@ -120,6 +122,19 @@ export class SendNotificationDigestUseCase {
     });
 
     if (mails.length > 0) await this.mail.publishMany(mails);
+  }
+
+  // What is waiting, by kind, most first (`26.7`). A grouped row counts every message it
+  // stands for, so "New messages: 5" is five even when the bell shows one item.
+  private static linesOf(
+    rows: readonly NotificationRecord[],
+  ): readonly { readonly kind: string; readonly count: number }[] {
+    const counts = new Map<string, number>();
+    for (const row of rows) counts.set(row.kind, (counts.get(row.kind) ?? 0) + (row.count ?? 1));
+    return [...counts.entries()]
+      .map(([kind, count]) => ({ kind, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
   }
 
   // One query per category for the whole page. `findFor` takes many users and one

@@ -1,4 +1,5 @@
 import {
+  type DanglingConversations,
   MaintenanceGateway,
   type OrganizationId,
   type PartitionEstimate,
@@ -31,6 +32,7 @@ export class RecordingMaintenanceGateway extends MaintenanceGateway {
   // Seeded rather than recorded: a spec about the nightly count wants to say what the
   // node holds, not to assert that the job asked.
   public orphans: OrganizationId[] = [];
+  public dangling: DanglingConversations = { members: 0, messages: 0 };
   // How many spares the pool already holds; a top-up makes the difference and records it.
   public spares = 0;
   public readonly topUps: number[] = [];
@@ -73,6 +75,10 @@ export class RecordingMaintenanceGateway extends MaintenanceGateway {
 
   public override orphanedTenants(): Promise<readonly OrganizationId[]> {
     return Promise.resolve(this.orphans);
+  }
+
+  public override danglingConversations(): Promise<DanglingConversations> {
+    return Promise.resolve(this.dangling);
   }
 
   public override ensureMonthlyPartitions(

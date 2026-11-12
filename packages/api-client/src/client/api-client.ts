@@ -108,6 +108,14 @@ export class ApiClient {
     return this.rpc.assistant;
   }
 
+  public get conversation(): AppClient["conversation"] {
+    return this.rpc.conversation;
+  }
+
+  public get message(): AppClient["message"] {
+    return this.rpc.message;
+  }
+
   public get platform(): AppClient["platform"] {
     return this.rpc.platform;
   }

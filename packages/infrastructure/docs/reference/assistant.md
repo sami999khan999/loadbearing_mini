@@ -5,7 +5,7 @@ description: The chat models behind AssistantModel — OpenAI, OpenRouter, Gemin
 
 # Assistant models
 
-`AssistantModel` is the port the AI assistant (`AI.1`, [`docs/plans/AI-CHAT-PLAN.md`](../../../../docs/plans/AI-CHAT-PLAN.md))
+`AssistantModel` is the port the AI assistant (`AI.1`, [`docs/plans/archive/AI-CHAT-PLAN.md`](../../../../docs/plans/archive/AI-CHAT-PLAN.md))
 generates through. One method, `stream(request, signal)`, yields the answer as `AssistantDelta`s:
 
 | Delta | When |

@@ -18,11 +18,12 @@ export interface ModuleNavProps {
   // The shell owns navigation, so the link element arrives from `apps/web`. A `<Link>`
   // here would put the router in this package.
   readonly renderLink: (route: string, label: string, icon: ReactNode) => ReactNode;
+  readonly className?: string;
 }
 
 // Two lists joined on `module`: content says what a menu holds and in what order,
 // `ModuleRegistry` says who may see it. Neither can answer for the other.
-export function ModuleNav({ items, capabilities, renderLink }: ModuleNavProps) {
+export function ModuleNav({ items, capabilities, renderLink, className }: ModuleNavProps) {
   const { t } = useMessages("nav");
 
   const visible = useMemo(() => {
@@ -40,7 +41,7 @@ export function ModuleNav({ items, capabilities, renderLink }: ModuleNavProps) {
   return (
     // Labelled, because the shell renders a second `<nav>` for the account links and a
     // screen reader listing two unnamed navigations has told the reader nothing.
-    <nav aria-label={t("nav.sections")}>
+    <nav aria-label={t("nav.sections")} className={className}>
       {visible.map((item) => {
         const gate = ModuleRegistry.instance.gate(item.module as ModuleKey);
         // Validated, not cast: a content row is wide by design, and an unknown name

@@ -4,6 +4,7 @@ export { InMemoryFlagRepository } from "./in-memory-flag.repository.js";
 export { InMemoryOrganizationReader } from "./in-memory-organization.reader.js";
 export { InMemoryOutboxGateway } from "./in-memory-outbox.gateway.js";
 export { InMemoryPlatformPolicyRepository } from "./in-memory-platform-policy.repository.js";
+export { InMemoryPresenceReader } from "./in-memory-presence.reader.js";
 export { InMemoryRateLimitStore } from "./in-memory-rate-limit.store.js";
 export { InMemoryRealtimeHub } from "./in-memory-realtime.hub.js";
 export { InMemoryRealtimeSubscriber } from "./in-memory-realtime.subscriber.js";

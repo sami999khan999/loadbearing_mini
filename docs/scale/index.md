@@ -60,7 +60,7 @@ In plain terms. The thresholds are the big kit's own planning estimates
 | **One database machine** holds everything | Around 1B rows a year, or writes past what one machine takes | Add database nodes and move organizations onto them | Copy files back, then operate | [Shard nodes](shard-nodes.md) |
 
 Two product features were also left out of lite. They are not scale limits, but they come back the
-same way: [Messaging](messaging.md) and [Widgets and zones](widgets.md). So does the big kit's
+same way: [Widgets and zones](widgets.md). [Messaging](messaging.md) came back on 2026-11-12. So does the big kit's
 platform **Workers** page, built after the cut: [Worker control](worker-control.md).
 
 **Do them in roughly this order.** The config-only moves first; they are cheap and reversible.
@@ -83,4 +83,4 @@ several databases.
 - [`docs/ai/rules/data.md`](../ai/rules/data.md) — the rules that keep these fixes config-only.
 - [`docs/opinions/data-and-scale.md`](../opinions/data-and-scale.md) — the big kit's full argument
   for which store owns what, and the order scaling moves happen in.
-- [`docs/plans/`](../plans/index.md) — the plan that produced this kit.
+- [`docs/plans/archive/LITE-KIT-PLAN.md`](../plans/archive/LITE-KIT-PLAN.md) — the plan that produced this kit.

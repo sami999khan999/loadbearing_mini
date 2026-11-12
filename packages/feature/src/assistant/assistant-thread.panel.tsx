@@ -50,6 +50,10 @@ export function AssistantThreadPanel({
   const remove = AssistantMutations.useDelete(client);
 
   const [renaming, setRenaming] = useState<string | null>(null);
+  const saveTitle = () => {
+    const next = renaming?.trim();
+    if (next) rename.mutate({ threadId, title: next }, { onSuccess: () => setRenaming(null) });
+  };
   const [deleting, setDeleting] = useState(false);
 
   if (thread.isPending) return <DataTable.Skeleton columns={1} rows={4} />;
@@ -109,15 +113,7 @@ export function AssistantThreadPanel({
             <Button variant="secondary" onClick={() => setRenaming(null)}>
               {shell.t("action.cancel")}
             </Button>
-            <Button
-              variant="primary"
-              disabled={!renaming?.trim()}
-              onClick={() => {
-                const next = renaming?.trim();
-                if (next)
-                  rename.mutate({ threadId, title: next }, { onSuccess: () => setRenaming(null) });
-              }}
-            >
+            <Button variant="primary" disabled={!renaming?.trim()} onClick={saveTitle}>
               {t("assistant.thread.save")}
             </Button>
           </>
@@ -125,9 +121,16 @@ export function AssistantThreadPanel({
       >
         <Field label={t("assistant.thread.renameLabel")} htmlFor="assistant-thread-rename">
           <Input
+            id="assistant-thread-rename"
             value={renaming ?? ""}
             maxLength={120}
             onChange={(event) => setRenaming(event.target.value)}
+            // Enter saves, as in any one-field form; not while an IME is composing.
+            onKeyDown={(event) => {
+              if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+              event.preventDefault();
+              saveTitle();
+            }}
           />
         </Field>
       </Dialog>

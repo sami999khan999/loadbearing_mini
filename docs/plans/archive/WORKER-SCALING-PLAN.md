@@ -109,5 +109,5 @@ half is then an additive copy-back.
   - `WORKER_QUEUES=mial` refused to boot, naming the bad queue;
   - `pnpm queue:pause mail`, then a password reset: the job waited (`queue:status` showed one
     waiting, Mailpit nothing). After `queue:resume mail` it arrived, sent by the mail-only worker.
-- **The copy-back guide** is [`docs/scale/worker-control.md`](../scale/worker-control.md), with the
+- **The copy-back guide** is [`docs/scale/worker-control.md`](../../scale/worker-control.md), with the
   big kit's commit range and every file.

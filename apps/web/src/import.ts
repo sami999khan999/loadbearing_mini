@@ -37,9 +37,9 @@ export type {
   UserId,
 } from "@loadbearing/contracts";
 // ── @loadbearing/contracts ───────────────────────────────────────────────────
-// The branded ids a route casts to. The shapes a component renders arrive through
-// `@loadbearing/query`.
-export { Identifiers } from "@loadbearing/contracts";
+// The two branded ids `session.fn.ts` casts to, and the one entity a route asks a
+// question of. The shapes a component renders arrive through `@loadbearing/query`.
+export { ConversationEntity, Identifiers } from "@loadbearing/contracts";
 
 // ── @loadbearing/errors ──────────────────────────────────────────────────────
 // `route/-loader-error.ts` only: a loader's `NOT_FOUND` becomes the router's not-found.
@@ -56,6 +56,8 @@ export {
   AssistantUsagePanel,
   ChangeEmailForm,
   ChangePasswordForm,
+  ConversationCreateForm,
+  ConversationList,
   CreateApiKeyForm,
   CreateOrganizationForm,
   CreateRoleForm,
@@ -82,6 +84,8 @@ export {
   MemberAccessPanel,
   MemberCount,
   MemberList,
+  MessageComposer,
+  MessageList,
   MessageProvider,
   ModuleNav,
   ModuleSwitchPanel,
@@ -93,6 +97,7 @@ export {
   PlanList,
   PlatformNav,
   PlatformStatusPanel,
+  PresenceNotice,
   ProfileForm,
   PushDeviceForm,
   ReplicaSwitchPanel,
@@ -109,6 +114,7 @@ export {
   TwoFactorForm,
   TwoFactorPanel,
   TwoFactorSetup,
+  TypingNotice,
   useCapabilities,
   useErrorMessage,
   useIsPlatformOrganization,
@@ -138,6 +144,7 @@ export {
   createQueryClient,
   DocQueries,
   MemberQueries,
+  MessagingQueries,
   NotificationQueries,
   OrganizationMutations,
   PlatformQueries,
@@ -145,11 +152,14 @@ export {
   RoleQueries,
   useApiClient,
   useAppQuery,
+  useConversationStream,
 } from "@loadbearing/query";
 
 // ── @loadbearing/ui ──────────────────────────────────────────────────────────
 export {
   AlertDialog,
+  AppLayout,
+  appLayoutClassName,
   type BadgeTone,
   Button,
   type ButtonVariant,
@@ -180,6 +190,7 @@ export {
   QrCode,
   readerClassName,
   Select,
+  Sidebar,
   StatusBadge,
   Textarea,
   type ThemeKey,

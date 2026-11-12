@@ -60,14 +60,19 @@ const makeTenant = async (slug: string): Promise<OrganizationId> => {
   return id;
 };
 
-const notify = (tenant: OrganizationId, userId: UserId, createdAt: Date) =>
+const notify = (
+  tenant: OrganizationId,
+  userId: UserId,
+  createdAt: Date,
+  kind = "message.received" as const,
+) =>
   repository.saveMany([
     {
       organizationId: tenant,
       userId,
       eventId: Uuid.v7(),
-      kind: "member.joined",
-      category: "membership",
+      kind,
+      category: kind === "message.received" ? "messaging" : "membership",
       params: {},
       link: null,
       subjectId: null,
@@ -244,8 +249,8 @@ describe("PgNotificationRepository.unreadSubjectHolders", () => {
         organizationId,
         userId: holder,
         eventId,
-        kind: "member.role.changed",
-        category: "membership",
+        kind: "message.received",
+        category: "messaging",
         params: {},
         link: null,
         subjectId,
@@ -256,7 +261,7 @@ describe("PgNotificationRepository.unreadSubjectHolders", () => {
     const found = await repository.unreadSubjectHolders(
       organizationId,
       [holder, fresh],
-      "member.role.changed",
+      "message.received",
       subjectId,
       Uuid.v7(),
     );
@@ -266,11 +271,58 @@ describe("PgNotificationRepository.unreadSubjectHolders", () => {
     const own = await repository.unreadSubjectHolders(
       organizationId,
       [holder],
-      "member.role.changed",
+      "message.received",
       subjectId,
       eventId,
     );
     expect([...own]).toEqual([]);
     for (const id of [holder, fresh]) await database.client.delete(users).where(eq(users.id, id));
+  });
+
+  // `26.7`: grouping counts each event once, however often it is delivered.
+  it("counts an event into the holder's unread row once, and never into a read one", async () => {
+    const reader = await makeUser("Grouped");
+    const subjectId = Uuid.v7();
+    const first = Uuid.v7();
+    await repository.saveMany([
+      {
+        organizationId,
+        userId: reader,
+        eventId: first,
+        kind: "message.received",
+        category: "messaging",
+        params: {},
+        link: null,
+        subjectId,
+        createdAt: RECENT,
+      },
+    ]);
+
+    const second = Uuid.v7();
+    await repository.countIntoUnread(
+      organizationId,
+      [reader],
+      "message.received",
+      subjectId,
+      second,
+    );
+    await repository.countIntoUnread(
+      organizationId,
+      [reader],
+      "message.received",
+      subjectId,
+      second,
+    );
+    await repository.countIntoUnread(
+      organizationId,
+      [reader],
+      "message.received",
+      subjectId,
+      first,
+    );
+
+    const found = await repository.listUnreadBetween(organizationId, [reader], CUTOFF, UNTIL, 10);
+    expect(found.get(reader)?.map((row) => row.count)).toEqual([2]);
+    await database.client.delete(users).where(eq(users.id, reader));
   });
 });

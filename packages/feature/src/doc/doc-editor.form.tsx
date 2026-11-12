@@ -75,6 +75,8 @@ export function DocEditorForm({ draft, viewLink, onDirtyChange }: DocEditorFormP
   const [dirty, setDirty] = useState(false);
   const [tab, setTab] = useState<Tab>("write");
   const [status, setStatus] = useState(draft.status);
+  // True from a save that left nothing unsaved until the next edit or publish (`WK.3`).
+  const [justSaved, setJustSaved] = useState(false);
 
   const isPage = draft.kind === "page";
 
@@ -93,10 +95,11 @@ export function DocEditorForm({ draft, viewLink, onDirtyChange }: DocEditorFormP
           // Functional: the upload took a while, and the author kept typing through it.
           setMarkdown((text) => {
             const cut = at ?? text.length;
-            return `${text.slice(0, cut)}![${alt}](${url})${text.slice(cut)}`;
+            return blockAt(text, cut, `![${alt}](${url})`);
           });
           edits.current += 1;
           setDirty(true);
+          setJustSaved(false);
         },
       },
     );
@@ -110,6 +113,7 @@ export function DocEditorForm({ draft, viewLink, onDirtyChange }: DocEditorFormP
       set(value);
       edits.current += 1;
       setDirty(true);
+      setJustSaved(false);
     };
 
   const input = () => ({
@@ -130,7 +134,10 @@ export function DocEditorForm({ draft, viewLink, onDirtyChange }: DocEditorFormP
       onSuccess: (saved) => {
         setVersion(saved.draftVersion);
         setStatus(saved.status);
-        if (edits.current === sent) setDirty(false);
+        if (edits.current === sent) {
+          setDirty(false);
+          setJustSaved(true);
+        }
         then?.(saved);
       },
     });
@@ -163,6 +170,7 @@ export function DocEditorForm({ draft, viewLink, onDirtyChange }: DocEditorFormP
           onSuccess: (published) => {
             setVersion(published.draftVersion);
             setStatus(published.status);
+            setJustSaved(false);
           },
         },
       );
@@ -185,6 +193,12 @@ export function DocEditorForm({ draft, viewLink, onDirtyChange }: DocEditorFormP
         >
           {dirty ? t("doc.editor.unsaved") : t(`doc.page.status.${status}`)}
         </StatusBadge>
+        {
+          // Polite and always mounted, so a reader hears autosave land without losing focus.
+        }
+        <span role="status" className="text-fg-muted text-sm">
+          {save.isPending ? t("doc.editor.saving") : justSaved ? t("doc.editor.saved") : ""}
+        </span>
         {viewLink}
       </div>
 
@@ -333,4 +347,16 @@ export function DocEditorForm({ draft, viewLink, onDirtyChange }: DocEditorFormP
       </div>
     </form>
   );
+}
+
+// On its own lines, so a caret at the start of `# Heading` cannot glue the image to the
+// heading's marker and turn the whole line into a paragraph.
+function blockAt(text: string, cut: number, block: string): string {
+  const before = text.slice(0, cut);
+  const after = text.slice(cut);
+  const lead =
+    before === "" || before.endsWith("\n\n") ? "" : before.endsWith("\n") ? "\n" : "\n\n";
+  const trail =
+    after === "" || after.startsWith("\n\n") ? "" : after.startsWith("\n") ? "\n" : "\n\n";
+  return `${before}${lead}${block}${trail}${after}`;
 }

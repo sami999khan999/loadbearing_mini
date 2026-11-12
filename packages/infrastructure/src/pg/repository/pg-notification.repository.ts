@@ -129,6 +129,33 @@ export class PgNotificationRepository extends BaseRepository implements Notifica
     return written;
   }
 
+  // One statement for the whole audience, on the same index the holder read uses. The
+  // `last_event_id` guard is what keeps an at-least-once redelivery from counting twice.
+  public async countIntoUnread(
+    organizationId: OrganizationId,
+    userIds: readonly UserId[],
+    kind: NotificationKind,
+    subjectId: string,
+    eventId: string,
+  ): Promise<void> {
+    if (userIds.length === 0) return;
+
+    await this.db
+      .update(notifications)
+      .set({ count: sql`${notifications.count} + 1`, lastEventId: eventId })
+      .where(
+        and(
+          eq(notifications.organizationId, organizationId),
+          inArray(notifications.userId, [...userIds]),
+          eq(notifications.kind, kind),
+          eq(notifications.subjectId, subjectId),
+          isNull(notifications.readAt),
+          ne(notifications.eventId, eventId),
+          sql`${notifications.lastEventId} is distinct from ${eventId}::uuid`,
+        ),
+      );
+  }
+
   // One indexed query against `notifications_subject_idx` for the whole audience, and
   // what keeps a burst of ten messages to one bell item rather than ten.
   public async unreadSubjectHolders(
@@ -217,6 +244,7 @@ export class PgNotificationRepository extends BaseRepository implements Notifica
         category: notifications.category,
         params: notifications.params,
         link: notifications.link,
+        count: notifications.count,
         readAt: notifications.readAt,
         createdAt: notifications.createdAt,
         rank: sql<number>`row_number() over (
@@ -281,7 +309,7 @@ export class PgNotificationRepository extends BaseRepository implements Notifica
   private static toRecord(
     row: Pick<
       typeof notifications.$inferSelect,
-      "id" | "kind" | "category" | "params" | "link" | "readAt" | "createdAt"
+      "id" | "kind" | "category" | "params" | "link" | "count" | "readAt" | "createdAt"
     >,
   ): NotificationRecord {
     return {
@@ -290,6 +318,7 @@ export class PgNotificationRepository extends BaseRepository implements Notifica
       category: row.category as NotificationRecord["category"],
       params: row.params,
       link: row.link,
+      count: row.count,
       readAt: row.readAt,
       createdAt: row.createdAt,
     };

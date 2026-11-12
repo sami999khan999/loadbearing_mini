@@ -63,7 +63,8 @@ export function NotificationPeek({ href, limit = 5 }: NotificationPeekProps) {
         <ul>
           {items.map((item) => (
             <li key={item.id}>
-              <strong>{t(`notification.kind.${item.kind}.title` as never)}</strong>{" "}
+              <strong>{t(`notification.kind.${item.kind}.title` as never)}</strong>
+              {item.count > 1 ? ` · ${t("notification.grouped", { count: item.count })}` : null}{" "}
               <small>{DateFormat.day(item.createdAt)}</small>
               <br />
               {t(`notification.kind.${item.kind}.body` as never)}{" "}

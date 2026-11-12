@@ -40,4 +40,8 @@ export const email: NamespaceBundle<"email"> = {
   "email.notification.body":
     "আপনি যে বিষয়ে জানতে চেয়েছিলেন তেমন কিছু বদলেছে। কী বদলেছে দেখতে আপনার বিজ্ঞপ্তিগুলো খুলুন।",
   "email.notification.action": "বিজ্ঞপ্তি খুলুন",
+  "email.digest.line.messages": "নতুন বার্তা: {count}",
+  "email.digest.line.joined": "যোগ দিয়েছেন: {count}",
+  "email.digest.line.role": "আপনার ভূমিকায় পরিবর্তন: {count}",
+  "email.digest.line.other": "অন্যান্য আপডেট: {count}",
 };

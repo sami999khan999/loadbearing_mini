@@ -1,5 +1,5 @@
 // `pnpm doc:bench`: seeds a public 2,000-page platform space and measures it against a
-// running web server. The budgets it is read against: docs/plans/DOCS-SYSTEM-PLAN.md `DS0.2`.
+// running web server. The budgets it is read against: docs/plans/BACKLOG.md `DS0.2`.
 
 import { gzipSync } from "node:zlib";
 import {

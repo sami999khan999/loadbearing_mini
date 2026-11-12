@@ -61,7 +61,11 @@ export class ContentMailRenderer extends MailRenderer {
       }
       case "notification.digest": {
         const digest = params as MailTemplateParams<"notification.digest">;
-        return ContentMailRenderer.digest(t, { ...digest, url: this.absolute(digest.url) });
+        return ContentMailRenderer.digest(t, {
+          ...digest,
+          url: this.absolute(digest.url),
+          preferencesUrl: this.absolute(digest.preferencesUrl),
+        });
       }
       default:
         // Exhaustive: a key added to the manifest fails to compile here until it has a
@@ -129,6 +133,8 @@ export class ContentMailRenderer extends MailRenderer {
       readonly name: string;
       readonly organization: string;
       readonly url: string;
+      readonly lines: readonly { readonly kind: string; readonly count: number }[];
+      readonly preferencesUrl: string;
     },
   ): RenderedMail {
     const subject =
@@ -136,15 +142,36 @@ export class ContentMailRenderer extends MailRenderer {
         ? t.t("email.digest.subjectEmpty")
         : t.t("email.digest.subject", { count: params.count });
 
-    return ContentMailRenderer.compose(
-      subject,
-      [
+    const content = {
+      heading: subject,
+      paragraphs: [
         t.t("email.digest.greeting", { name: params.name }),
         params.count === 0 ? t.t("email.digest.empty") : t.t("email.digest.intro"),
         t.t("email.digest.footer", { organization: params.organization }),
       ],
-      params.url ? { label: t.t("email.digest.viewAll"), url: params.url } : undefined,
-    );
+      list: params.lines.map((line) => ContentMailRenderer.digestLine(t, line)),
+      ...(params.url ? { action: { label: t.t("email.digest.viewAll"), url: params.url } } : {}),
+      footer: { label: t.t("email.digest.unsubscribe"), url: params.preferencesUrl },
+    };
+    return { subject, text: MailLayout.text(content), html: MailLayout.html(content) };
+  }
+
+  // A label and a count rather than a sentence, because `Translator` does not pluralise.
+  private static digestLine(
+    t: Translator,
+    line: { readonly kind: string; readonly count: number },
+  ): string {
+    const count = { count: line.count };
+    switch (line.kind) {
+      case "message.received":
+        return t.t("email.digest.line.messages", count);
+      case "member.joined":
+        return t.t("email.digest.line.joined", count);
+      case "member.role.changed":
+        return t.t("email.digest.line.role", count);
+      default:
+        return t.t("email.digest.line.other", count);
+    }
   }
 
   // The subject doubles as the heading. Two keys per message that always said the same

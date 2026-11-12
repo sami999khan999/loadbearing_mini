@@ -15,6 +15,7 @@ export { EmbeddingProvider, type EmbeddingPurpose } from "./embedding.provider.j
 export { MailPublisher, type MailRequest } from "./mail.publisher.js";
 export { MailRenderer, type RenderedMail } from "./mail.renderer.js";
 export {
+  type DanglingConversations,
   MaintenanceGateway,
   type PartitionEstimate,
   type SweepOutcome,
@@ -35,6 +36,7 @@ export {
   PartitionArchiveGateway,
   type TenantExport,
 } from "./partition-archive.gateway.js";
+export { PresenceReader } from "./presence.reader.js";
 export { type PushPayload, PushSender, type PushTarget } from "./push.sender.js";
 export { type JobOptions, type QueuedJob, QueuePublisher } from "./queue.publisher.js";
 export { RateLimitStore } from "./rate-limit.store.js";

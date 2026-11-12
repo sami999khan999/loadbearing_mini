@@ -108,7 +108,7 @@ same decision.
 | Signed up, but the shell still renders signed-out | no membership: under `bootstrap`, `BOOTSTRAP_ORGANIZATION_SLUG` is unset or `db:seed` never ran; under `invite`, there is no invitation for the address |
 
 **What lite leaves out, and keeps ready.** No pgBouncer, replica, second Redis, ClickHouse, Loki,
-cold tier or extra shard node runs here, and messaging, widgets and the analytics screens are not
+cold tier or extra shard node runs here, and widgets and the analytics screens are not
 built. The seams under them stay: every table is partitioned by tenant, every repository declares
 its shard placement, and `DATABASE_URL` is written as if a pooler sat in front. *The seam being
 built* and *the store being started* are separate decisions, and only the second costs anything to
@@ -136,4 +136,4 @@ be wrong about. Each store comes back by its page in [`docs/scale/`](docs/scale/
 - **[`docs/scale/`](docs/scale/index.md)** — what lite removed, when a project needs each piece back,
   and how to port it from the big kit. [`back-ports.md`](docs/scale/back-ports.md) lists what lite
   added that the big kit still owes.
-- **[`docs/plans/`](docs/plans/index.md)** — the live plan, the handoff, and the test runs still owed.
+- **[`docs/plans/`](docs/plans/index.md)** — the backlog of what is left, the handoff, and every finished plan in `archive/`.

@@ -11,6 +11,7 @@ const ROW: NotificationDto = {
   category: "membership",
   params: {},
   link: "/settings/members",
+  count: 1,
   readAt: null,
   createdAt: new Date("2026-09-01T00:00:00.000Z"),
 };

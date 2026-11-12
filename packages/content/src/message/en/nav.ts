@@ -16,11 +16,16 @@ export const nav = {
   // Names the second landmark. Two unlabelled `<nav>`s are announced as "navigation"
   // twice, which is worse than one.
   "nav.sections": "Sections",
+  "nav.menu": "Menu",
+  "nav.menuOpen": "Open the menu",
+  "nav.menuClose": "Close the menu",
+  "nav.yourAccount": "Your account",
 
   "nav.roles": "Roles",
   "nav.members": "Members",
   "nav.apiKeys": "API keys",
   "nav.documents": "Documents",
+  "nav.messages": "Messages",
   "nav.notifications": "Notifications",
   "nav.platform": "Platform",
   "nav.docs": "Docs",

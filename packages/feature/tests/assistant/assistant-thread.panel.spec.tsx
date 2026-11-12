@@ -35,8 +35,12 @@ const clientFor = (
   stream?: () => AsyncIterable<unknown>,
 ) => {
   const cancel = vi.fn((_input: unknown) => Promise.resolve({ ok: true }));
+  const rename = vi.fn((input: { title: string }) =>
+    Promise.resolve({ id: THREAD, title: input.title, createdAt: at, updatedAt: at }),
+  );
   const client = {
     assistant: {
+      rename,
       get: () =>
         Promise.resolve({
           thread: { id: THREAD, title: "Keys", createdAt: at, updatedAt: at },
@@ -46,7 +50,7 @@ const clientFor = (
     },
     realtime: { assistant: () => Promise.resolve(stream?.() ?? (async function* () {})()) },
   } as unknown as ApiClient;
-  return { client, cancel };
+  return { client, cancel, rename };
 };
 
 const render = (client: ApiClient) =>
@@ -107,5 +111,20 @@ describe("AssistantThreadPanel", () => {
     await waitFor(() =>
       expect(screen.getByText("This answer could not be written.")).toBeDefined(),
     );
+  });
+
+  // Found walking the Assistant: the label named no input, and Enter in the one field did
+  // nothing, so a keyboard user had to Tab to Save.
+  it("names the rename field and saves it on Enter", async () => {
+    const { client, rename } = clientFor([question, answer()]);
+    await render(client);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Rename" }));
+    const field = await screen.findByLabelText("Title");
+    fireEvent.change(field, { target: { value: "Key rotation" } });
+    fireEvent.keyDown(field, { key: "Enter" });
+
+    await waitFor(() => expect(rename).toHaveBeenCalledTimes(1));
+    expect(rename.mock.calls[0]?.[0]).toEqual({ threadId: THREAD, title: "Key rotation" });
   });
 });

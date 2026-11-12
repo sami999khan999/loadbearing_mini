@@ -5,6 +5,10 @@ description: Bringing back direct and group messages — a product feature left 
 
 # Messaging
 
+**Back in lite since 2026-11-12**, at the big kit's parity: threads, reactions, files, presence,
+typing, mentions and grouped notifications. `UPSTREAM.md` records the commits. What follows is
+how it was brought back, kept for the next port.
+
 **Not a scale limit** — a product feature lite left out. Conversations, messages, typing
 indicators, edits and deletes. It uses the realtime app and outbox that lite already runs, so no new
 infrastructure is needed.

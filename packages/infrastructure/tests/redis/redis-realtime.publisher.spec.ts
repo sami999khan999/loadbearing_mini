@@ -40,7 +40,7 @@ const CHANNEL = "user:a" as RealtimeChannel;
 const MESSAGE: RealtimeMessage = {
   kind: "event",
   id: "01a0ee7c-4f0f-71c6-841b-cf29e351a522",
-  name: "notification.created",
+  name: "message.sent",
   at: new Date("2026-09-30T00:00:00Z"),
   payload: {},
 };
@@ -72,14 +72,32 @@ describe("RedisRealtimePublisher", () => {
         [null, 1],
         [null, 1],
       ]),
-    ).resolves.toEqual([
-      { event: "realtime.publish.failed", fields: { event: "notification.created" } },
-    ]);
+    ).resolves.toEqual([{ event: "realtime.publish.failed", fields: { event: "message.sent" } }]);
   });
 
   it("emits realtime.publish.failed when the transaction is aborted", async () => {
     await expect(publish(null)).resolves.toEqual([
-      { event: "realtime.publish.failed", fields: { event: "notification.created" } },
+      { event: "realtime.publish.failed", fields: { event: "message.sent" } },
     ]);
+  });
+
+  // `RV.3`: an unlogged frame is published alone, with no `XADD` and no `EXPIRE`.
+  it("publishes a replay: false frame without touching the log", async () => {
+    const calls: string[] = [];
+    const redis = {
+      multi: () => {
+        calls.push("multi");
+        return new FakeMulti([]);
+      },
+      publish: (channel: string) => {
+        calls.push(`publish ${channel}`);
+        return Promise.resolve(1);
+      },
+    };
+    const publisher = new RedisRealtimePublisher(redis as unknown as Redis);
+
+    await publisher.publish(CHANNEL, { ...MESSAGE, replay: false });
+
+    expect(calls).toEqual([`publish ${CHANNEL}`]);
   });
 });

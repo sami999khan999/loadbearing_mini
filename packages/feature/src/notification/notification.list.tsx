@@ -61,6 +61,7 @@ export function NotificationList({ limit = 25 }: NotificationListProps) {
         cell: (row: NotificationRow) => (
           <span>
             <strong>{t(`notification.kind.${row.kind}.title` as never)}</strong>
+            {row.count > 1 ? ` · ${t("notification.grouped", { count: row.count })}` : null}
             <br />
             {t(`notification.kind.${row.kind}.body` as never)}
           </span>

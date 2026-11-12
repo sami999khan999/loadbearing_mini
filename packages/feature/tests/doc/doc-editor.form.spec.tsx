@@ -1,6 +1,6 @@
 import type { ApiClient } from "@loadbearing/api-client";
 import type { DocPageDraftDto } from "@loadbearing/contracts";
-import { fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { DocEditorForm } from "../../src/doc/doc-editor.form.js";
 import { capabilitiesWith, renderWithFakes } from "../support/render-with-fakes.js";
@@ -25,13 +25,25 @@ const draft = {
   publishedAt: null,
 } as unknown as DocPageDraftDto;
 
-const mount = (onDirtyChange?: (dirty: boolean) => void) =>
+const IMAGE_URL = "/api/doc-image/org/space/png/image";
+
+const mount = (onDirtyChange?: (dirty: boolean) => void, markdown = "hello") =>
   renderWithFakes(
-    <DocEditorForm draft={draft} onDirtyChange={onDirtyChange} />,
+    <DocEditorForm draft={{ ...draft, markdown }} onDirtyChange={onDirtyChange} />,
     capabilitiesWith([]),
     undefined,
     ["doc", "common"],
-    { docPage: { preview: vi.fn(() => Promise.resolve({ html: "" })) } } as unknown as ApiClient,
+    {
+      docPage: {
+        preview: vi.fn(() => Promise.resolve({ html: "" })),
+        save: vi.fn((input: { draftVersion: number }) =>
+          Promise.resolve({ ...draft, status: "draft", draftVersion: input.draftVersion + 1 }),
+        ),
+        upload: vi.fn(() =>
+          Promise.resolve({ url: IMAGE_URL, post: { url: "http://storage.test/", fields: {} } }),
+        ),
+      },
+    } as unknown as ApiClient,
   );
 
 describe("DocEditorForm", () => {
@@ -69,5 +81,41 @@ describe("DocEditorForm", () => {
     expect(onDirtyChange).toHaveBeenLastCalledWith(false);
     fireEvent.change(await screen.findByLabelText("Title"), { target: { value: "Intro 2" } });
     expect(onDirtyChange).toHaveBeenLastCalledWith(true);
+  });
+
+  // Found walking the editor: the caret sits at 0 after Preview, and the image landed
+  // in front of `# Welcome`, so the heading rendered as a paragraph.
+  it("inserts an uploaded image on its own lines, never glued to the block at the caret", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve(new Response(null, { status: 204 }))),
+    );
+    const { container } = await mount(undefined, "# Welcome\n\nBody.");
+    const textarea = (await screen.findByLabelText("Content")) as HTMLTextAreaElement;
+    textarea.setSelectionRange(0, 0);
+
+    const picker = container.querySelector("input[type=file]") as HTMLInputElement;
+    const file = new File([new Uint8Array([137, 80, 78, 71])], "shot.png", { type: "image/png" });
+    fireEvent.change(picker, { target: { files: [file] } });
+
+    await waitFor(() => expect(textarea.value).toBe(`![shot](${IMAGE_URL})\n\n# Welcome\n\nBody.`));
+    vi.unstubAllGlobals();
+  });
+
+  // `WK.3`. Autosave ran and the badge went back to "Draft": nothing said it had saved.
+  it("says the draft saved once autosave lands, and forgets it at the next key", async () => {
+    await mount();
+    const title = await screen.findByLabelText("Title");
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      fireEvent.change(title, { target: { value: "Intro 2" } });
+      await vi.advanceTimersByTimeAsync(2_500);
+      await waitFor(() => expect(screen.getByRole("status").textContent).toBe("Draft saved."));
+
+      fireEvent.change(title, { target: { value: "Intro 3" } });
+      expect(screen.getByRole("status").textContent).toBe("");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

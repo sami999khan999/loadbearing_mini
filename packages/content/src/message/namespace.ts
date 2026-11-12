@@ -8,6 +8,7 @@ import type { document } from "./en/document.js";
 import type { email } from "./en/email.js";
 import type { error } from "./en/error.js";
 import type { member } from "./en/member.js";
+import type { messaging } from "./en/messaging.js";
 import type { nav } from "./en/nav.js";
 import type { notification } from "./en/notification.js";
 import type { organization } from "./en/organization.js";
@@ -27,6 +28,7 @@ interface NamespaceShape {
   readonly platform: typeof platform;
   readonly apikey: typeof apikey;
   readonly document: typeof document;
+  readonly messaging: typeof messaging;
   readonly notification: typeof notification;
   readonly doc: typeof doc;
   readonly assistant: typeof assistant;
@@ -46,6 +48,7 @@ export type ClientNamespace =
   | "member"
   | "organization"
   | "apikey"
+  | "messaging"
   | "notification"
   | "document"
   | "platform"
@@ -85,6 +88,7 @@ export const CLIENT_NAMESPACES: readonly ClientNamespace[] = [
   "organization",
   "apikey",
   "document",
+  "messaging",
   "notification",
   "platform",
   "doc",

@@ -1,9 +1,7 @@
 import { Shard } from "@loadbearing/application";
-import type { DocSpaceId } from "@loadbearing/contracts";
-import { Uuid } from "@loadbearing/core";
 import { afterAll, describe, expect, it } from "vitest";
 import { DatabaseCluster } from "../../src/pg/primitive/index.js";
-import { PgDocSpaceRepository, PgTenantRepository } from "../../src/pg/repository/index.js";
+import { PgConversationRepository, PgTenantRepository } from "../../src/pg/repository/index.js";
 import { PgUnitOfWork, ShardScope, TransactionScope } from "../../src/pg/transaction/index.js";
 import { openDatabase, seedOrganizationId } from "../support/database.js";
 
@@ -19,8 +17,7 @@ const catalogWork = new PgUnitOfWork(cluster, scope, shards, "catalog");
 const routedWork = new PgUnitOfWork(cluster, scope, shards, "routed");
 
 const tenants = new PgTenantRepository(cluster, scope, shards);
-const spaces = new PgDocSpaceRepository(cluster, scope, shards);
-const nothing = Uuid.v7() as DocSpaceId;
+const conversations = new PgConversationRepository(cluster, scope, shards);
 
 afterAll(async () => {
   await database.close();
@@ -44,7 +41,7 @@ describe("a routed query with no shard in scope", () => {
   it("throws rather than reading node 0", async () => {
     const organizationId = await seedOrganizationId(database);
 
-    const why = await refusal(spaces.findById(organizationId, nothing));
+    const why = await refusal(conversations.findByDirectKey(organizationId, "nothing"));
     expect(why).toMatch(/no shard in scope/i);
   });
 
@@ -80,7 +77,7 @@ describe("the placement tripwire", () => {
     const organizationId = await seedOrganizationId(database);
 
     const allowed = shards.within({ key: Shard.keyOf(organizationId), node: 0 }, () =>
-      routedWork.run(() => spaces.findById(organizationId, nothing)),
+      routedWork.run(() => conversations.findByDirectKey(organizationId, "nothing")),
     );
 
     await expect(allowed).resolves.toBeNull();

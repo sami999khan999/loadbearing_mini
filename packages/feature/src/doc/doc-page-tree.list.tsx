@@ -279,14 +279,14 @@ export function DocPageTreeList({
             />
           </Field>
         ) : null}
-        <Field label={t("doc.tree.add")} htmlFor="doc-new-parent">
+        <Field label={t("doc.tree.parent")} htmlFor="doc-new-parent">
           <Select
             id="doc-new-parent"
-            label={t("doc.tree.add")}
+            label={t("doc.tree.parent")}
             value={parentId ?? ""}
             onValueChange={(next) => setParentId(next === "" ? null : (next as DocPageId))}
             options={[
-              { value: "", label: "—" },
+              { value: "", label: t("doc.tree.topLevel") },
               ...items
                 .filter((item) => item.kind !== "link")
                 .map((item) => ({

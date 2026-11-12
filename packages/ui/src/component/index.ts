@@ -1,3 +1,4 @@
+export { AppLayout, type AppLayoutProps, appLayoutClassName } from "./app-layout/index.js";
 export { Button, type ButtonProps, type ButtonVariant, buttonClassName } from "./button/index.js";
 export { Callout, type CalloutProps, type CalloutTone } from "./callout/index.js";
 export { Can, type CanProps } from "./can/index.js";

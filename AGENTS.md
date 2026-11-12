@@ -8,7 +8,7 @@ S3, logs to stdout.
 **It is the big kit (`loadbearing_tanstack_start_kit`) with the running scale stores removed and every
 seam kept.** Same packages, same `@loadbearing/*` scope, same rules. The sha it was cut from is in
 [`UPSTREAM.md`](UPSTREAM.md), and the way back to each removed piece is in
-[`docs/scale/`](docs/scale/index.md). The live plan is in [`docs/plans/`](docs/plans/index.md).
+[`docs/scale/`](docs/scale/index.md). What is left is in [`docs/plans/BACKLOG.md`](docs/plans/BACKLOG.md), and every finished plan in `docs/plans/archive/`.
 
 **Start at [`docs/ai/index.md`](docs/ai/index.md).** It is a table, one row per thing you might be
 about to do, naming the one or two rule files that answer it. The whole rulebook is
