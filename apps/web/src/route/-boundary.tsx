@@ -13,7 +13,7 @@ export function ErrorBoundary({ error, reset }: { error: Error; reset: () => voi
   return (
     <main>
       <EmptyState
-        icon="check"
+        icon="x"
         title={failure?.message ?? t("state.error")}
         action={<Button onClick={reset}>{t("action.retry")}</Button>}
       />
@@ -37,7 +37,7 @@ export function NotFound() {
 
   return (
     <main>
-      <EmptyState icon="check" title={t("error.notFound")} />
+      <EmptyState icon="search" title={t("error.notFound")} />
     </main>
   );
 }
@@ -49,7 +49,7 @@ export function Pending() {
 
   return (
     <main>
-      <EmptyState icon="check" title={t("state.loading")} />
+      <EmptyState icon="clock" title={t("state.loading")} />
     </main>
   );
 }
