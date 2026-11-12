@@ -17,6 +17,7 @@ const ITEMS = [
   { module: "apikey", labelKey: "nav.apiKeys", icon: "key", order: 30 },
   { module: "document", labelKey: "nav.documents", icon: "check", order: 40 },
   { module: "notification", labelKey: "nav.notifications", icon: "bell", order: 50 },
+  { module: "messaging", labelKey: "nav.messages", icon: "chat", order: 60 },
   { module: "doc", labelKey: "nav.docs", icon: "book", order: 85 },
   // Its own icon: `chat` is Messaging's, and the two are different things to ask.
   { module: "assistant", labelKey: "nav.assistant", icon: "sparkle", order: 87 },

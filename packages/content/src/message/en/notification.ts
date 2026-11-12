@@ -7,6 +7,20 @@ export const notification = {
   "notification.kind.member.role.changed.body":
     "An administrator changed what you can do here. Open the members page to see your new role.",
 
+  "notification.kind.message.received.title": "New message",
+  "notification.kind.message.received.body": "You have unread messages in a conversation.",
+
+  "notification.archived.title": "Older than a year",
+  "notification.archived.description":
+    "Read straight out of cold storage. Nothing to restore and nothing to wait for.",
+  "notification.archived.month": "Month",
+  "notification.archived.column.kind": "What happened",
+  "notification.archived.column.created": "When",
+  // Two different empties: nothing of yours was ever archived, and nothing of yours
+  // is in the month you picked. A screen saying one for the other reads as a bug.
+  "notification.archived.noMonths": "Nothing of yours has been archived yet.",
+  "notification.archived.empty": "You have nothing in this month.",
+  "notification.archived.more": "Load more",
   "notification.inbox.title": "Notifications",
   "notification.inbox.empty": "Nothing yet. This is where updates will appear.",
   "notification.inbox.emptyUnread": "Nothing unread. Everything here has been seen.",
@@ -30,6 +44,7 @@ export const notification = {
   "notification.preference.description":
     "Choose how each kind of update reaches you. In-app notifications always appear in this list; these settings decide whether you are interrupted and whether we email you.",
   "notification.preference.category.membership": "People and roles",
+  "notification.preference.category.messaging": "Messages",
   "notification.preference.channel.in_app": "In the app",
   "notification.preference.channel.email": "By email",
   "notification.preference.channel.push": "On this device",
@@ -46,4 +61,7 @@ export const notification = {
   "notification.preference.mode.digest": "Once a day",
   "notification.preference.mode.off": "Off",
   "notification.preference.saved": "Saved.",
+  "notification.grouped": "{count} new",
+  "notification.kind.message.mentioned.title": "You were mentioned",
+  "notification.kind.message.mentioned.body": "Someone mentioned you in a conversation.",
 } as const;

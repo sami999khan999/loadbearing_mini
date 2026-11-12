@@ -20,6 +20,7 @@ export const nav: NamespaceBundle<"nav"> = {
   "nav.members": "সদস্যরা",
   "nav.apiKeys": "API কী",
   "nav.documents": "নথি",
+  "nav.messages": "বার্তা",
   "nav.notifications": "বিজ্ঞপ্তি",
   "nav.platform": "প্ল্যাটফর্ম",
   "nav.docs": "ডক",

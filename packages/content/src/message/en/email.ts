@@ -46,4 +46,8 @@ export const email = {
   "email.notification.body":
     "Something changed that you asked to hear about. Open your notifications to see what it was.",
   "email.notification.action": "Open notifications",
+  "email.digest.line.messages": "New messages: {count}",
+  "email.digest.line.joined": "People who joined: {count}",
+  "email.digest.line.role": "Changes to your role: {count}",
+  "email.digest.line.other": "Other updates: {count}",
 } as const;

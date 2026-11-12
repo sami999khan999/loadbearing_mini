@@ -5,6 +5,17 @@ export const notification = {
   "notification.kind.member.role.changed.body":
     "একজন প্রশাসক এখানে আপনি কী করতে পারেন তা বদলেছেন। আপনার নতুন ভূমিকা দেখতে সদস্য পাতাটি খুলুন।",
 
+  "notification.kind.message.received.title": "নতুন বার্তা",
+  "notification.kind.message.received.body": "একটি কথোপকথনে আপনার অপঠিত বার্তা রয়েছে।",
+
+  "notification.archived.title": "এক বছরের বেশি পুরনো",
+  "notification.archived.description": "সরাসরি কোল্ড স্টোরেজ থেকে পড়া হয়। পুনরুদ্ধারের অপেক্ষা নেই।",
+  "notification.archived.month": "মাস",
+  "notification.archived.column.kind": "কী ঘটেছে",
+  "notification.archived.column.created": "কখন",
+  "notification.archived.noMonths": "আপনার কিছুই এখনো আর্কাইভ হয়নি।",
+  "notification.archived.empty": "এই মাসে আপনার কিছু নেই।",
+  "notification.archived.more": "আরও দেখুন",
   "notification.inbox.title": "বিজ্ঞপ্তি",
   "notification.inbox.empty": "এখনও কিছু নেই। হালনাগাদগুলো এখানে দেখা যাবে।",
   "notification.inbox.emptyUnread": "অপঠিত কিছু নেই। এখানকার সবকিছু দেখা হয়ে গেছে।",
@@ -23,6 +34,7 @@ export const notification = {
   "notification.preference.description":
     "প্রতিটি ধরনের হালনাগাদ আপনার কাছে কীভাবে পৌঁছাবে তা বেছে নিন। অ্যাপের বিজ্ঞপ্তি সবসময় এই তালিকায় থাকবে; এই সেটিংস ঠিক করে আপনাকে বাধা দেওয়া হবে কি না এবং আমরা ইমেল পাঠাব কি না।",
   "notification.preference.category.membership": "সদস্য ও ভূমিকা",
+  "notification.preference.category.messaging": "বার্তা",
   "notification.preference.channel.in_app": "অ্যাপে",
   "notification.preference.channel.email": "ইমেলে",
   "notification.preference.channel.push": "এই ডিভাইসে",
@@ -39,4 +51,7 @@ export const notification = {
   "notification.preference.mode.digest": "দিনে একবার",
   "notification.preference.mode.off": "বন্ধ",
   "notification.preference.saved": "সংরক্ষণ করা হয়েছে।",
+  "notification.grouped": "{count}টি নতুন",
+  "notification.kind.message.mentioned.title": "আপনাকে উল্লেখ করা হয়েছে",
+  "notification.kind.message.mentioned.body": "একটি কথোপকথনে কেউ আপনাকে উল্লেখ করেছেন।",
 } as const;
