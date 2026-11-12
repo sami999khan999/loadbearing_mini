@@ -2,6 +2,7 @@ import { accountRoutes } from "./account.routes.js";
 import { assistantRoutes } from "./assistant.routes.js";
 import { docRoutes } from "./doc.routes.js";
 import { documentRoutes } from "./document.routes.js";
+import { messagingRoutes } from "./messaging.routes.js";
 import { notificationRoutes } from "./notification.routes.js";
 import { organizationRoutes } from "./organization.routes.js";
 import { platformRoutePermission, platformRoutes } from "./platform.routes.js";
@@ -23,6 +24,7 @@ export const ROUTES = {
   organization: organizationRoutes,
   document: documentRoutes,
   notification: notificationRoutes,
+  messaging: messagingRoutes,
   platform: platformRoutes,
   doc: docRoutes,
   assistant: assistantRoutes,

@@ -44,6 +44,7 @@ describe("ModuleRegistry", () => {
       "apikey",
       "document",
       "notification",
+      "messaging",
       "doc",
       "assistant",
     ]);
