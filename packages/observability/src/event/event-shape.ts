@@ -149,6 +149,9 @@ export interface EventShape {
     readonly node: number;
     readonly tenants: number;
     readonly organizationIds: string;
+    // Conversation ids named by a member or a message and missing — `PF.1`'s half.
+    readonly members: number;
+    readonly messages: number;
   };
   readonly "maintenance.index_text.swept": {
     readonly objects: number;
