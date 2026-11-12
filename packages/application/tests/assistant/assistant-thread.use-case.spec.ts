@@ -17,7 +17,8 @@ import { ListAssistantThreadsUseCase } from "../../src/assistant/list-assistant-
 import { RenameAssistantThreadUseCase } from "../../src/assistant/rename-assistant-thread.use-case.js";
 import { SendAssistantQuestionUseCase } from "../../src/assistant/send-assistant-question.use-case.js";
 import { StreamAssistantAnswerUseCase } from "../../src/assistant/stream-assistant-answer.use-case.js";
-import { QueueName } from "../../src/primitive/index.js";
+import type { RealtimePublisher } from "../../src/port/index.js";
+import { QueueName, RealtimeChannels } from "../../src/primitive/index.js";
 import {
   Activity,
   ANSWER,
@@ -213,10 +214,22 @@ describe("RenameAssistantThreadUseCase and DeleteAssistantThreadUseCase", () => 
     const messages = new Messages(turn(), pending());
     const activity = new Activity();
 
-    const renamed = await new RenameAssistantThreadUseCase(authorizer, threads).execute(
-      principal(),
-      { threadId: THREAD, title: "Rotation" },
-    );
+    // Found walking two tabs: a rename or delete reached neither the list nor the thread
+    // in the other tab, because only a settled answer said `assistant.changed`.
+    const sent: { channel: string; name: string; threadId: unknown }[] = [];
+    const realtime = {
+      publish: (channel: string, frame: { name: string; payload: { threadId?: unknown } }) => {
+        sent.push({ channel, name: frame.name, threadId: frame.payload.threadId });
+        return Promise.resolve();
+      },
+    } as unknown as RealtimePublisher;
+
+    const renamed = await new RenameAssistantThreadUseCase(
+      authorizer,
+      threads,
+      realtime,
+      clock(),
+    ).execute(principal(), { threadId: THREAD, title: "Rotation" });
     expect(renamed).toMatchObject({ title: "Rotation", updatedAt: NOW });
 
     await new DeleteAssistantThreadUseCase(
@@ -225,10 +238,17 @@ describe("RenameAssistantThreadUseCase and DeleteAssistantThreadUseCase", () => 
       messages,
       activity,
       new Direct(),
+      realtime,
+      clock(),
     ).execute(principal(), { threadId: THREAD });
     expect(threads.rows.size).toBe(0);
     expect(messages.rows).toEqual([]);
     expect(activity.actions).toEqual(["ai.assistant.thread.deleted"]);
+    const channel = RealtimeChannels.user(principal().organizationId, principal().userId);
+    expect(sent).toEqual([
+      { channel, name: "assistant.changed", threadId: THREAD },
+      { channel, name: "assistant.changed", threadId: THREAD },
+    ]);
   });
 });
 

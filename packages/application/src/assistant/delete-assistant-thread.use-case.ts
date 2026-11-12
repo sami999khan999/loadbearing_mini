@@ -1,6 +1,6 @@
-import { type GetAssistantThreadInput, NotFoundError } from "../import.js";
-import type { ActivityLogger, UnitOfWork } from "../port/index.js";
-import type { Authorizer, Principal } from "../primitive/index.js";
+import { type Clock, type GetAssistantThreadInput, NotFoundError, Uuid } from "../import.js";
+import type { ActivityLogger, RealtimePublisher, UnitOfWork } from "../port/index.js";
+import { type Authorizer, type Principal, RealtimeChannels } from "../primitive/index.js";
 import type { AssistantMessageRepository } from "./assistant-message.repository.js";
 import type { AssistantThreadRepository } from "./assistant-thread.repository.js";
 
@@ -13,6 +13,8 @@ export class DeleteAssistantThreadUseCase {
     private readonly messages: AssistantMessageRepository,
     private readonly activity: ActivityLogger,
     private readonly unitOfWork: UnitOfWork,
+    private readonly realtime: RealtimePublisher,
+    private readonly clock: Clock,
   ) {}
 
   // An answer still generating finds its row gone when it settles, and settles nothing.
@@ -26,5 +28,15 @@ export class DeleteAssistantThreadUseCase {
       await this.threads.delete(actor.organizationId, thread.id);
       await this.activity.record(actor, "ai.assistant.thread.deleted", { threadId: thread.id });
     });
+    // After the commit, so another tab never refetches a thread that is still there.
+    await this.realtime
+      .publish(RealtimeChannels.user(actor.organizationId, actor.userId), {
+        kind: "event",
+        id: Uuid.v7(),
+        name: "assistant.changed",
+        at: this.clock.now(),
+        payload: { threadId: thread.id },
+      })
+      .catch(() => undefined);
   }
 }
