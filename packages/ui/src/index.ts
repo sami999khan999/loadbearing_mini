@@ -4,6 +4,9 @@ export { cn } from "./class-name/index.js";
 export {
   AlertDialog,
   type AlertDialogProps,
+  AppLayout,
+  type AppLayoutProps,
+  appLayoutClassName,
   type BadgeTone,
   Button,
   type ButtonProps,
