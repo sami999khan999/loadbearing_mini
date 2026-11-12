@@ -6,7 +6,7 @@ description: How a question becomes a streamed answer — the asker rebuilt in t
 # The assistant slice
 
 People ask a chat model about what they may read. The slice is `packages/application/src/assistant/`;
-the plan it was built from is [`docs/plans/AI-CHAT-PLAN.md`](../../../../docs/plans/AI-CHAT-PLAN.md), and
+the plan it was built from is [`docs/plans/archive/AI-CHAT-PLAN.md`](../../../../docs/plans/archive/AI-CHAT-PLAN.md), and
 the model adapters are [infrastructure's assistant page](../../../infrastructure/docs/reference/assistant.md).
 
 It is called the **Assistant**, never chat: the big kit's Messaging is person-to-person chat and
