@@ -50,7 +50,7 @@ the web app answer 500.
 | `LT5` tooling and CI | Push, then confirm CI is green on the first run. That is the plan's exit, and nothing local proves it. | [ ] |
 | `DS0` docs performance | The standard pass, then `pnpm doc:bench` on a quiet machine for the `DS0.2` latency budgets; the 2026-10-02 run in `doc.md` was on a busy one. `DS0.6` (EXPLAIN specs) is still open in the plan. | [ ] |
 | `DS1` access links | Specs passed 2026-10-02: `doc-feature.policy.spec.ts` (12), `read-doc-page.use-case.spec.ts`, the access round-trip in `pg-doc-page.repository.spec.ts`, the trimNav specs. By hand on 2026-10-02, with a page linked to `rbac.role.manage`: the owner reads it; signed out, it is absent from the sidebar, the nav endpoint and `/llms.txt`, and `/docs/guide/roles` and `/api/doc/guide/roles` both answer 404. Still owed by hand: a member without the permission, a `module: apikey` link on a plan with and without it, a plan link, and a flag link once a flag exists. | [ ] |
-| `DS2` whole-docs search | Specs passed 2026-10-02: `doc-search.spec.ts` (application), `doc-search.panel.spec.tsx` (feature). By hand: the palette found hits on several pages of a space. Still owed: hits from a second readable space, grouped under its name. | [ ] |
+| `DS2` whole-docs search | Specs passed 2026-10-02: `doc-search.spec.ts` (application), `doc-search.panel.spec.tsx` (feature). By hand: the palette found hits on several pages of a space. 2026-11-12: a search from the Handbook reader listed the Runbook hit under "In Runbook". | [x] |
 | `DS3` reading aids | `doc-reader.panel.spec.tsx` and `nav-tree.spec.tsx` passed 2026-10-02. Breadcrumbs, the pager, collapsible sections and the space icon were checked by hand in the reader. | [x] |
 | `DS4` Markdown blocks | Renderer and prose specs passed 2026-10-02. `pnpm doc:rerender` ran end to end: 2004 pages moved to version 3, and a second run did nothing. Tabs (arrow keys), steps, accordions and card icons were checked on `/kitchen-sink` and in the reader. | [x] |
 | `DS5` repository and Open in AI | `doc-reader.panel.spec.tsx` passed 2026-10-02. By hand: the GitHub icon sits in the sidebar footer; Open offers Markdown, ChatGPT and Claude on a public page, and only Edit on a linked one. Still owed: following each link to confirm the AI tool fetches the page. | [ ] |
@@ -76,9 +76,11 @@ port 23000, mail in Mailpit on 28025, with the worker running.
 - [~] AI search in all three modes from `LT4`. With `none` there are no outbound calls.
       2026-10-10: `none` passed. `openai` and `gemini` wait for real keys.
 - [x] A notification arrives in realtime. 2026-10-10: the bell rose with no reload.
-- [ ] The Assistant in a browser, with `ASSISTANT_PROVIDER=fake` and `ASSISTANT_FAKE_DELAY_MS`
+- [x] The Assistant in a browser, with `ASSISTANT_PROVIDER=fake` and `ASSISTANT_FAKE_DELAY_MS`
       set: send, the stream moving, Stop, reload mid-answer, two tabs, rename, delete, both
       locales, keyboard only, and the usage meter for an admin but not a member.
-      2026-11-11: checked over HTTP only, as `admin@example.test`.
+      2026-11-12: passed in headless Chromium at 150 ms a chunk, as bob (owner) and carol
+      (member). A reload mid-answer resumed at the next word; the second tab took the new
+      thread, the rename by Enter and the delete. A lost source is covered by spec only.
 - [ ] The Assistant against a real provider, once per `openai`, `openrouter` and `gemini`, with
       keys from the owner.

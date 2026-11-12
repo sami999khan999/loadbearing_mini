@@ -38,6 +38,7 @@ from the right place.
 | 2026-11-12 | Web push, `docs/plans/BACKLOG.md` §7, and the comment-pass escape fix | big kit `dev`, `664cc7e4..16ad5fb3`, `ef77091a` |
 | 2026-11-12 | The assistant stream's resume-point fix, `docs/plans/BACKLOG.md` §7 `BL.20` | big kit `dev`, `94488b67` |
 | 2026-11-12 | Five fixes from the big kit's browser walk, `docs/plans/BACKLOG.md` §8 | big kit `dev`, `67567aae..876fa6bd` |
+| 2026-11-12 | `WK.3`, `WK.5`, `WK.6` and the `Select` placeholder, `docs/plans/BACKLOG.md` §8 | big kit `dev`, `718592db`, `0af8dd19`, `6edd4fec` |
 
 ## Added in lite, owed to the big kit
 
