@@ -28,7 +28,9 @@ export class AssistantLog {
     messageId: string,
     after: string | undefined,
   ): Promise<readonly AssistantFrame[]> {
-    const start = after === undefined ? "-" : `(${after}`;
+    // Anything but a stream id is a client's guess, not a place in this log: read it all,
+    // rather than hand Redis a range it refuses.
+    const start = AssistantLog.isEntryId(after) ? `(${after}` : "-";
     const entries = await redis.xrange(AssistantLog.keyOf(messageId), start, "+");
     const frames: AssistantFrame[] = [];
     for (const [id, fields] of entries) {
@@ -36,6 +38,10 @@ export class AssistantLog {
       if (frame) frames.push(frame);
     }
     return frames;
+  }
+
+  public static isEntryId(id: string | undefined): id is string {
+    return id !== undefined && /^\d+-\d+$/.test(id);
   }
 
   // A frame's body is stored without its id, which is the entry's own.

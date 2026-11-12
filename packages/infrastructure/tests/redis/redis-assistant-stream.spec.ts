@@ -121,6 +121,13 @@ describe("RedisAssistantStreamSubscriber", () => {
     expect(frames.map((frame) => frame.id)).toEqual(["1000-2", "1000-3"]);
   });
 
+  it("reads a resume point that names no stream entry as a first open", async () => {
+    const { redis, publisher, subscriber } = build();
+    await publisher.publish(MESSAGE, { kind: "done", status: "complete", sources: [] });
+    await collect(subscriber.subscribe(MESSAGE, signal(), "settled"));
+    expect(redis.ranges).toEqual(["-"]);
+  });
+
   it("yields a frame both read from the log and heard live once", async () => {
     const { redis, publisher, subscriber } = build();
     await publisher.publish(MESSAGE, { kind: "text", text: "one" });
