@@ -1,8 +1,10 @@
-import type { OrganizationId, Principal } from "../import.js";
+import type { ConversationId, OrganizationId, Principal } from "../import.js";
 
-// One open stream, as the minute's check sees it: the principal it opened with.
+// One open stream, as the minute's check sees it: the principal it opened with, and the
+// room when it is a conversation stream. A user stream has none.
 export interface HeldStream {
   readonly principal: Principal;
+  readonly conversationId?: ConversationId;
 }
 
 // Answers for one tenant's streams, in the order asked: `false` ends that stream and no other.

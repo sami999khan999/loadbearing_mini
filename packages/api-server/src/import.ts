@@ -18,6 +18,7 @@ export type { Container } from "@loadbearing/composition";
 // `contract` is the shape every router mirrors, and `ProcedurePermissions` is the second
 // of the four enforcement surfaces.
 export {
+  type ConversationId,
   contract,
   type OrganizationId,
   ProcedurePermissions,
