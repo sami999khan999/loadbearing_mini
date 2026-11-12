@@ -515,8 +515,10 @@ bring each one back.
 | Retention and cold storage | Months are kept in Postgres forever. |
 | Loki and Alloy | Logs go to standard output only. |
 | Extra database nodes and tenant moves | One node. The routing stays. |
-| Messaging | No conversations. |
 | Dashboard widgets and zones | The dashboard is static. |
+
+Messaging was removed too, and came back on 2026-11-12 at the big kit's parity, threads and
+all; only its archive to cold storage stays out, as cold storage does.
 
 The small kit also built things first. The private `owner` doc audience, access links on docs, the
 docs reader additions and the platform organization changes have since been copied into the big kit.

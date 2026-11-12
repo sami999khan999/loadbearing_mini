@@ -121,7 +121,7 @@ This page covers 97 files.
 | `beyond-the-big-kit.md` | The scaling moves the big kit has designed for but not built — new work in either kit, landing as new adapters rather than a rewrite. |
 | `index.md` | What the lite kit cannot do at larger scale, and how each limit is fixed by bringing back a piece of the big kit — written to be read without access to the big kit's repository history. |
 | `logs.md` | Bringing back Loki and Alloy, so logs from every server land in one searchable place — mostly infrastructure, because the app already writes the right format. |
-| `messaging.md` | Bringing back direct and group messages — a product feature left out of lite, which rides on the realtime app lite already runs. |
+| `messaging.md` | How direct and group messages were brought back into lite on 2026-11-12, kept for the next port. |
 | `meta.json` | Sidebar title, description and page order for this docs folder. |
 | `pgbouncer.md` | Putting a connection pooler in front of Postgres — config only, because lite's code is already written as if one were there. |
 | `porting.md` | The general procedure for bringing a piece of the big kit back into the lite kit — getting the source, the copy order, migrations, wiring, and the checks that prove it worked. |

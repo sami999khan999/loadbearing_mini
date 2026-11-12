@@ -239,5 +239,7 @@ is not here: lite has no cold storage and keeps every message month, decided wit
 - [x] `BL.26` **Messaging, at the big kit's parity.** Proof: `pnpm test` at 2,291, smoke 32,
   `check:architecture` 31/31. Walked: bob started a direct message from the inbox's form, sent,
   reacted, replied in a thread and sent a file; carol's bell held one grouped item counting four.
-- [ ] `BL.27` **Walk the rest by hand:** presence and typing across two browsers, a mention in a
-  group notifying only the person named, and push for a message.
+- [x] `BL.27` **The rest, by hand, 2026-11-12,** in two headless browsers: presence showed each
+  person to the other (polled every 30 s); "Carol is typing…" appeared and cleared; in a group of
+  three, a mention of carol gave her `message.mentioned` and alice nothing; and a direct message
+  reached a push endpoint as an `aes128gcm` body with a VAPID header, through a local receiver.
