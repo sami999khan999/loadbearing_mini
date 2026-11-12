@@ -13,6 +13,7 @@ import {
 } from "../../src/import.js";
 import { Database, DatabaseCluster } from "../../src/pg/primitive/index.js";
 import {
+  PgConversationRepository,
   PgMaintenanceGateway,
   PgNotificationRecipientReader,
   PgNotificationRepository,
@@ -113,7 +114,12 @@ const counter = new StatementCounter();
 const counted = new Database({ url: stack.database.url, logger: counter });
 const countedCluster = DatabaseCluster.single(counted, direct);
 const countedNotifications = new PgNotificationRepository(countedCluster, scope, shards);
-const countedRecipients = new PgNotificationRecipientReader(countedCluster, scope, shards);
+const countedRecipients = new PgNotificationRecipientReader(
+  countedCluster,
+  scope,
+  shards,
+  new PgConversationRepository(countedCluster, scope, shards),
+);
 
 // Deterministic, and **never deleted**: the next run finds the same people already there.
 // See docs/reference/fan-out.md.

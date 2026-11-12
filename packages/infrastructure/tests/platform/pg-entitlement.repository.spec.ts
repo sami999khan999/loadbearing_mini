@@ -32,7 +32,7 @@ afterAll(async () => {
     await database.client.delete(organizations).where(inArray(organizations.id, created));
   }
   await database.client.delete(plans).where(eq(plans.key, PLAN));
-  await database.client.delete(disabledModules).where(eq(disabledModules.module, "doc"));
+  await database.client.delete(disabledModules).where(eq(disabledModules.module, "messaging"));
   await entitlements.saveDefaultPlan("unlimited");
   await database.close();
 });
@@ -157,14 +157,14 @@ describe("PgEntitlementRepository — adjustments", () => {
 
 describe("PgEntitlementRepository — the kill switch", () => {
   it("switches a module off with a reason, and on again", async () => {
-    await entitlements.saveDisabledModule("doc", "incident", actor);
+    await entitlements.saveDisabledModule("messaging", "incident", actor);
     expect(
-      (await entitlements.findDisabledModules()).find((row) => row.module === "doc")?.reason,
+      (await entitlements.findDisabledModules()).find((row) => row.module === "messaging")?.reason,
     ).toBe("incident");
 
-    await entitlements.deleteDisabledModule("doc");
-    expect((await entitlements.findDisabledModules()).some((row) => row.module === "doc")).toBe(
-      false,
-    );
+    await entitlements.deleteDisabledModule("messaging");
+    expect(
+      (await entitlements.findDisabledModules()).some((row) => row.module === "messaging"),
+    ).toBe(false);
   });
 });

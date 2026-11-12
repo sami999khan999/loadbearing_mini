@@ -7,8 +7,10 @@ import {
   EntitlementMask,
   eq,
   gt,
+  inArray,
   isNull,
   type OrganizationId,
+  type OverrideRecord,
   or,
   type PermissionKey,
   PermissionRegistry,
@@ -29,6 +31,14 @@ import {
   rolePermissions,
 } from "../schema/index.js";
 
+// A `CapabilityExplanation` while its rows are still being sorted to their user.
+interface Explaining {
+  readonly roleGrants: string[];
+  readonly goalGrants: Record<string, string[]>;
+  readonly overrides: OverrideRecord[];
+  readonly entitlement: EntitlementMask;
+}
+
 export class PgCapabilityRepository extends BaseRepository implements CapabilityRepository {
   // RBAC — read on every request, before a key is known.
   protected override readonly placement: Placement = "catalog";
@@ -39,13 +49,40 @@ export class PgCapabilityRepository extends BaseRepository implements Capability
     return CapabilityResolution.fold(await this.explainFor(organizationId, userId));
   }
 
-  // Four targeted queries, not one join: the join is a cartesian product needing dedup.
+  public async resolveForAll(
+    organizationId: OrganizationId,
+    userIds: readonly UserId[],
+  ): Promise<ReadonlyMap<UserId, CapabilitySet>> {
+    const explained = await this.explainForAll(organizationId, userIds);
+    return new Map(
+      [...explained].map(([userId, explanation]) => [
+        userId,
+        CapabilityResolution.fold(explanation),
+      ]),
+    );
+  }
+
   public async explainFor(
     organizationId: OrganizationId,
     userId: UserId,
   ): Promise<CapabilityExplanation> {
+    const explained = await this.explainForAll(organizationId, [userId]);
+    const explanation = explained.get(userId);
+    if (!explanation) throw new Error(`No explanation built for ${userId}.`);
+    return explanation;
+  }
+
+  // Four targeted queries, not one join: the join is a cartesian product needing dedup.
+  // The user is a column of each, so one user or a thousand is the same four.
+  private async explainForAll(
+    organizationId: OrganizationId,
+    userIds: readonly UserId[],
+  ): Promise<ReadonlyMap<UserId, CapabilityExplanation>> {
+    if (userIds.length === 0) return new Map();
+    const asked = [...new Set(userIds)];
+
     const orgRows = await this.db
-      .select({ permission: rolePermissions.permission })
+      .select({ userId: memberships.userId, permission: rolePermissions.permission })
       .from(memberships)
       .innerJoin(rolePermissions, eq(rolePermissions.roleId, memberships.roleId))
       // Deactivated grants nothing. Defence in depth: `PrincipalBuilder` already
@@ -53,21 +90,28 @@ export class PgCapabilityRepository extends BaseRepository implements Capability
       .where(
         and(
           eq(memberships.organizationId, organizationId),
-          eq(memberships.userId, userId),
+          inArray(memberships.userId, asked),
           isNull(memberships.deactivatedAt),
         ),
       );
 
     const goalRows = await this.db
-      .select({ goalId: goalMembers.goalId, permission: rolePermissions.permission })
+      .select({
+        userId: goalMembers.userId,
+        goalId: goalMembers.goalId,
+        permission: rolePermissions.permission,
+      })
       .from(goalMembers)
       .innerJoin(rolePermissions, eq(rolePermissions.roleId, goalMembers.roleId))
-      .where(and(eq(goalMembers.organizationId, organizationId), eq(goalMembers.userId, userId)));
+      .where(
+        and(eq(goalMembers.organizationId, organizationId), inArray(goalMembers.userId, asked)),
+      );
 
     // Expired rows are filtered here, which is the real mechanism: a cached set can outlive
     // an expiry by up to the TTL, and the sweep only tidies. A deny never expires.
     const overrideRows = await this.db
       .select({
+        userId: permissionOverrides.userId,
         id: permissionOverrides.id,
         permission: permissionOverrides.permission,
         effect: permissionOverrides.effect,
@@ -80,24 +124,34 @@ export class PgCapabilityRepository extends BaseRepository implements Capability
       .where(
         and(
           eq(permissionOverrides.organizationId, organizationId),
-          eq(permissionOverrides.userId, userId),
+          inArray(permissionOverrides.userId, asked),
           or(isNull(permissionOverrides.expiresAt), gt(permissionOverrides.expiresAt, sql`now()`)),
         ),
       );
 
-    const goalGrants: Record<string, string[]> = {};
-    for (const row of goalRows) {
-      const bucket = goalGrants[row.goalId] ?? [];
-      bucket.push(row.permission);
-      goalGrants[row.goalId] = bucket;
+    const entitlement = await this.entitlementFor(organizationId);
+
+    const explained = new Map(
+      asked.map((userId): [UserId, Explaining] => [
+        userId,
+        { roleGrants: [], goalGrants: {}, overrides: [], entitlement },
+      ]),
+    );
+    for (const { userId, permission } of orgRows) {
+      explained.get(userId)?.roleGrants.push(permission);
+    }
+    for (const { userId, goalId, permission } of goalRows) {
+      const into = explained.get(userId);
+      if (!into) continue;
+      const bucket = into.goalGrants[goalId] ?? [];
+      bucket.push(permission);
+      into.goalGrants[goalId] = bucket;
+    }
+    for (const { userId, ...override } of overrideRows) {
+      explained.get(userId)?.overrides.push(override);
     }
 
-    return {
-      roleGrants: orgRows.map((row) => row.permission),
-      goalGrants,
-      overrides: overrideRows,
-      entitlement: await this.entitlementFor(organizationId),
-    };
+    return explained;
   }
 
   // One statement: four index lookups, tagged by kind and unioned. A join of the four would
@@ -147,15 +201,24 @@ export class PgCapabilityRepository extends BaseRepository implements Capability
     });
   }
 
+  public async resolvePlatformFor(userId: UserId): Promise<CapabilitySet> {
+    const resolved = await this.resolvePlatformForAll([userId]);
+    return resolved.get(userId) ?? CapabilitySet.empty();
+  }
+
   // Two queries against the one organization marked `is_platform`, filtered to keys the
   // registry calls platform-scoped — a tenant key granted there reaches no axis at all.
-  public async resolvePlatformFor(userId: UserId): Promise<CapabilitySet> {
+  public async resolvePlatformForAll(
+    userIds: readonly UserId[],
+  ): Promise<ReadonlyMap<UserId, CapabilitySet>> {
+    if (userIds.length === 0) return new Map();
+    const asked = [...new Set(userIds)];
     const registry = PermissionRegistry.instance;
-    const grants = new Set<PermissionKey>();
-    const denies = new Set<PermissionKey>();
+    const grants = new Map(asked.map((userId) => [userId, new Set<PermissionKey>()]));
+    const denies = new Map(asked.map((userId) => [userId, new Set<PermissionKey>()]));
 
     const grantRows = await this.db
-      .select({ permission: rolePermissions.permission })
+      .select({ userId: memberships.userId, permission: rolePermissions.permission })
       .from(memberships)
       .innerJoin(organizations, eq(organizations.id, memberships.organizationId))
       .innerJoin(rolePermissions, eq(rolePermissions.roleId, memberships.roleId))
@@ -164,14 +227,14 @@ export class PgCapabilityRepository extends BaseRepository implements Capability
       .where(
         and(
           eq(organizations.isPlatform, true),
-          eq(memberships.userId, userId),
+          inArray(memberships.userId, asked),
           isNull(memberships.deactivatedAt),
         ),
       );
 
     for (const row of grantRows) {
       if (registry.isKnown(row.permission) && registry.scopeOf(row.permission) === "platform") {
-        grants.add(row.permission);
+        grants.get(row.userId)?.add(row.permission);
       }
     }
 
@@ -179,6 +242,7 @@ export class PgCapabilityRepository extends BaseRepository implements Capability
     // a platform key has no goal level, and a row carrying one is a mis-write.
     const overrideRows = await this.db
       .select({
+        userId: permissionOverrides.userId,
         permission: permissionOverrides.permission,
         effect: permissionOverrides.effect,
       })
@@ -187,7 +251,7 @@ export class PgCapabilityRepository extends BaseRepository implements Capability
       .where(
         and(
           eq(organizations.isPlatform, true),
-          eq(permissionOverrides.userId, userId),
+          inArray(permissionOverrides.userId, asked),
           // Live only, as the tenant query reads them: an expired exception grants nothing.
           or(isNull(permissionOverrides.expiresAt), gt(permissionOverrides.expiresAt, sql`now()`)),
         ),
@@ -196,15 +260,23 @@ export class PgCapabilityRepository extends BaseRepository implements Capability
     for (const row of overrideRows) {
       if (!registry.isKnown(row.permission)) continue;
       if (registry.scopeOf(row.permission) !== "platform") continue;
-      if (row.effect === "deny") denies.add(row.permission);
-      else grants.add(row.permission);
+      if (row.effect === "deny") denies.get(row.userId)?.add(row.permission);
+      else grants.get(row.userId)?.add(row.permission);
     }
 
-    return CapabilitySet.from({
-      wildcard: false,
-      org: { grants: [], denies: [] },
-      goals: {},
-      platform: { grants: [...grants], denies: [...denies] },
-    });
+    return new Map(
+      asked.map((userId) => [
+        userId,
+        CapabilitySet.from({
+          wildcard: false,
+          org: { grants: [], denies: [] },
+          goals: {},
+          platform: {
+            grants: [...(grants.get(userId) ?? [])],
+            denies: [...(denies.get(userId) ?? [])],
+          },
+        }),
+      ]),
+    );
   }
 }

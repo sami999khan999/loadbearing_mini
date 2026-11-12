@@ -57,6 +57,20 @@
       "when": 1794431234001,
       "tag": "0007_push_subscriptions",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794471834462,
+      "tag": "0008_messaging",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1794471859681,
+      "tag": "0009_messaging_grants",
+      "breakpoints": true
     }
   ]
 }
