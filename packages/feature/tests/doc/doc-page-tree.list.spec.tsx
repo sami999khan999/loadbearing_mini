@@ -83,4 +83,14 @@ describe("DocPageTreeList", () => {
     const region = screen.getByRole("region", { name: "Pages" });
     await waitFor(() => expect(document.activeElement).toBe(region));
   });
+
+  // Found walking the tree: the parent picker was labelled "Add", like the button under
+  // it, and offered a bare dash for the top level.
+  it("names the parent picker apart from the Add button, and says what the top level is", async () => {
+    await mount(vi.fn());
+
+    const picker = await screen.findByRole("combobox", { name: /Place under/ });
+    expect(picker.textContent).toContain("At the top level");
+    expect(screen.getByRole("button", { name: "Add" })).toBeDefined();
+  });
 });
