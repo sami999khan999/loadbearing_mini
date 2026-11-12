@@ -17,6 +17,7 @@ import {
   StatusBadge,
   useApiClient,
   useAppQuery,
+  useRef,
   useState,
 } from "../import.js";
 
@@ -40,6 +41,8 @@ export function DocGrantPanel({ spaceId }: DocGrantPanelProps) {
   const [target, setTarget] = useState("");
   const [reason, setReason] = useState("");
   const [expires, setExpires] = useState("");
+  // Where focus goes after a revoke: the row and its button are gone (`WK.5`).
+  const heading = useRef<HTMLHeadingElement>(null);
 
   const now = Date.now();
   const items = grants.data?.items ?? [];
@@ -67,7 +70,9 @@ export function DocGrantPanel({ spaceId }: DocGrantPanelProps) {
 
   return (
     <section className="ui-stack flex flex-col gap-3" aria-labelledby={`doc-grants-${spaceId}`}>
-      <h3 id={`doc-grants-${spaceId}`}>{t("doc.grant.title")}</h3>
+      <h3 id={`doc-grants-${spaceId}`} ref={heading} tabIndex={-1}>
+        {t("doc.grant.title")}
+      </h3>
       <p className={fieldClassName.hint}>{t("doc.grant.description")}</p>
 
       {items.length === 0 ? <p>{t("doc.grant.none")}</p> : null}
@@ -93,7 +98,12 @@ export function DocGrantPanel({ spaceId }: DocGrantPanelProps) {
                 variant="ghost"
                 aria-label={t("doc.grant.revokeFor", { label: grant.label })}
                 disabled={revoke.isPending}
-                onClick={() => revoke.mutate({ grantId: grant.id })}
+                onClick={() =>
+                  revoke.mutate(
+                    { grantId: grant.id },
+                    { onSuccess: () => heading.current?.focus() },
+                  )
+                }
               >
                 {t("doc.grant.revoke")}
               </Button>
@@ -126,6 +136,7 @@ export function DocGrantPanel({ spaceId }: DocGrantPanelProps) {
             type={kind === "user" ? "email" : "text"}
             onChange={(event) => setTarget(event.target.value)}
             maxLength={320}
+            required
           />
         </Field>
         <Field
@@ -138,6 +149,7 @@ export function DocGrantPanel({ spaceId }: DocGrantPanelProps) {
             value={reason}
             onChange={(event) => setReason(event.target.value)}
             maxLength={500}
+            required
           />
         </Field>
         <Field
