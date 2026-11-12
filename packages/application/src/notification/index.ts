@@ -4,6 +4,7 @@ export {
   GetNotificationPreferencesUseCase,
   type ResolvedPreference,
 } from "./get-notification-preferences.use-case.js";
+export { GetPushKeyUseCase } from "./get-push-key.use-case.js";
 export { ListNotificationsUseCase } from "./list-notifications.use-case.js";
 export { MarkAllNotificationsReadUseCase } from "./mark-all-notifications-read.use-case.js";
 export { MarkNotificationReadUseCase } from "./mark-notification-read.use-case.js";
@@ -29,7 +30,13 @@ export {
   type Recipient,
 } from "./notification-recipient.reader.js";
 export {
+  type PushSubscriptionRecord,
+  PushSubscriptionRepository,
+} from "./push-subscription.repository.js";
+export {
   type SendNotificationDigestInput,
   SendNotificationDigestUseCase,
 } from "./send-notification-digest.use-case.js";
+export { SubscribePushUseCase } from "./subscribe-push.use-case.js";
+export { UnsubscribePushUseCase } from "./unsubscribe-push.use-case.js";
 export { UpdateNotificationPreferenceUseCase } from "./update-notification-preference.use-case.js";

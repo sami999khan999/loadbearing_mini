@@ -11,6 +11,7 @@ import type {
   DocRevisionRecord,
   DocRevisionSummaryRecord,
   DocSearchMatch,
+  DocSectionRecord,
   DocSpaceId,
   DocStalePageRecord,
   NewDocPage,
@@ -374,6 +375,30 @@ export class PgDocPageRepository extends BaseRepository implements DocPageReposi
       excerpt: row.excerpt ?? "",
       rank: Number(row.rank),
     }));
+  }
+
+  // On the replica, as the search is: what it reads was published, and a publish's lag is
+  // the same seconds a search already lives with.
+  public async listSections(
+    organizationId: OrganizationId,
+    pageIds: readonly DocPageId[],
+  ): Promise<readonly DocSectionRecord[]> {
+    if (pageIds.length === 0) return [];
+    return (await this.reader())
+      .select({
+        pageId: docSections.pageId,
+        anchor: docSections.anchor,
+        heading: docSections.heading,
+        body: docSections.body,
+      })
+      .from(docSections)
+      .where(
+        and(
+          eq(docSections.organizationId, organizationId),
+          inArray(docSections.pageId, [...pageIds]),
+        ),
+      )
+      .orderBy(docSections.pageId, docSections.position);
   }
 
   public async listRevisions(

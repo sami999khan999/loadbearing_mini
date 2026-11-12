@@ -28,6 +28,8 @@ const Schema = z
     REDIS_QUEUE_URL: z.url(),
     // Live frames; the cache instance when unset. See docs/infra/reference/redis.md.
     REDIS_REALTIME_URL: z.url().optional(),
+    // The assistant's answer logs; the realtime instance when unset, then the cache's.
+    REDIS_ASSISTANT_URL: z.url().optional(),
 
     S3_ENDPOINT: z.url(),
     S3_REGION: z.string().min(1),
@@ -78,6 +80,14 @@ const Schema = z
     // Never defaulted: an address the sending domain does not authorise bounces or lands
     // in spam, silently.
     EMAIL_FROM: z.string().min(1),
+    // Web push (`26.3`): all three or none. `npx web-push generate-vapid-keys` makes the
+    // pair once; changing it orphans every browser already subscribed.
+    VAPID_PUBLIC_KEY: z.string().min(1).optional(),
+    VAPID_PRIVATE_KEY: z.string().min(1).optional(),
+    VAPID_SUBJECT: z
+      .string()
+      .regex(/^(mailto:|https:)/)
+      .optional(),
     // The origin a link in a message points at. Separate from `AUTH_URL`, which is Better
     // Auth's own: the worker sends invitation mail and parses no auth configuration.
     APP_BASE_URL: z.url(),
@@ -88,6 +98,16 @@ const Schema = z
     EMBEDDING_API_KEY: z.string().min(1).optional(),
     EMBEDDING_MODEL: z.string().min(1).optional(),
     EMBEDDING_DIMENSIONS: z.coerce.number().int().positive().default(1536),
+    // The AI assistant's chat model (`AI.1`). `none` turns the feature off and `fake` streams
+    // a canned answer calling nobody; the other three need the key. See assistant.md.
+    ASSISTANT_PROVIDER: z.enum(["none", "fake", "openai", "openrouter", "gemini"]).default("none"),
+    ASSISTANT_API_KEY: z.string().min(1).optional(),
+    ASSISTANT_MODEL: z.string().min(1).optional(),
+    ASSISTANT_ENDPOINT: z.url().optional(),
+    // One organization's tokens a UTC day (0 is no cap), checked before a question is
+    // queued, and how many answers one person may have generating at once.
+    ASSISTANT_ORG_DAILY_TOKENS: z.coerce.number().int().min(0).default(0),
+    ASSISTANT_ACTIVE_PER_USER: z.coerce.number().int().positive().default(2),
 
     // Per process. The cap exists to stop one runaway tab, which is local by
     // construction, and the age is what releases a channel a leaked reader is holding.
@@ -114,7 +134,7 @@ const Schema = z
     SERVER_SHUTDOWN_TIMEOUT: z.coerce.number().int().positive().default(5),
   })
   // Cross-field rules, and each earns the exception: production on http, `bootstrap` with
-  // no slug, and an embedding provider with no key.
+  // no slug, and an embedding or chat provider with no key.
   .superRefine((env, ctx) => {
     // The session cookie is `Secure` only under https, so production on http would ship it
     // in the clear. A loopback host is a production build tried locally, and is allowed.
@@ -134,6 +154,18 @@ const Schema = z
         code: "custom",
         path: ["EMBEDDING_API_KEY"],
         message: `Required when EMBEDDING_PROVIDER is "${env.EMBEDDING_PROVIDER}".`,
+      });
+    }
+
+    if (
+      env.ASSISTANT_PROVIDER !== "none" &&
+      env.ASSISTANT_PROVIDER !== "fake" &&
+      !env.ASSISTANT_API_KEY
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["ASSISTANT_API_KEY"],
+        message: `Required when ASSISTANT_PROVIDER is "${env.ASSISTANT_PROVIDER}".`,
       });
     }
 
@@ -241,6 +273,7 @@ export class Env {
         cacheUrl: e.REDIS_CACHE_URL,
         queueUrl: e.REDIS_QUEUE_URL,
         ...(e.REDIS_REALTIME_URL ? { realtimeUrl: e.REDIS_REALTIME_URL } : {}),
+        ...(e.REDIS_ASSISTANT_URL ? { assistantUrl: e.REDIS_ASSISTANT_URL } : {}),
       },
       storage: {
         endpoint: e.S3_ENDPOINT,
@@ -269,11 +302,28 @@ export class Env {
             : undefined,
       },
       email: { url: e.SMTP_URL, from: e.EMAIL_FROM, baseUrl: e.APP_BASE_URL },
+      ...(e.VAPID_PUBLIC_KEY && e.VAPID_PRIVATE_KEY && e.VAPID_SUBJECT
+        ? {
+            push: {
+              publicKey: e.VAPID_PUBLIC_KEY,
+              privateKey: e.VAPID_PRIVATE_KEY,
+              subject: e.VAPID_SUBJECT,
+            },
+          }
+        : {}),
       embedding: {
         provider: e.EMBEDDING_PROVIDER,
         dimensions: e.EMBEDDING_DIMENSIONS,
         ...(e.EMBEDDING_API_KEY ? { apiKey: e.EMBEDDING_API_KEY } : {}),
         ...(e.EMBEDDING_MODEL ? { model: e.EMBEDDING_MODEL } : {}),
+      },
+      assistant: {
+        provider: e.ASSISTANT_PROVIDER,
+        ...(e.ASSISTANT_API_KEY ? { apiKey: e.ASSISTANT_API_KEY } : {}),
+        ...(e.ASSISTANT_MODEL ? { model: e.ASSISTANT_MODEL } : {}),
+        ...(e.ASSISTANT_ENDPOINT ? { endpoint: e.ASSISTANT_ENDPOINT } : {}),
+        orgDailyTokens: e.ASSISTANT_ORG_DAILY_TOKENS,
+        activePerUser: e.ASSISTANT_ACTIVE_PER_USER,
       },
       realtime: {
         maxStreamsPerUser: e.REALTIME_MAX_STREAMS_PER_USER,

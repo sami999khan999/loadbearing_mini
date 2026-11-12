@@ -39,11 +39,12 @@
   },
   "devDependencies": {
     "@loadbearing/tsconfig": "workspace:*",
-    "@types/node": "catalog:",
-    "@types/nodemailer": "catalog:",
     "@types/hast": "catalog:",
     "@types/mdast": "catalog:",
+    "@types/node": "catalog:",
+    "@types/nodemailer": "catalog:",
     "@types/pg": "catalog:",
+    "@types/web-push": "catalog:",
     "drizzle-kit": "catalog:",
     "rimraf": "catalog:",
     "tsup": "catalog:",
@@ -78,6 +79,7 @@
     "remark-parse": "catalog:",
     "remark-rehype": "catalog:",
     "unified": "catalog:",
-    "unist-util-visit": "catalog:"
+    "unist-util-visit": "catalog:",
+    "web-push": "catalog:"
   }
 }

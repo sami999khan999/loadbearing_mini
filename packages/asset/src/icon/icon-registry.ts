@@ -19,6 +19,7 @@ export const ICON_NAMES = [
   "moon",
   "rocket",
   "search",
+  "sparkle",
   "sun",
   "user",
   "x",

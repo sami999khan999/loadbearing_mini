@@ -1,4 +1,12 @@
 export { ActivityLogger } from "./activity.logger.js";
+export {
+  type AssistantDelta,
+  type AssistantMessage,
+  AssistantModel,
+  type AssistantRequest,
+  type AssistantRole,
+  type AssistantStopReason,
+} from "./assistant.model.js";
 export { CacheStore } from "./cache.store.js";
 export { CapabilityInvalidator } from "./capability.invalidator.js";
 export { DomainEventPublisher } from "./domain-event.publisher.js";
@@ -27,6 +35,7 @@ export {
   PartitionArchiveGateway,
   type TenantExport,
 } from "./partition-archive.gateway.js";
+export { type PushPayload, PushSender, type PushTarget } from "./push.sender.js";
 export { type JobOptions, type QueuedJob, QueuePublisher } from "./queue.publisher.js";
 export { RateLimitStore } from "./rate-limit.store.js";
 export { RealtimePublisher } from "./realtime.publisher.js";

@@ -21,6 +21,9 @@ const LIMITS: Readonly<Record<string, RateLimit>> = Object.freeze({
   "docPage.publish": { limit: 30, windowSeconds: 60 },
   // Each one is a signed URL for five megabytes of somebody's storage bill.
   "docPage.upload": { limit: 60, windowSeconds: 3_600 },
+  // Every question is a paid provider call. The active and daily caps bound the spend;
+  // this bounds the rate at which one person can hit them.
+  "assistant.send": { limit: 20, windowSeconds: 60 },
 });
 
 export class RateLimitPolicy {

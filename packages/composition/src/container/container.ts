@@ -4,6 +4,9 @@ import {
   AdjustEntitlementUseCase,
   ApiKeyResolver,
   AssignPlanUseCase,
+  AssistantBudget,
+  type AssistantModel,
+  AssistantRetrieval,
   AuthFactory,
   type AuthInstance,
   Authorizer,
@@ -11,6 +14,8 @@ import {
   BetterAuthSessionResolver,
   BullMqQueuePublisher,
   type CacheStore,
+  CancelAssistantAnswerUseCase,
+  CannedAssistantModel,
   CapabilityCache,
   CapabilitySet,
   ChangeMemberRoleUseCase,
@@ -27,6 +32,7 @@ import {
   type Database,
   DatabaseCluster,
   type DatabaseStats,
+  DeleteAssistantThreadUseCase,
   DeleteDocPageUseCase,
   DeleteDocSpaceUseCase,
   DeleteOrganizationUseCase,
@@ -50,15 +56,21 @@ import {
   ExpireEntitlementAdjustmentsUseCase,
   ExpirePermissionOverridesUseCase,
   ExportOrganizationUseCase,
+  FailStaleAssistantAnswersUseCase,
   FindAccountUseCase,
   FlagCache,
+  GeminiAssistantModel,
   GeminiEmbeddingProvider,
+  GenerateAssistantAnswerUseCase,
+  GetAssistantThreadUseCase,
+  GetAssistantUsageUseCase,
   GetDocPageUseCase,
   GetDocRevisionUseCase,
   GetDocSpaceUseCase,
   GetEntitlementUseCase,
   GetNotificationPreferencesUseCase,
   GetOrganizationEntitlementUseCase,
+  GetPushKeyUseCase,
   GrantPermissionOverrideUseCase,
   GrantPermissionUseCase,
   IndexDocumentUseCase,
@@ -71,6 +83,7 @@ import {
   InviteMemberUseCase,
   JsonLogger,
   ListApiKeysUseCase,
+  ListAssistantThreadsUseCase,
   ListDocAccessOptionsUseCase,
   ListDocGrantsUseCase,
   ListDocPagesUseCase,
@@ -101,6 +114,7 @@ import {
   MoveDocPageUseCase,
   NotificationSubscriber,
   NullMembershipEnroller,
+  OpenAiAssistantModel,
   OpenAiEmbeddingProvider,
   OpenDocImageUseCase,
   type OrganizationFounder,
@@ -111,6 +125,9 @@ import {
   PgAccountRepository,
   PgActivityLogger,
   PgApiKeyRepository,
+  PgAssistantMessageRepository,
+  PgAssistantThreadRepository,
+  PgAssistantUsageRepository,
   PgBootstrapMembershipEnroller,
   PgCapabilityRepository,
   PgDocGrantRepository,
@@ -135,6 +152,7 @@ import {
   PgPersonalOrganizationEnroller,
   PgPlatformPolicyRepository,
   PgPlatformReader,
+  PgPushSubscriptionRepository,
   PgRoleRepository,
   PgShardMapReader,
   PgShardResolver,
@@ -157,6 +175,9 @@ import {
   ReadPlatformDocUseCase,
   type RealtimePublisher,
   type RealtimeSubscriber,
+  RedisAssistantBudgetStore,
+  RedisAssistantStreamPublisher,
+  RedisAssistantStreamSubscriber,
   RedisCacheStore,
   RedisConnection,
   RedisRateLimitStore,
@@ -166,6 +187,7 @@ import {
   ReindexDocsUseCase,
   ReinstateAccountUseCase,
   type RelayedActivityStore,
+  RenameAssistantThreadUseCase,
   type ReplicaHealth,
   ResendInvitationUseCase,
   RestoreDocRevisionUseCase,
@@ -183,6 +205,7 @@ import {
   SearchDocumentsUseCase,
   type SearchMode,
   SearchPlatformDocsUseCase,
+  SendAssistantQuestionUseCase,
   SendMailUseCase,
   SendNotificationDigestUseCase,
   type SessionResolver,
@@ -195,6 +218,8 @@ import {
   StaticContentSource,
   type StorageGateway,
   type StoragePolicyGateway,
+  StreamAssistantAnswerUseCase,
+  SubscribePushUseCase,
   SubscriberRegistry,
   SuspendAccountUseCase,
   SwitchModuleUseCase,
@@ -204,6 +229,7 @@ import {
   TransactionScope,
   UnifiedMarkdownRenderer,
   type UnitOfWork,
+  UnsubscribePushUseCase,
   UpdateDefaultPlanUseCase,
   UpdateDocSpaceUseCase,
   UpdateFlagTargetUseCase,
@@ -213,6 +239,7 @@ import {
   UploadDocImageUseCase,
   type UserId,
   type VectorStore,
+  WebPushSender,
 } from "../import.js";
 import {
   ContentMailRenderer,
@@ -220,6 +247,7 @@ import {
   QueuedInvitationMailer,
   QueuedMailPublisher,
 } from "../mail/index.js";
+import { ContentPushRenderer } from "../push/index.js";
 import { OrganizationShardingStrategy } from "../shard/index.js";
 import type { ContainerConfig } from "./container.config.js";
 import { ContainerHealthReader } from "./container-health.reader.js";
@@ -285,6 +313,13 @@ export class Container {
   // a refetch is cheaper than the memory, and it is the same on every deployment.
   private static readonly REALTIME_QUEUE_SIZE = 256;
 
+  // As long as an answer's log is kept: a reader waiting past it waits on nothing.
+  private static readonly ASSISTANT_STREAM_MAX_AGE_MS = 600_000;
+  // A short answer by default; the window the prompt builder budgets is the model's.
+  private static readonly ASSISTANT_MAX_OUTPUT_TOKENS = 1_024;
+  // Two, so one tab can ask while another is still being answered.
+  private static readonly ASSISTANT_ACTIVE_PER_USER = 2;
+
   // Two consecutive ticks before the first line, so a burst that drains is load rather
   // than an incident — and the pair has to fit inside the connect timeout, see below.
   private static readonly POOL_PROBE_TICKS = 2;
@@ -336,6 +371,9 @@ export class Container {
   // How the corpus is embedded and searched, from `EMBEDDING_PROVIDER`. Built once, so no
   // use-case names a vendor or asks which one it was handed.
   public readonly searchMode: SearchMode;
+  // Null when `ASSISTANT_PROVIDER` is `none` or unset: the assistant is off, and nothing
+  // that reaches for it may assume otherwise. Read through `hasAssistant` / `assistantModel`.
+  private readonly chatModel: AssistantModel | null;
   // The one way onto the embedding queue, for a person's index request and for the Docs
   // index alike. Built before the subscribers, which need it.
   private readonly documentIndex: DocumentIndexPublisher;
@@ -419,6 +457,23 @@ export class Container {
     readonly updatePreference: UpdateNotificationPreferenceUseCase;
     readonly deliver: DeliverNotificationUseCase;
     readonly sendDigest: SendNotificationDigestUseCase;
+    readonly pushKey: GetPushKeyUseCase;
+    readonly pushSubscribe: SubscribePushUseCase;
+    readonly pushUnsubscribe: UnsubscribePushUseCase;
+  };
+  // `generate` is null without a model: the worker registers no `assistant` lane then, and
+  // `send` answers NOT_FOUND. The rest read what an earlier deploy with a model wrote.
+  public readonly assistant: {
+    readonly list: ListAssistantThreadsUseCase;
+    readonly get: GetAssistantThreadUseCase;
+    readonly send: SendAssistantQuestionUseCase;
+    readonly cancel: CancelAssistantAnswerUseCase;
+    readonly rename: RenameAssistantThreadUseCase;
+    readonly remove: DeleteAssistantThreadUseCase;
+    readonly stream: StreamAssistantAnswerUseCase;
+    readonly generate: GenerateAssistantAnswerUseCase | null;
+    readonly failStale: FailStaleAssistantAnswersUseCase;
+    readonly usage: GetAssistantUsageUseCase;
   };
   // Inside `auth`'s block below, because a key is issued *by* someone: without an auth
   // config there is no principal to be the issuer.
@@ -616,6 +671,7 @@ export class Container {
       cacheUrl: config.redis.cacheUrl,
       queueUrl: config.redis.queueUrl,
       ...(config.redis.realtimeUrl ? { realtimeUrl: config.redis.realtimeUrl } : {}),
+      ...(config.redis.assistantUrl ? { assistantUrl: config.redis.assistantUrl } : {}),
     });
 
     this.clock = new SystemClock();
@@ -675,6 +731,7 @@ export class Container {
     // switch a compiler checks, not in a document.
     this.vectors = Container.buildVectorStore(config, this.cluster, this.transactions, this.shards);
     this.searchMode = Container.buildSearchMode(config.embedding, this.logger);
+    this.chatModel = Container.buildAssistantModel(config.assistant, this.logger);
 
     // The only catalog carrying the `email` namespace the worker's digests read. A
     // client bundle cannot reach it.
@@ -734,6 +791,18 @@ export class Container {
       this.shards,
     );
 
+    const pushSubscriptions = new PgPushSubscriptionRepository(
+      this.cluster,
+      this.transactions,
+      this.shards,
+    );
+    const pushRenderer = new ContentPushRenderer(this.content, config.email.baseUrl);
+    const push = config.push
+      ? {
+          subscriptions: pushSubscriptions,
+          sender: new WebPushSender(config.push, (payload) => pushRenderer.render(payload)),
+        }
+      : null;
     this.notification = {
       list: new ListNotificationsUseCase(this.authorizer, notifications),
       countUnread: new CountUnreadNotificationsUseCase(this.authorizer, notifications, this.cache),
@@ -765,6 +834,7 @@ export class Container {
         this.realtime,
         this.cache,
         this.routedUnitOfWork,
+        push,
       ),
       sendDigest: new SendNotificationDigestUseCase(
         notifications,
@@ -772,6 +842,18 @@ export class Container {
         notificationRecipients,
         this.mailPublisher,
         this.organizations,
+      ),
+      pushKey: new GetPushKeyUseCase(this.authorizer, config.push?.publicKey ?? null),
+      pushSubscribe: new SubscribePushUseCase(
+        this.authorizer,
+        pushSubscriptions,
+        this.routedUnitOfWork,
+        push !== null,
+      ),
+      pushUnsubscribe: new UnsubscribePushUseCase(
+        this.authorizer,
+        pushSubscriptions,
+        this.routedUnitOfWork,
       ),
     };
 
@@ -1251,6 +1333,8 @@ export class Container {
         this.routedUnitOfWork,
       ),
     };
+
+    this.assistant = this.buildAssistant(config.assistant, entitlements);
   }
 
   // Three modes, each wrapped so an invited address joins the organization that invited
@@ -1325,6 +1409,15 @@ export class Container {
       throw new Error("This container was built without an auth config.");
     }
     return this.principalBuilder;
+  }
+
+  public get assistantModel(): AssistantModel {
+    if (!this.chatModel) throw new Error("This container was built without an assistant model.");
+    return this.chatModel;
+  }
+
+  public get hasAssistant(): boolean {
+    return this.chatModel !== null;
   }
 
   // **The one place a request or a job is placed.** Both run once, here, so
@@ -1614,6 +1707,127 @@ export class Container {
       imageOrphans: new DocImageOrphans(pages, this.storage, this.clock),
       reindex: new ReindexDocsUseCase(auth, spaces, pages, this.documentIndex, this.clock),
     };
+  }
+
+  // Its own method for the reason `buildDoc` is: eleven collaborators, and the retrieval
+  // reads Docs through the same search and policy the palette does.
+  private buildAssistant(
+    config: ContainerConfig["assistant"],
+    entitlements: PgEntitlementRepository,
+  ): Container["assistant"] {
+    const threads = new PgAssistantThreadRepository(this.cluster, this.transactions, this.shards);
+    const messages = new PgAssistantMessageRepository(this.cluster, this.transactions, this.shards);
+    const usage = new PgAssistantUsageRepository(this.cluster, this.transactions, this.shards);
+    const capabilities = new PgCapabilityRepository(this.cluster, this.transactions, this.shards);
+    // On the queue instance, which never evicts: an evicted count is a day's budget again.
+    const budget = new AssistantBudget(
+      new RedisAssistantBudgetStore(this.redis.queueClient()),
+      this.clock,
+      config?.orgDailyTokens ?? 0,
+    );
+    const stream = new RedisAssistantStreamPublisher(this.redis.assistantClient());
+    // Resolved on the first stream, so a process that never streams an answer dials nothing.
+    const subscriber = new RedisAssistantStreamSubscriber(
+      () => this.redis.assistantSubscriberClient(),
+      () => this.redis.assistantClient(),
+      { maxAgeMs: Container.ASSISTANT_STREAM_MAX_AGE_MS },
+    );
+    const retrieval = new AssistantRetrieval(
+      this.doc.search,
+      this.ai.searchDocuments,
+      new PgDocPageRepository(this.cluster, this.transactions, this.shards),
+      this.doc.cache,
+      new DocFeaturePolicy(this.flags, entitlements, this.cache),
+      this.vectors,
+      this.searchMode,
+    );
+    const auth = this.authorizer;
+    const uow = this.routedUnitOfWork;
+
+    return {
+      list: new ListAssistantThreadsUseCase(auth, threads),
+      get: new GetAssistantThreadUseCase(auth, threads, messages, retrieval),
+      send: new SendAssistantQuestionUseCase(
+        auth,
+        threads,
+        messages,
+        budget,
+        this.queue,
+        this.activity,
+        uow,
+        this.clock,
+        {
+          activePerUser: config?.activePerUser ?? Container.ASSISTANT_ACTIVE_PER_USER,
+          enabled: this.chatModel !== null,
+        },
+      ),
+      cancel: new CancelAssistantAnswerUseCase(auth, threads, messages, stream),
+      rename: new RenameAssistantThreadUseCase(auth, threads),
+      remove: new DeleteAssistantThreadUseCase(auth, threads, messages, this.activity, uow),
+      stream: new StreamAssistantAnswerUseCase(auth, threads, messages, retrieval, subscriber),
+      generate: this.chatModel
+        ? new GenerateAssistantAnswerUseCase(
+            threads,
+            messages,
+            usage,
+            this.tenantMemberships,
+            capabilities,
+            retrieval,
+            this.chatModel,
+            stream,
+            this.realtime,
+            budget,
+            uow,
+            this.clock,
+            config?.maxOutputTokens ?? Container.ASSISTANT_MAX_OUTPUT_TOKENS,
+          )
+        : null,
+      failStale: new FailStaleAssistantAnswersUseCase(messages, this.clock),
+      usage: new GetAssistantUsageUseCase(auth, usage, this.clock, config?.orgDailyTokens ?? 0),
+    };
+  }
+
+  // A `case` per provider, the compiler checking every one. OpenRouter is OpenAI's wire at
+  // another endpoint, so it is the same adapter; the default models are each one's small one.
+  private static buildAssistantModel(
+    config: ContainerConfig["assistant"],
+    logger: Logger,
+  ): AssistantModel | null {
+    if (!config) return null;
+    const key = config.apiKey ?? "";
+    switch (config.provider) {
+      case "none":
+        return null;
+      case "fake":
+        return new CannedAssistantModel({ delayMs: config.fakeDelayMs ?? 0 });
+      case "openai":
+        return new OpenAiAssistantModel(
+          {
+            apiKey: key,
+            model: config.model ?? "gpt-4.1-mini",
+            ...(config.endpoint ? { endpoint: config.endpoint } : {}),
+          },
+          logger,
+        );
+      case "openrouter":
+        return new OpenAiAssistantModel(
+          {
+            apiKey: key,
+            model: config.model ?? "openai/gpt-4.1-mini",
+            endpoint: config.endpoint ?? "https://openrouter.ai/api/v1",
+          },
+          logger,
+        );
+      case "gemini":
+        return new GeminiAssistantModel(
+          {
+            apiKey: key,
+            model: config.model ?? "gemini-2.5-flash",
+            ...(config.endpoint ? { endpoint: config.endpoint } : {}),
+          },
+          logger,
+        );
+    }
   }
 
   // The one place a vendor is chosen, as a `case` the compiler checks. The default models

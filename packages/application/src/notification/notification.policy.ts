@@ -38,7 +38,7 @@ const ROWS = Object.freeze({
     kind: "member.joined",
     category: "membership",
     recipients: { kind: "none" },
-    defaultMode: { in_app: "off", email: "off" },
+    defaultMode: { in_app: "off", email: "off", push: "off" },
     link: () => null,
   },
   "member.joined": {
@@ -47,7 +47,7 @@ const ROWS = Object.freeze({
     // The people who can act on it. Not the whole organization: that is the write
     // amplification `data-and-scale.md` §6 warns about, per joiner.
     recipients: { kind: "organizationMembers", holding: "member.invite" },
-    defaultMode: { in_app: "immediate", email: "digest" },
+    defaultMode: { in_app: "immediate", email: "digest", push: "off" },
     link: () => "/settings/members",
   },
   "member.role.changed": {
@@ -56,7 +56,7 @@ const ROWS = Object.freeze({
     // The person it happened to. What they may do just changed, which is the one thing
     // they cannot discover by looking.
     recipients: { kind: "subject" },
-    defaultMode: { in_app: "immediate", email: "immediate" },
+    defaultMode: { in_app: "immediate", email: "immediate", push: "off" },
     link: () => "/settings/members",
   },
 } as const satisfies Partial<Record<DomainEventName, PolicyRow>>);
@@ -81,7 +81,7 @@ const DEFAULT_BY_CATEGORY: Readonly<
         return found;
       }
 
-      for (const channel of ["in_app", "email"] as const) {
+      for (const channel of ["in_app", "email", "push"] as const) {
         const mine = LOUDNESS.indexOf(row.defaultMode[channel]);
         if (mine < LOUDNESS.indexOf(current[channel])) current[channel] = row.defaultMode[channel];
       }

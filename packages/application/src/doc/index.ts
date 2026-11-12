@@ -27,6 +27,7 @@ export {
   type DocRevisionRecord,
   type DocRevisionSummaryRecord,
   type DocSearchMatch,
+  type DocSectionRecord,
   type DocStalePageRecord,
   type NewDocPage,
 } from "./doc-page.repository.js";

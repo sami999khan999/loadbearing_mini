@@ -16,6 +16,11 @@ export interface RealtimeStreamOptions<T extends { readonly id: string; readonly
   readonly onFrame: (frame: T) => void;
   readonly onConnected: (connected: boolean) => void;
   readonly signal: AbortSignal;
+  // Which frames a reopen may resume from. Realtime's: an `event`, the only kind it logs.
+  // A log that keeps every frame resumes from any, and one never seen reopens from the start.
+  readonly resumesFrom?: (frame: T) => boolean;
+  // A frame after which there is nothing more to wait for: the loop ends instead of reopening.
+  readonly endsWith?: (frame: T) => boolean;
 }
 
 // The one reconnect loop both streams use. The oRPC retry plugin only reopens on a throw,
@@ -27,6 +32,7 @@ export class RealtimeStream {
     options: RealtimeStreamOptions<T>,
   ): Promise<void> {
     const { signal } = options;
+    const resumesFrom = options.resumesFrom;
     let attempt = 0;
     let lastEventId: string | undefined;
     let opened = false;
@@ -38,7 +44,7 @@ export class RealtimeStream {
       try {
         const stream = await options.open(
           signal,
-          opened ? (lastEventId ?? RealtimeStream.anyId()) : undefined,
+          opened && !resumesFrom ? (lastEventId ?? RealtimeStream.anyId()) : lastEventId,
         );
         opened = true;
         options.onConnected(true);
@@ -47,8 +53,12 @@ export class RealtimeStream {
           if (signal.aborted) return;
           // Only an event is in the server's replay log. A resync id resumes from nothing,
           // so remembering one would turn every reopen into a full resync.
-          if (frame.kind === "event") lastEventId = frame.id;
+          if (resumesFrom ? resumesFrom(frame) : frame.kind === "event") lastEventId = frame.id;
           options.onFrame(frame);
+          if (options.endsWith?.(frame)) {
+            options.onConnected(false);
+            return;
+          }
         }
 
         // A clean end is the server's maximum age or its shutdown drain: reopen soon, spread.

@@ -24,9 +24,9 @@ Checkboxes: `[ ]` todo, `[~]` in progress, `[!]` blocked, `[x]` done, `[-]` drop
 ## 2. The docs system — gaps shared with the big kit
 
 The docs slice is the same code in both kits, so each gap here is open in the big kit too, under
-the ID given; fix it once and port it. Found 2026-10-10. Semantic search over docs is not here:
-decision 7 in [`DOCS-SYSTEM-PLAN.md`](DOCS-SYSTEM-PLAN.md) replaces it with whole-docs full text.
-What is still owed by that plan is there and in [`TESTS.md`](TESTS.md): the latency budgets
+the ID given; fix it once and port it. Found 2026-10-10. Semantic search over docs, which
+decision 7 in [`DOCS-SYSTEM-PLAN.md`](DOCS-SYSTEM-PLAN.md) first replaced with full text, was ported
+from the big kit's `DC.2` on 2026-10-14, and Docs search is hybrid. What is still owed by that plan is there and in [`TESTS.md`](TESTS.md): the latency budgets
 (`DS0.2`) and the hand checks.
 
 - [x] `BL.2` **No diff between revisions.** The history lists every publish and restores one into
@@ -172,3 +172,14 @@ its `FC.<n>`.
 - [x] `BL.15` follow-up: deleting a former member's space was a 500, because the membership was
   read inside the routed transaction. It is read first now. `15ba660f`.
 
+## 7. Ported from the big kit, 2026-11-12
+
+- [x] `BL.18` **Web push**, the big kit's `26.3`: a `PushSender` port and a `web-push` adapter,
+  VAPID keys from `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`VAPID_SUBJECT` (all or none),
+  `push_subscriptions` partitioned by tenant, a service worker at `/push-worker`, and `push` as a
+  third channel in the grid at `immediate` or `off`. Membership is this kit's one category, and
+  its push default is off, so nothing buzzes until a person turns it on. **Proof:** the full
+  suite; against `pnpm dev`, a new owner subscribed, a digest push was refused, the grid showed
+  push, and unsubscribing removed the row. Not checked: a real browser receiving one.
+- [x] `BL.19` **The architecture check's comment pass dropped the second half of an escape**, so
+  `"\0"` read as an open string and every later quote paired wrongly. Big kit: `ef77091a`.

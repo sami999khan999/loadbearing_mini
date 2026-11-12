@@ -21,6 +21,8 @@ const Schema = z
     REDIS_QUEUE_URL: z.url(),
     // Live frames; the cache instance when unset. See docs/infra/reference/redis.md.
     REDIS_REALTIME_URL: z.url().optional(),
+    // The assistant's answer logs; the realtime instance when unset, then the cache's.
+    REDIS_ASSISTANT_URL: z.url().optional(),
 
     S3_ENDPOINT: z.url(),
     S3_REGION: z.string().min(1),
@@ -38,6 +40,14 @@ const Schema = z
     // rather than optional.
     SMTP_URL: z.string().min(1),
     EMAIL_FROM: z.string().min(1),
+    // Web push (`26.3`): all three or none. `npx web-push generate-vapid-keys` makes the
+    // pair once; changing it orphans every browser already subscribed.
+    VAPID_PUBLIC_KEY: z.string().min(1).optional(),
+    VAPID_PRIVATE_KEY: z.string().min(1).optional(),
+    VAPID_SUBJECT: z
+      .string()
+      .regex(/^(mailto:|https:)/)
+      .optional(),
     // Required here too, and this is the process that needs it: the worker renders the
     // invitation link, and it parses no auth configuration to borrow an origin from.
     APP_BASE_URL: z.url(),
@@ -48,6 +58,17 @@ const Schema = z
     EMBEDDING_API_KEY: z.string().min(1).optional(),
     EMBEDDING_MODEL: z.string().min(1).optional(),
     EMBEDDING_DIMENSIONS: z.coerce.number().int().positive().default(1536),
+    // The AI assistant's chat model (`AI.1`). `none` turns the feature off and `fake` streams
+    // a canned answer calling nobody; the other three need the key. See assistant.md.
+    ASSISTANT_PROVIDER: z.enum(["none", "fake", "openai", "openrouter", "gemini"]).default("none"),
+    ASSISTANT_API_KEY: z.string().min(1).optional(),
+    ASSISTANT_MODEL: z.string().min(1).optional(),
+    ASSISTANT_ENDPOINT: z.url().optional(),
+    // The longest answer in tokens, and one organization's tokens a UTC day: 0 is no cap.
+    ASSISTANT_MAX_OUTPUT_TOKENS: z.coerce.number().int().positive().default(1024),
+    // `fake` only: milliseconds between words, so an answer streams like a real one.
+    ASSISTANT_FAKE_DELAY_MS: z.coerce.number().int().min(0).default(0),
+    ASSISTANT_ORG_DAILY_TOKENS: z.coerce.number().int().min(0).default(0),
 
     // Per process. The cap exists to stop one runaway tab, which is local by
     // construction, and the age is what releases a channel a leaked reader is holding.
@@ -84,6 +105,10 @@ const Schema = z
     // A provider's cap, expressed once. Ten a second is under every managed sender's
     // free tier and well under a self-hosted relay's.
     WORKER_MAIL_RATE_PER_MINUTE: z.coerce.number().int().positive().default(600),
+    // An answer holds a provider stream and no database connection, so many fit. The rate
+    // is the provider contract's requests a minute, across this process's answers.
+    WORKER_ASSISTANT_CONCURRENCY: z.coerce.number().int().positive().default(32),
+    WORKER_ASSISTANT_RATE_PER_MINUTE: z.coerce.number().int().positive().default(600),
 
     // The same block the web app parses: a worker with no log output cannot be operated.
 
@@ -103,13 +128,26 @@ const Schema = z
 
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   })
-  // One cross-field rule: an embedding provider with no key fails on the first document.
+  // Two cross-field rules: an embedding or a chat provider with no key fails at boot, not on
+  // its first call.
   .superRefine((env, ctx) => {
     if (env.EMBEDDING_PROVIDER !== "none" && !env.EMBEDDING_API_KEY) {
       ctx.addIssue({
         code: "custom",
         path: ["EMBEDDING_API_KEY"],
         message: `Required when EMBEDDING_PROVIDER is "${env.EMBEDDING_PROVIDER}".`,
+      });
+    }
+
+    if (
+      env.ASSISTANT_PROVIDER !== "none" &&
+      env.ASSISTANT_PROVIDER !== "fake" &&
+      !env.ASSISTANT_API_KEY
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["ASSISTANT_API_KEY"],
+        message: `Required when ASSISTANT_PROVIDER is "${env.ASSISTANT_PROVIDER}".`,
       });
     }
   });
@@ -190,6 +228,14 @@ export class Env {
     return Env.parsed.WORKER_MAIL_RATE_PER_MINUTE;
   }
 
+  public static get assistantConcurrency(): number {
+    return Env.parsed.WORKER_ASSISTANT_CONCURRENCY;
+  }
+
+  public static get assistantRatePerMinute(): number {
+    return Env.parsed.WORKER_ASSISTANT_RATE_PER_MINUTE;
+  }
+
   public static get eventConcurrency(): number {
     return Env.parsed.WORKER_EVENT_CONCURRENCY;
   }
@@ -223,6 +269,7 @@ export class Env {
         cacheUrl: e.REDIS_CACHE_URL,
         queueUrl: e.REDIS_QUEUE_URL,
         ...(e.REDIS_REALTIME_URL ? { realtimeUrl: e.REDIS_REALTIME_URL } : {}),
+        ...(e.REDIS_ASSISTANT_URL ? { assistantUrl: e.REDIS_ASSISTANT_URL } : {}),
       },
       storage: {
         endpoint: e.S3_ENDPOINT,
@@ -233,11 +280,29 @@ export class Env {
         forcePathStyle: e.S3_FORCE_PATH_STYLE,
       },
       email: { url: e.SMTP_URL, from: e.EMAIL_FROM, baseUrl: e.APP_BASE_URL },
+      ...(e.VAPID_PUBLIC_KEY && e.VAPID_PRIVATE_KEY && e.VAPID_SUBJECT
+        ? {
+            push: {
+              publicKey: e.VAPID_PUBLIC_KEY,
+              privateKey: e.VAPID_PRIVATE_KEY,
+              subject: e.VAPID_SUBJECT,
+            },
+          }
+        : {}),
       embedding: {
         provider: e.EMBEDDING_PROVIDER,
         dimensions: e.EMBEDDING_DIMENSIONS,
         ...(e.EMBEDDING_API_KEY ? { apiKey: e.EMBEDDING_API_KEY } : {}),
         ...(e.EMBEDDING_MODEL ? { model: e.EMBEDDING_MODEL } : {}),
+      },
+      assistant: {
+        provider: e.ASSISTANT_PROVIDER,
+        ...(e.ASSISTANT_API_KEY ? { apiKey: e.ASSISTANT_API_KEY } : {}),
+        ...(e.ASSISTANT_MODEL ? { model: e.ASSISTANT_MODEL } : {}),
+        ...(e.ASSISTANT_ENDPOINT ? { endpoint: e.ASSISTANT_ENDPOINT } : {}),
+        maxOutputTokens: e.ASSISTANT_MAX_OUTPUT_TOKENS,
+        orgDailyTokens: e.ASSISTANT_ORG_DAILY_TOKENS,
+        fakeDelayMs: e.ASSISTANT_FAKE_DELAY_MS,
       },
       realtime: {
         maxStreamsPerUser: e.REALTIME_MAX_STREAMS_PER_USER,

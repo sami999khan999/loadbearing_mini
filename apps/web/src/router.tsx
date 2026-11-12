@@ -15,6 +15,7 @@ import {
   MessageStore,
   StaticContentSource,
 } from "./import.js";
+import { LoaderError } from "./route/-loader-error.js";
 import { routeTree } from "./route-tree.gen.js";
 import { serverTransport } from "./server/rpc-transport.js";
 import { type AppearanceSnapshot, AppearanceStore } from "./store/appearance.store.js";
@@ -39,6 +40,9 @@ export interface RouterDehydrated {
 const transport = createIsomorphicFn()
   .client(() => ApiClient.overHttp(Endpoint.rpc, new CookieAuthStrategy(), Endpoint.realtime))
   .server(() => serverTransport());
+
+// Once, at module load: the route tree is shared, and the hook keeps no state.
+LoaderError.mapNotFound(routeTree);
 
 // Called per request on the server and once in the browser, which is the lifetime every
 // object below wants. A module-scope one would be a cross-tenant leak.

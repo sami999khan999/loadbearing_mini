@@ -41,11 +41,19 @@ export type {
 // `@loadbearing/query`.
 export { Identifiers } from "@loadbearing/contracts";
 
+// ── @loadbearing/errors ──────────────────────────────────────────────────────
+// `route/-loader-error.ts` only: a loader's `NOT_FOUND` becomes the router's not-found.
+export { ErrorNormalizer } from "@loadbearing/errors";
+
 // ── @loadbearing/feature ─────────────────────────────────────────────────────
 export {
   AccountPanel,
   ActiveSessionList,
   ApiKeyList,
+  AssistantQuestionForm,
+  AssistantThreadList,
+  AssistantThreadPanel,
+  AssistantUsagePanel,
   ChangeEmailForm,
   ChangePasswordForm,
   CreateApiKeyForm,
@@ -86,6 +94,7 @@ export {
   PlatformNav,
   PlatformStatusPanel,
   ProfileForm,
+  PushDeviceForm,
   ReplicaSwitchPanel,
   ResetPasswordForm,
   RoleList,
@@ -125,6 +134,7 @@ export {
 export {
   ApiClientProvider,
   ApiKeyQueries,
+  AssistantQueries,
   createQueryClient,
   DocQueries,
   MemberQueries,

@@ -2,11 +2,15 @@ const ACTIVITY_LOG = "activity_log";
 const OUTBOX_EVENT = "outbox_event";
 const NOTIFICATIONS = "notifications";
 const NOTIFICATION_PREFERENCES = "notification_preferences";
+const PUSH_SUBSCRIPTIONS = "push_subscriptions";
 const DOCUMENT_CHUNKS = "document_chunks";
 const DOC_SPACES = "doc_spaces";
 const DOC_PAGES = "doc_pages";
 const DOC_REVISION = "doc_revision";
 const DOC_SECTIONS = "doc_sections";
+const ASSISTANT_THREADS = "assistant_threads";
+const ASSISTANT_MESSAGES = "assistant_messages";
+const AI_USAGE = "ai_usage";
 
 // The column the table is ranged by. A closed union rather than `string`: it is inlined
 // into DDL and into every predicate that wants a partition pruned.
@@ -95,6 +99,33 @@ const ALL = Object.freeze([
     column: null,
     retentionMonths: null,
   }),
+  // The AI assistant (`AI.1`). A thread spans months, so it takes no month level; its
+  // messages and the usage meter grow with use. A year of answers; two of usage, for billing.
+  Object.freeze({
+    name: ASSISTANT_THREADS,
+    tenantKey: "organization_id",
+    column: null,
+    retentionMonths: null,
+  }),
+  Object.freeze({
+    name: ASSISTANT_MESSAGES,
+    tenantKey: "organization_id",
+    column: "created_at",
+    retentionMonths: 12,
+  }),
+  Object.freeze({
+    name: AI_USAGE,
+    tenantKey: "organization_id",
+    column: "created_at",
+    retentionMonths: 25,
+  }),
+  // A browser per person (`26.3`): it grows with the tenant's devices, never with the calendar.
+  Object.freeze({
+    name: PUSH_SUBSCRIPTIONS,
+    tenantKey: "organization_id",
+    column: null,
+    retentionMonths: null,
+  }),
 ] as const) satisfies readonly PartitionedTableEntry[];
 
 // A closed union rather than `string`: Postgres accepts no bind parameters in DDL, so
@@ -129,11 +160,15 @@ export class PartitionedTable {
   public static readonly OUTBOX_EVENT = OUTBOX_EVENT;
   public static readonly NOTIFICATIONS = NOTIFICATIONS;
   public static readonly NOTIFICATION_PREFERENCES = NOTIFICATION_PREFERENCES;
+  public static readonly PUSH_SUBSCRIPTIONS = PUSH_SUBSCRIPTIONS;
   public static readonly DOCUMENT_CHUNKS = DOCUMENT_CHUNKS;
   public static readonly DOC_SPACES = DOC_SPACES;
   public static readonly DOC_PAGES = DOC_PAGES;
   public static readonly DOC_REVISION = DOC_REVISION;
   public static readonly DOC_SECTIONS = DOC_SECTIONS;
+  public static readonly ASSISTANT_THREADS = ASSISTANT_THREADS;
+  public static readonly ASSISTANT_MESSAGES = ASSISTANT_MESSAGES;
+  public static readonly AI_USAGE = AI_USAGE;
 
   public static readonly ALL = ALL;
 

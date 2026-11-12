@@ -33,6 +33,8 @@ export interface ContainerConfig {
     // Live frames. Absent means the cache instance, which is the right default until
     // fan-out is heavy enough to compete with session reads.
     readonly realtimeUrl?: string;
+    // The assistant's answer logs. Absent means the realtime instance, then the cache's.
+    readonly assistantUrl?: string;
   };
   readonly storage: {
     readonly endpoint: string;
@@ -74,6 +76,13 @@ export interface ContainerConfig {
     // Better Auth's own: the worker sends invitation mail and has no auth config at all.
     readonly baseUrl: string;
   };
+  // VAPID keys for web push (`26.3`). Absent, the settings page offers no push and a
+  // `push` preference reaches nobody; both keys are generated once and kept.
+  readonly push?: {
+    readonly publicKey: string;
+    readonly privateKey: string;
+    readonly subject: string;
+  };
   // `none` is lexical search over the chunk text and no outbound call. The other two need
   // a key, and a model defaults per provider when unset. See docs/reference/container.md.
   readonly embedding: {
@@ -91,6 +100,22 @@ export interface ContainerConfig {
     readonly streamMaxAgeSeconds: number;
   };
   // ── the swappable stores ───────────────────────────────────────────────────
+  // The AI assistant's chat model (`AI.1`). Absent or `none` builds no model, and the
+  // feature is off. See packages/infrastructure/docs/reference/assistant.md.
+  readonly assistant?: {
+    readonly provider: "none" | "fake" | "openai" | "openrouter" | "gemini";
+    readonly apiKey?: string;
+    readonly model?: string;
+    readonly endpoint?: string;
+    // The longest an answer may run, in tokens. The prompt is budgeted around it.
+    readonly maxOutputTokens?: number;
+    // One organization's tokens a UTC day; zero or absent is no cap.
+    readonly orgDailyTokens?: number;
+    // How many answers one person may have generating at once.
+    readonly activePerUser?: number;
+    // `fake` only: a pause between words, so a load test or a walk sees a stream move.
+    readonly fakeDelayMs?: number;
+  };
   // One block, naming the `driver` the container switches on. Lite has no analytics or log
   // store, so no second or third. See docs/reference/container.md.
   readonly vector: {

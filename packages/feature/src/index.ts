@@ -23,6 +23,15 @@ export {
   useApiKeyFailure,
 } from "./apikey/index.js";
 export {
+  AssistantQuestionForm,
+  type AssistantQuestionFormProps,
+  AssistantThreadList,
+  type AssistantThreadListProps,
+  AssistantThreadPanel,
+  type AssistantThreadPanelProps,
+  AssistantUsagePanel,
+} from "./assistant/index.js";
+export {
   ForgotPasswordForm,
   type ForgotPasswordFormProps,
   ResetPasswordForm,
@@ -101,6 +110,7 @@ export {
   NotificationPeek,
   type NotificationPeekProps,
   NotificationPreferenceForm,
+  PushDeviceForm,
 } from "./notification/index.js";
 export {
   CreateOrganizationForm,

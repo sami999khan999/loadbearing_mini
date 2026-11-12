@@ -69,6 +69,10 @@ refuses the pair at boot rather than failing on the first document. See
 [`composition/docs/reference/container.md`](../../../../packages/composition/docs/reference/container.md)
 and [embedding](../../../../packages/infrastructure/docs/reference/embedding.md).
 
+`ASSISTANT_PROVIDER` picks the AI assistant's chat model the same way, and a provider other than
+`none` or `fake` makes `ASSISTANT_API_KEY` required. See
+[assistant](../../../../packages/infrastructure/docs/reference/assistant.md).
+
 ## Logging
 
 The same block the web app parses. A worker with no log output is a worker you cannot operate. Logs

@@ -14,4 +14,18 @@ export const aiPermissions = {
     module: "ai",
     label: "Search indexed documents",
   },
+  // Not `requires` either search key: what it answers from is checked per source, so a
+  // plan can sell the assistant without the index, and the other way round.
+  "ai.assistant.use": {
+    scope: "org",
+    module: "ai",
+    label: "Ask the assistant about what you can read",
+  },
+  // An administrator's view of the tenant's own spend. Not `requires` the use key: who
+  // watches the meter need not ask questions.
+  "ai.usage.read": {
+    scope: "org",
+    module: "ai",
+    label: "View the organization's assistant usage",
+  },
 } as const satisfies Record<string, PermissionMeta>;

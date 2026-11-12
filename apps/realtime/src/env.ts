@@ -25,6 +25,8 @@ const Schema = z
     REDIS_QUEUE_URL: z.url(),
     // Live frames; the cache instance when unset. See docs/infra/reference/redis.md.
     REDIS_REALTIME_URL: z.url().optional(),
+    // The assistant's answer logs; the realtime instance when unset, then the cache's.
+    REDIS_ASSISTANT_URL: z.url().optional(),
 
     S3_ENDPOINT: z.url(),
     S3_REGION: z.string().min(1),
@@ -209,6 +211,7 @@ export class Env {
         cacheUrl: e.REDIS_CACHE_URL,
         queueUrl: e.REDIS_QUEUE_URL,
         ...(e.REDIS_REALTIME_URL ? { realtimeUrl: e.REDIS_REALTIME_URL } : {}),
+        ...(e.REDIS_ASSISTANT_URL ? { assistantUrl: e.REDIS_ASSISTANT_URL } : {}),
       },
       storage: {
         endpoint: e.S3_ENDPOINT,

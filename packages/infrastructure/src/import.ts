@@ -47,6 +47,24 @@ export {
   type ApiKeySummary,
   type ArchivedObject,
   type ArchivedPartition,
+  AssistantBudgetStore,
+  type AssistantDelta,
+  type AssistantFrameBody,
+  type AssistantMessageRecord,
+  type AssistantMessageRepository,
+  AssistantModel,
+  type AssistantRequest,
+  type AssistantSettlement,
+  type AssistantSource,
+  type AssistantStopReason,
+  AssistantStreamPublisher,
+  AssistantStreamSubscriber,
+  type AssistantThreadCursor,
+  type AssistantThreadRecord,
+  type AssistantThreadRepository,
+  type AssistantUsageRecord,
+  type AssistantUsageRepository,
+  type AssistantUsageTotal,
   CacheStore,
   type CancellationSignal,
   type CapabilityExplanation,
@@ -69,6 +87,7 @@ export {
   type DocRevisionSummaryRecord,
   DocRules,
   type DocSearchMatch,
+  type DocSectionRecord,
   type DocSpaceFields,
   type DocSpaceRecord,
   type DocSpaceRepository,
@@ -131,6 +150,11 @@ export {
   // A value, not a type: the founder and the invitation claimer construct one to write
   // an audit row as the tenant being created or joined.
   Principal,
+  type PushPayload,
+  PushSender,
+  type PushSubscriptionRecord,
+  type PushSubscriptionRepository,
+  type PushTarget,
   type QueueControlGateway,
   type QueueCounts,
   type QueuedJob,
@@ -185,6 +209,8 @@ export type { Locale } from "@loadbearing/content";
 export {
   type ActivityAction,
   type ApiKeyId,
+  AssistantContract,
+  type AssistantFrame,
   type DocAccessRuleDto,
   type DocGrantKind,
   type DocNavNodeDto,
@@ -300,10 +326,8 @@ export type { Nodes as MdastNodes, Root as MdastRoot } from "mdast";
 // Its types ship separately and are pinned to the same major: a `@types/nodemailer` a
 // major behind describes a `sendMail` that is *almost* the one being called.
 export { createTransport, type Transporter } from "nodemailer";
-
 // ── pg ───────────────────────────────────────────────────────────────────────
 export { Pool } from "pg";
-
 // ── rehype · remark · unified ────────────────────────────────────────────────
 // The doc renderer's pipeline. Named here once, so a swap of Markdown library is this
 // block and `src/unified/`, and nothing else.
@@ -321,3 +345,6 @@ export { default as remarkParse } from "remark-parse";
 export { default as remarkRehype } from "remark-rehype";
 export { unified } from "unified";
 export { visit } from "unist-util-visit";
+// ── web-push ─────────────────────────────────────────────────────────────────
+// CommonJS with no named exports Node can see, so the default object; types pinned to 3.x.
+export { default as webPush } from "web-push";

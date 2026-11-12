@@ -26,6 +26,7 @@ export {
   RecordingMaintenanceGateway,
 } from "./recording-maintenance.gateway.js";
 export { RecordingPartitionArchiveGateway } from "./recording-partition-archive.gateway.js";
+export { RecordingPushSender } from "./recording-push.sender.js";
 export { type PublishedJob, RecordingQueuePublisher } from "./recording-queue.publisher.js";
 export {
   type PublishedFrame,
@@ -33,6 +34,7 @@ export {
 } from "./recording-realtime.publisher.js";
 export { RecordingRelayedActivityStore } from "./recording-relayed-activity.store.js";
 export { RecordingSessionGateway } from "./recording-session.gateway.js";
+export { ScriptedAssistantModel } from "./scripted-assistant.model.js";
 export { StubEmbeddingProvider } from "./stub-embedding.provider.js";
 export { StubMailRenderer } from "./stub-mail.renderer.js";
 export { StubMarkdownRenderer } from "./stub-markdown.renderer.js";

@@ -19,6 +19,13 @@ export class RealtimeRoutes {
       request(QueryKeys.notification.unreadCount());
       request(QueryKeys.notification.lists());
     },
+    // An answer settled, maybe in another tab: the list's order moved, and the thread holds it.
+    "assistant.changed": (request, payload) => {
+      request(QueryKeys.assistant.lists());
+      request(
+        payload.threadId ? QueryKeys.assistant.get(payload.threadId) : QueryKeys.assistant.all(),
+      );
+    },
   });
 
   public static apply(request: Request, name: RealtimeEventName, payload: Payload): void {

@@ -36,6 +36,22 @@ export class NotificationProcedures {
     .input(NotificationContract.preferenceUpdate)
     .output(Envelope.acknowledged);
 
+  // The VAPID public key a browser subscribes with (`26.3`).
+  public static readonly pushKey = oc
+    .route({ method: "GET", path: "/notifications/push/key" })
+    .output(NotificationContract.pushKey);
+
+  // This device, for the signed-in person in the active tenant. Saving one twice is one row.
+  public static readonly pushSubscribe = oc
+    .route({ method: "POST", path: "/notifications/push/subscriptions" })
+    .input(NotificationContract.pushSubscription)
+    .output(Envelope.acknowledged);
+
+  public static readonly pushUnsubscribe = oc
+    .route({ method: "POST", path: "/notifications/push/subscriptions/remove" })
+    .input(NotificationContract.pushEndpoint)
+    .output(Envelope.acknowledged);
+
   // The object the merge point in `procedure/index.ts` mounts. One place to add a
   // procedure to, rather than two.
   public static readonly all = {
@@ -45,5 +61,8 @@ export class NotificationProcedures {
     markAllRead: NotificationProcedures.markAllRead,
     preferences: NotificationProcedures.preferences,
     updatePreference: NotificationProcedures.updatePreference,
+    pushKey: NotificationProcedures.pushKey,
+    pushSubscribe: NotificationProcedures.pushSubscribe,
+    pushUnsubscribe: NotificationProcedures.pushUnsubscribe,
   } as const;
 }

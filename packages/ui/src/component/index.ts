@@ -28,6 +28,7 @@ export { EmptyState, type EmptyStateProps } from "./empty-state/index.js";
 export { Field, type FieldProps, fieldClassName } from "./field/index.js";
 export { Icon, type IconName, type IconProps, IconRegistry } from "./icon/index.js";
 export { Input, type InputProps, inputClassName, textareaClassName } from "./input/index.js";
+export { MarkdownText, type MarkdownTextProps } from "./markdown-text/index.js";
 export { Menu, type MenuOption, type MenuProps } from "./menu/index.js";
 export {
   type LinkAttributes,

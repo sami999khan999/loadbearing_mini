@@ -37,6 +37,8 @@ function harness(redisClose: () => Promise<void> = () => Promise.resolve()) {
   const logger = { emit: vi.fn(), failure: vi.fn() };
   const container = {
     ...TestContainer.build(),
+    // No model, so the registry builds no `assistant` lane, as a deployment without one.
+    assistant: { generate: null },
     logger,
     dispose: vi.fn(async () => undefined),
   } as unknown as Container;

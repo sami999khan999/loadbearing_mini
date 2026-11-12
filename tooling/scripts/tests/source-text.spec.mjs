@@ -64,6 +64,14 @@ describe("withoutComments", () => {
 });
 
 describe("topLevelAwait", () => {
+  // `"\0"` once lost its second half to the comment pass and read as `"\"`, an open string
+  // that paired every quote after it with the wrong one.
+  it("is not thrown off by an escape inside a string", () => {
+    const source = 'join("\\0");\nclass A {\n  // it\'s\n  async f() {\n    await g();\n  }\n}\n';
+    expect(withoutComments(source)).toContain('join("\\0")');
+    expect(topLevelAwait(source)).toBeNull();
+  });
+
   it("finds one at column zero", () => {
     expect(topLevelAwait("await init();\n")).toBe(1);
   });

@@ -19,10 +19,12 @@ import {
   RecordingMailPublisher,
   RecordingMaintenanceGateway,
   RecordingPartitionArchiveGateway,
+  RecordingPushSender,
   RecordingQueuePublisher,
   RecordingRealtimePublisher,
   RecordingRelayedActivityStore,
   RecordingSessionGateway,
+  ScriptedAssistantModel,
   StubEmbeddingProvider,
   StubMailRenderer,
   StubMarkdownRenderer,
@@ -30,6 +32,7 @@ import {
 } from "../fake/index.js";
 import {
   type ActivityLogger,
+  type AssistantModel,
   Authorizer,
   type CacheStore,
   type CapabilityInvalidator,
@@ -47,6 +50,7 @@ import {
   type OutboxGateway,
   type PartitionArchiveGateway,
   type Principal,
+  type PushSender,
   type QueuePublisher,
   type RateLimitStore,
   type RealtimePublisher,
@@ -72,6 +76,7 @@ import { OrganizationShardingStrategy } from "../shard/index.js";
 // a compile error here until it is written.
 export interface TestPorts {
   readonly activity: ActivityLogger;
+  readonly assistantModel: AssistantModel;
   readonly relayedActivity: RelayedActivityStore;
   readonly cache: CacheStore;
   readonly rateLimits: RateLimitStore;
@@ -82,6 +87,7 @@ export interface TestPorts {
   readonly embeddings: EmbeddingProvider;
   readonly mailPublisher: MailPublisher;
   readonly mailRenderer: MailRenderer;
+  readonly pushSender: PushSender;
   readonly markdownRenderer: MarkdownRenderer;
   readonly maintenance: MaintenanceGateway;
   readonly organizations: OrganizationReader;
@@ -134,6 +140,7 @@ export class TestContainer {
       eachShard: (work) => work(0),
 
       activity: overrides.activity ?? new RecordingActivityLogger(),
+      assistantModel: overrides.assistantModel ?? new ScriptedAssistantModel(),
       relayedActivity: overrides.relayedActivity ?? new RecordingRelayedActivityStore(),
       cache: overrides.cache ?? new InMemoryCacheStore(),
       rateLimits: overrides.rateLimits ?? new InMemoryRateLimitStore(),
@@ -146,6 +153,7 @@ export class TestContainer {
       embeddings: overrides.embeddings ?? new StubEmbeddingProvider(),
       mailPublisher: overrides.mailPublisher ?? new RecordingMailPublisher(),
       mailRenderer: overrides.mailRenderer ?? new StubMailRenderer(),
+      pushSender: overrides.pushSender ?? new RecordingPushSender(),
       markdownRenderer: overrides.markdownRenderer ?? new StubMarkdownRenderer(),
       maintenance: overrides.maintenance ?? new RecordingMaintenanceGateway(),
       organizations: overrides.organizations ?? new InMemoryOrganizationReader(),

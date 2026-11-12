@@ -29,6 +29,34 @@
       "when": 1790885516040,
       "tag": "0003_doc_access",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794331653587,
+      "tag": "0004_assistant",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794331797916,
+      "tag": "0005_assistant_grants",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794332317012,
+      "tag": "0006_assistant_usage_grants",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794431234001,
+      "tag": "0007_push_subscriptions",
+      "breakpoints": true
     }
   ]
 }

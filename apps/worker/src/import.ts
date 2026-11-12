@@ -6,6 +6,7 @@
 // constructs a user's.
 export {
   type ArchivedPartition,
+  type GenerateAssistantAnswerJob,
   type IndexDocumentJob,
   PartitionedTable,
   type PartitionedTableEntry,

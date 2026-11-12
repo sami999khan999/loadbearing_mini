@@ -1,5 +1,6 @@
 import type { PermissionKey } from "../import.js";
 import { apiKeyProcedurePermissions } from "./apikey.permissions.js";
+import { assistantProcedurePermissions } from "./assistant.permissions.js";
 import { docProcedurePermissions } from "./doc.permissions.js";
 import { documentProcedurePermissions } from "./document.permissions.js";
 import { memberProcedurePermissions } from "./member.permissions.js";
@@ -21,6 +22,7 @@ export const PROCEDURE_PERMISSIONS: Readonly<Record<string, PermissionKey>> = {
   ...platformProcedurePermissions,
   ...overrideProcedurePermissions,
   ...docProcedurePermissions,
+  ...assistantProcedurePermissions,
 };
 
 export { ACTIVITY_ACTIONS } from "./activity-actions.js";

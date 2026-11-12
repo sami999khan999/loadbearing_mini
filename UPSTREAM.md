@@ -34,6 +34,8 @@ from the right place.
 | 2026-10-10 | The four left open by the review, `docs/plans/BACKLOG.md` §4: editor leave guard, credential mail retention, export image links, enrolment lock-outs | big kit `dev`, `7ddc6f96..305447b7` |
 | 2026-10-10 | The final check's shared fixes, `docs/plans/BACKLOG.md` §5 | big kit `dev`, `4f20464e..4da4c583`, `04bba7c4` |
 | 2026-10-10 | Security headers, the web connection budget and the https `AUTH_URL` rule, `docs/plans/BACKLOG.md` §5 | big kit `dev`, `0a505ac7..3086f6c7` |
+| 2026-11-11 | The AI Assistant, its org usage meter and the loader 404s, [`docs/plans/AI-CHAT-PLAN.md`](docs/plans/AI-CHAT-PLAN.md) | big kit `dev`, `96377dae..9fb0c6c7`, without the ClickHouse report |
+| 2026-11-12 | Web push, `docs/plans/BACKLOG.md` §7, and the comment-pass escape fix | big kit `dev`, `664cc7e4..16ad5fb3`, `ef77091a` |
 
 ## Added in lite, owed to the big kit
 

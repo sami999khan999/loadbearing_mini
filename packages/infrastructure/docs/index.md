@@ -55,8 +55,14 @@ packages/infrastructure/
     ├── bullmq/    bullmq-queue.publisher.ts → BullMqQueuePublisher
     ├── smtp/      smtp-email.sender.ts     → SmtpEmailSender
     ├── unified/   unified-markdown.renderer.ts → UnifiedMarkdownRenderer
+    ├── canned/    canned-assistant.model.ts → CannedAssistantModel
     ├── gemini/    gemini-embedding.provider.ts → GeminiEmbeddingProvider
+    │              gemini-assistant.model.ts → GeminiAssistantModel
+    ├── sse/       server-sent-event.reader.ts → ServerSentEventReader
+    │              server-sent-event.request.ts → ServerSentEventRequest
+    │              stream-watch.ts          → StreamWatch
     └── openai/    openai-embedding.provider.ts → OpenAiEmbeddingProvider
+                   openai-assistant.model.ts → OpenAiAssistantModel
 ```
 
 **The runnable scripts sit above `src/`.** A script inside a folder makes that folder's barrel
@@ -234,6 +240,8 @@ guessing one.
 - [Enrollers, the founder, and the claimer](reference/enrollers.md) — the advisory locks, the races
   they protect against, and why every one of them binds structurally.
 - [Embedding](reference/embedding.md) — `none`, `openai` or `gemini`, lexical search, and what a provider switch does to the corpus
+- [Assistant models](reference/assistant.md) — OpenAI, OpenRouter, Gemini and the canned fake behind
+  `AssistantModel`: the stream, the two timeouts, and what a failure is
 - [pgvector](reference/pgvector.md) — the permission filter on the input set, the score floor, and
   the `ORDER BY` that stops the index being used.
 - [Partitions](reference/partitions.md) — the allowlist as the whole policy, the two mechanics that

@@ -26,6 +26,9 @@ export const coreEvents = {
   // The sum of what the consumers that actually started will run concurrently, against
   // the pool they share. Once at boot.
   "worker.pool.oversubscribed": { level: "warn" },
+  // A chat model request that failed or timed out, before or during its stream. The
+  // reason the vendor gave never reaches this line: it may echo the prompt.
+  "assistant.request.failed": { level: "warn" },
 
   // Do not alert on `ensured.created == 0` — that is the steady state, because the runway
   // is already three months deep. `partition.runway.low` is the signal.

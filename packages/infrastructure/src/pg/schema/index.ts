@@ -1,6 +1,7 @@
 export * from "./activity.schema.js";
 export * from "./api-key.schema.js";
 export * from "./archive.schema.js";
+export * from "./assistant.schema.js";
 export * from "./auth.schema.js";
 export * from "./doc.schema.js";
 export * from "./doc-grant.schema.js";

@@ -25,6 +25,16 @@ export const notification = {
   "notification.preference.category.membership": "সদস্য ও ভূমিকা",
   "notification.preference.channel.in_app": "অ্যাপে",
   "notification.preference.channel.email": "ইমেলে",
+  "notification.preference.channel.push": "এই ডিভাইসে",
+  "notification.push.title": "এই ডিভাইসে পুশ",
+  "notification.push.description":
+    "ট্যাব বন্ধ থাকলেও এই ব্রাউজার থেকে সতর্কবার্তা। যে ব্রাউজারে চান সেখানে চালু করুন।",
+  "notification.push.enable": "পুশ চালু করুন",
+  "notification.push.disable": "পুশ বন্ধ করুন",
+  "notification.push.on": "এই ব্রাউজারে পুশ চালু আছে।",
+  "notification.push.unsupported": "এই ব্রাউজার পুশ নোটিফিকেশন পেতে পারে না।",
+  "notification.push.denied":
+    "পুশের অনুমতি দেওয়া হয়নি। ব্রাউজারে এই সাইটের নোটিফিকেশন চালু করে আবার চেষ্টা করুন।",
   "notification.preference.mode.immediate": "সঙ্গে সঙ্গে",
   "notification.preference.mode.digest": "দিনে একবার",
   "notification.preference.mode.off": "বন্ধ",

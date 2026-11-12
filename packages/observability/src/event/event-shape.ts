@@ -51,6 +51,11 @@ export interface EventShape {
   // The driver's own text. There is no code to normalise against — this is a socket that
   // died, not a query that failed.
   readonly "database.pool.error": { readonly message: string };
+  readonly "assistant.request.failed": {
+    readonly dependency: string;
+    readonly model: string;
+    readonly status: number;
+  };
   readonly "worker.pool.oversubscribed": {
     readonly concurrency: number;
     readonly poolMax: number;
@@ -65,6 +70,8 @@ export interface EventShape {
     readonly adjustments: number;
     // Per-person grants past their expiry, removed and audited the same way.
     readonly overrides: number;
+    // Assistant answers a worker stopped streaming and never settled, now `failed`.
+    readonly staleAnswers: number;
   };
   readonly "maintenance.partitions.ensured": {
     readonly table: string;

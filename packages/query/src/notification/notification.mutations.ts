@@ -6,6 +6,7 @@ import type {
 } from "../import.js";
 import { QueryKeys } from "../key/index.js";
 import { useAppMutation } from "../runtime/index.js";
+import { PUSH_WORKER } from "./notification.queries.js";
 
 // Derived, never restated: the envelope is inferred per procedure, and a local interface
 // that drifted from it would be written back into the cache by `setQueryData`.
@@ -59,5 +60,51 @@ export class NotificationMutations {
       mutationFn: (input) => client.notification.updatePreference(input),
       invalidates: [QueryKeys.notification.preferences()],
     });
+  }
+
+  // Register the worker, ask the browser for permission and a subscription, and hand it to
+  // the server (`26.3`). A refused permission throws, and nothing reaches the server.
+  public static useEnablePush(client: ApiClient) {
+    return useAppMutation<{ ok: true }, { readonly publicKey: string }>({
+      mutationFn: async ({ publicKey }) => {
+        const registration = await navigator.serviceWorker.register(PUSH_WORKER);
+        await navigator.serviceWorker.ready;
+        if ((await Notification.requestPermission()) !== "granted") throw new Error("FORBIDDEN");
+        const subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: NotificationMutations.keyBytes(publicKey),
+        });
+        const json = subscription.toJSON();
+        return client.notification.pushSubscribe({
+          endpoint: subscription.endpoint,
+          keys: { p256dh: json.keys?.p256dh ?? "", auth: json.keys?.auth ?? "" },
+        });
+      },
+      invalidates: [QueryKeys.notification.pushDevice()],
+    });
+  }
+
+  // The server's row first, so a browser that fails to unsubscribe is still never pushed.
+  public static useDisablePush(client: ApiClient) {
+    return useAppMutation<{ ok: true }, undefined>({
+      mutationFn: async () => {
+        const registration = await navigator.serviceWorker.getRegistration(PUSH_WORKER);
+        const subscription = await registration?.pushManager.getSubscription();
+        if (!subscription) return { ok: true as const };
+        await client.notification.pushUnsubscribe({ endpoint: subscription.endpoint });
+        await subscription.unsubscribe();
+        return { ok: true as const };
+      },
+      invalidates: [QueryKeys.notification.pushDevice()],
+    });
+  }
+
+  // The VAPID key is base64url; `subscribe` wants the bytes.
+  private static keyBytes(key: string): Uint8Array<ArrayBuffer> {
+    const base64 = key
+      .replace(/-/g, "+")
+      .replace(/_/g, "/")
+      .padEnd(Math.ceil(key.length / 4) * 4, "=");
+    return Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
   }
 }

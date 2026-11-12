@@ -76,3 +76,9 @@ port 23000, mail in Mailpit on 28025, with the worker running.
 - [~] AI search in all three modes from `LT4`. With `none` there are no outbound calls.
       2026-10-10: `none` passed. `openai` and `gemini` wait for real keys.
 - [x] A notification arrives in realtime. 2026-10-10: the bell rose with no reload.
+- [ ] The Assistant in a browser, with `ASSISTANT_PROVIDER=fake` and `ASSISTANT_FAKE_DELAY_MS`
+      set: send, the stream moving, Stop, reload mid-answer, two tabs, rename, delete, both
+      locales, keyboard only, and the usage meter for an admin but not a member.
+      2026-11-11: checked over HTTP only, as `admin@example.test`.
+- [ ] The Assistant against a real provider, once per `openai`, `openrouter` and `gemini`, with
+      keys from the owner.

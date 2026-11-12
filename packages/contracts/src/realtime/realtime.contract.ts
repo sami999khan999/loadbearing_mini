@@ -2,7 +2,7 @@ import { z } from "../import.js";
 
 // What the browser receives, so the union is closed and the client's routing table is
 // total over it: a name with no route is a compile error rather than a dropped frame.
-const eventName = z.enum(["member.changed", "notification.created"]);
+const eventName = z.enum(["member.changed", "notification.created", "assistant.changed"]);
 
 export type RealtimeEventName = z.infer<typeof eventName>;
 
@@ -20,6 +20,8 @@ export class RealtimeContract {
       // Ids a client may dedupe or narrow a refetch by, never data to render. Unknown keys
       // are stripped, so a publisher one deploy ahead still parses.
       payload: z.object({
+        messageId: z.uuid().optional(),
+        threadId: z.uuid().optional(),
         kind: z.string().optional(),
       }),
     }),

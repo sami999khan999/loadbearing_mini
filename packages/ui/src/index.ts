@@ -46,6 +46,8 @@ export {
   type InputProps,
   inputClassName,
   type LinkAttributes,
+  MarkdownText,
+  type MarkdownTextProps,
   Menu,
   type MenuOption,
   type MenuProps,
