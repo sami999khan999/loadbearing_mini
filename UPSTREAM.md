@@ -23,7 +23,6 @@ from the right place.
 | Retention, cold storage | partitions are kept, never archived | [Retention](docs/scale/retention.md) |
 | Loki, Alloy | logs to stdout only | [Logs](docs/scale/logs.md) |
 | Tenant moves, extra shard nodes | routing kept, running node 0 only | [Shard nodes](docs/scale/shard-nodes.md) |
-| Messaging | not selected | [Messaging](docs/scale/messaging.md) |
 | Widgets and zones | not selected; the dashboard is static | [Widgets and zones](docs/scale/widgets.md) |
 
 ## Ported back since the cut
@@ -40,6 +39,7 @@ from the right place.
 | 2026-11-12 | Five fixes from the big kit's browser walk, `docs/plans/BACKLOG.md` §8 | big kit `dev`, `67567aae..876fa6bd` |
 | 2026-11-12 | `WK.3`, `WK.5`, `WK.6` and the `Select` placeholder, `docs/plans/BACKLOG.md` §8 | big kit `dev`, `718592db`, `0af8dd19`, `6edd4fec` |
 | 2026-11-12 | `WK.7`, the sidebar shell, `docs/plans/BACKLOG.md` §8 | big kit `dev`, `48e1e311..54b269f8` |
+| 2026-11-12 | Messaging, at the big kit's parity: threads, reactions, files, presence, typing, mentions and grouped notifications, `docs/plans/BACKLOG.md` §9. Not `26.4`: lite keeps every message month | big kit `dev`, as of `fe7382e8` |
 
 ## Added in lite, owed to the big kit
 

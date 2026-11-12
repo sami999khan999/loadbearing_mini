@@ -225,3 +225,19 @@ Closed 2026-11-12 with the big kit's fixes: `WK.3` a status line says "Saving…
 saved." (`36a21d5`); `WK.5` focus moves to the grant panel's heading after a revoke, and `WK.6`
 target and reason carry `required`, the hint starting "Required." (`90c80c9`, `47760da`). The
 `Select` placeholder from the big kit's `WK.2` came too (`3ad33e8`).
+
+## 9. Messaging back, 2026-11-12
+
+Lite cut messaging at `LT1.1`. The owner asked for it back at the big kit's parity, so
+`LT1.1`'s own edits were reversed and the big kit's current slice copied over them: threads,
+reactions, attachments, presence from stream leases, typing, mentions, grouped notifications
+and the digest's per-kind lines, with the batched principal re-read the conversation stream's
+revalidation needs. Migrations `0008_messaging` (five tables, `PARTITION BY LIST`, and the
+notifications' `count` and `last_event_id`) and `0009_messaging_grants`. The big kit's `26.4`
+is not here: lite has no cold storage and keeps every message month, decided with the owner.
+
+- [x] `BL.26` **Messaging, at the big kit's parity.** Proof: `pnpm test` at 2,291, smoke 32,
+  `check:architecture` 31/31. Walked: bob started a direct message from the inbox's form, sent,
+  reacted, replied in a thread and sent a file; carol's bell held one grouped item counting four.
+- [ ] `BL.27` **Walk the rest by hand:** presence and typing across two browsers, a mention in a
+  group notifying only the person named, and push for a message.
