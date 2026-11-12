@@ -92,9 +92,18 @@ describe("ContentMailRenderer", () => {
       name: "Ada",
       organization: "Acme",
       url: "/notifications",
+      lines: [
+        { kind: "message.received", count: 2 },
+        { kind: "member.joined", count: 1 },
+      ],
+      preferencesUrl: "/settings/notifications",
     });
 
     expect(mail.html).toContain(`${BASE}/notifications`);
+    // `26.7`: what is waiting, by kind, and the way to turn the digest off.
+    expect(mail.text).toContain("- New messages: 2");
+    expect(mail.text).toContain("- People who joined: 1");
+    expect(mail.html).toContain(`href="${BASE}/settings/notifications"`);
   });
 
   // A caller that already knows the origin still passes one, and this must not double it.
@@ -119,7 +128,14 @@ const PARAMS: { readonly [K in MailTemplateKey]: MailTemplateParams<K> } = {
   "auth.otp": { code: "123456" },
   "member.invitation": { url: URL, inviter: "Ada", organization: "Acme" },
   "notification.single": { kind: "member.joined", name: "Ada", url: URL },
-  "notification.digest": { count: 3, name: "Ada", organization: "Acme", url: URL },
+  "notification.digest": {
+    count: 3,
+    name: "Ada",
+    organization: "Acme",
+    url: URL,
+    lines: [],
+    preferencesUrl: URL,
+  },
 };
 
 const renderOne = <K extends MailTemplateKey>(key: K) =>

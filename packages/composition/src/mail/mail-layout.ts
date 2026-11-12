@@ -9,6 +9,10 @@ export interface MailContent {
   // Absent for the one message that is not a link: rendering a second factor as a URL
   // makes it clickable on the wrong device.
   readonly action?: MailAction;
+  // Short lines set as a list, after the paragraphs: a digest's "what is waiting".
+  readonly list?: readonly string[];
+  // A small link under everything else, such as a digest's opt-out (`26.7`).
+  readonly footer?: MailAction;
 }
 
 // The one place in this repository allowed to write a literal colour, and the exemption
@@ -33,6 +37,8 @@ const STYLE = Object.freeze({
   paragraph: `margin:0 0 16px;font-size:15px;line-height:24px;color:${PALETTE.fg};`,
   button: `display:inline-block;padding:12px 20px;border-radius:6px;background-color:${PALETTE.primary};color:${PALETTE.primaryFg};font-size:15px;line-height:20px;font-weight:600;text-decoration:none;`,
   fallback: `margin:24px 0 0;font-size:13px;line-height:20px;color:${PALETTE.fgMuted};word-break:break-all;`,
+  list: `margin:0 0 16px;padding-left:20px;font-size:15px;line-height:24px;color:${PALETTE.fg};`,
+  footer: `margin:24px 0 0;font-size:13px;line-height:20px;color:${PALETTE.fgMuted};`,
 });
 
 // Tables rather than divs, and inline styles rather than a stylesheet: that is what a mail
@@ -56,7 +62,13 @@ export class MailLayout {
       `<tr><td>`,
       `<h1 style="${STYLE.heading}">${MailLayout.escape(content.heading)}</h1>`,
       paragraphs,
+      content.list?.length
+        ? `<ul style="${STYLE.list}">${content.list.map((item) => `<li>${MailLayout.escape(item)}</li>`).join("")}</ul>`
+        : "",
       content.action ? MailLayout.button(content.action) : "",
+      content.footer
+        ? `<p style="${STYLE.footer}"><a href="${MailLayout.escape(content.footer.url)}" style="color:${PALETTE.fgMuted};">${MailLayout.escape(content.footer.label)}</a></p>`
+        : "",
       `</td></tr></table></td></tr></table></body></html>`,
     ].join("");
   }
@@ -65,7 +77,9 @@ export class MailLayout {
   // how a `&amp;` ends up in a plain-text body and a URL stops working.
   public static text(content: MailContent): string {
     const blocks = [content.heading, ...content.paragraphs];
+    if (content.list?.length) blocks.push(content.list.map((item) => `- ${item}`).join("\n"));
     if (content.action) blocks.push(`${content.action.label}: ${content.action.url}`);
+    if (content.footer) blocks.push(`${content.footer.label}: ${content.footer.url}`);
 
     return `${blocks.join("\n\n")}\n`;
   }

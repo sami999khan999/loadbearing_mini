@@ -1,6 +1,7 @@
 import {
   type ActivityLogger,
   ActivityRelaySubscriber,
+  AddConversationMemberUseCase,
   AdjustEntitlementUseCase,
   ApiKeyResolver,
   AssignPlanUseCase,
@@ -24,8 +25,11 @@ import {
   ClearPermissionOverrideUseCase,
   type Clock,
   type ContentSource,
+  ConversationAccess,
+  ConversationNaming,
   CountUnreadNotificationsUseCase,
   CreateApiKeyUseCase,
+  CreateConversationUseCase,
   CreateDocPageUseCase,
   CreateDocSpaceUseCase,
   CreateRoleUseCase,
@@ -35,6 +39,7 @@ import {
   DeleteAssistantThreadUseCase,
   DeleteDocPageUseCase,
   DeleteDocSpaceUseCase,
+  DeleteMessageUseCase,
   DeleteOrganizationUseCase,
   DeletePlanUseCase,
   DeleteRoleUseCase,
@@ -52,6 +57,7 @@ import {
   DocTree,
   DocumentIndexPublisher,
   type DomainEventPublisher,
+  EditMessageUseCase,
   type EmailSender,
   ExpireEntitlementAdjustmentsUseCase,
   ExpirePermissionOverridesUseCase,
@@ -64,6 +70,8 @@ import {
   GenerateAssistantAnswerUseCase,
   GetAssistantThreadUseCase,
   GetAssistantUsageUseCase,
+  GetConversationPresenceUseCase,
+  GetConversationUseCase,
   GetDocPageUseCase,
   GetDocRevisionUseCase,
   GetDocSpaceUseCase,
@@ -82,8 +90,10 @@ import {
   InvitationClaimingEnroller,
   InviteMemberUseCase,
   JsonLogger,
+  LeaveConversationUseCase,
   ListApiKeysUseCase,
   ListAssistantThreadsUseCase,
+  ListConversationsUseCase,
   ListDocAccessOptionsUseCase,
   ListDocGrantsUseCase,
   ListDocPagesUseCase,
@@ -92,6 +102,7 @@ import {
   ListFlagsUseCase,
   ListInvitationsUseCase,
   ListMembersUseCase,
+  ListMessagesUseCase,
   ListModuleSwitchesUseCase,
   ListNotificationsUseCase,
   ListOrphanedDocSpacesUseCase,
@@ -101,21 +112,25 @@ import {
   ListRolesUseCase,
   ListTenantExportImagesUseCase,
   ListTenantExportsUseCase,
+  ListThreadUseCase,
   type Logger,
   type MailPublisher,
   type MailRenderer,
   type MaintenanceGateway,
   MarkAllNotificationsReadUseCase,
+  MarkConversationReadUseCase,
   type MarkdownRenderer,
   MarkNotificationReadUseCase,
   MemberRealtimeSubscriber,
   type MembershipEnroller,
   type MembershipReader,
+  MessagingRealtimeSubscriber,
   MoveDocPageUseCase,
   NotificationSubscriber,
   NullMembershipEnroller,
   OpenAiAssistantModel,
   OpenAiEmbeddingProvider,
+  OpenAttachmentUseCase,
   OpenDocImageUseCase,
   type OrganizationFounder,
   type OrganizationId,
@@ -130,6 +145,7 @@ import {
   PgAssistantUsageRepository,
   PgBootstrapMembershipEnroller,
   PgCapabilityRepository,
+  PgConversationRepository,
   PgDocGrantRepository,
   PgDocPageRepository,
   PgDocSpaceRepository,
@@ -140,6 +156,9 @@ import {
   PgMaintenanceGateway,
   PgMemberRepository,
   PgMembershipReader,
+  PgMessageAttachmentRepository,
+  PgMessageReactionRepository,
+  PgMessageRepository,
   PgNotificationPreferenceRepository,
   PgNotificationRecipientReader,
   PgNotificationRepository,
@@ -158,6 +177,7 @@ import {
   PgShardResolver,
   PgTenantRepository,
   PgUnitOfWork,
+  PgUserReader,
   PgVectorStore,
   type PlatformPolicyRepository,
   type PlatformReader,
@@ -169,6 +189,7 @@ import {
   QueueDocumentIndexUseCase,
   type QueuePublisher,
   type RateLimitStore,
+  ReactToMessageUseCase,
   ReadDocNavUseCase,
   ReadDocPageUseCase,
   ReadPlatformDocNavUseCase,
@@ -180,6 +201,7 @@ import {
   RedisAssistantStreamSubscriber,
   RedisCacheStore,
   RedisConnection,
+  RedisPresenceReader,
   RedisRateLimitStore,
   RedisRealtimePublisher,
   RedisRealtimeSubscriber,
@@ -187,8 +209,11 @@ import {
   ReindexDocsUseCase,
   ReinstateAccountUseCase,
   type RelayedActivityStore,
+  RemoveConversationMemberUseCase,
   RenameAssistantThreadUseCase,
+  RenameConversationUseCase,
   type ReplicaHealth,
+  RequestAttachmentUploadUseCase,
   ResendInvitationUseCase,
   RestoreDocRevisionUseCase,
   RevokeApiKeyUseCase,
@@ -207,6 +232,7 @@ import {
   SearchPlatformDocsUseCase,
   SendAssistantQuestionUseCase,
   SendMailUseCase,
+  SendMessageUseCase,
   SendNotificationDigestUseCase,
   type SessionResolver,
   SetMemberActiveUseCase,
@@ -214,6 +240,7 @@ import {
   type ShardingStrategy,
   type ShardResolver,
   ShardScope,
+  SignalTypingUseCase,
   SmtpEmailSender,
   StaticContentSource,
   type StorageGateway,
@@ -239,6 +266,7 @@ import {
   UploadDocImageUseCase,
   type UserId,
   type VectorStore,
+  WatchConversationUseCase,
   WebPushSender,
 } from "../import.js";
 import {
@@ -383,7 +411,7 @@ export class Container {
   // RBAC, members, API keys, the enrollers and the platform screens. The catalog is
   // the last single primary, so this one is always node 0.
   public readonly catalogUnitOfWork: UnitOfWork;
-  // Notifications and documents: everything a tenant produces. Opens on
+  // Notifications, messaging and documents: everything a tenant produces. Opens on
   // whichever node the ambient `ShardScope` names.
   public readonly routedUnitOfWork: UnitOfWork;
   // The partition runway and the outbox drain, which `eachShard` walks node by node.
@@ -474,6 +502,29 @@ export class Container {
     readonly generate: GenerateAssistantAnswerUseCase | null;
     readonly failStale: FailStaleAssistantAnswersUseCase;
     readonly usage: GetAssistantUsageUseCase;
+  };
+  public readonly messaging: {
+    readonly listConversations: ListConversationsUseCase;
+    readonly getConversation: GetConversationUseCase;
+    // Who in a conversation has the app open, off the stream leases (`26.6`).
+    readonly presence: GetConversationPresenceUseCase;
+    readonly createConversation: CreateConversationUseCase;
+    readonly addMember: AddConversationMemberUseCase;
+    readonly removeMember: RemoveConversationMemberUseCase;
+    readonly leave: LeaveConversationUseCase;
+    readonly rename: RenameConversationUseCase;
+    readonly markRead: MarkConversationReadUseCase;
+    readonly listMessages: ListMessagesUseCase;
+    readonly react: ReactToMessageUseCase;
+    readonly listThread: ListThreadUseCase;
+    // Files on a message (`26.1`): a signed upload, then a signed link to open one.
+    readonly requestAttachmentUpload: RequestAttachmentUploadUseCase;
+    readonly openAttachment: OpenAttachmentUseCase;
+    readonly send: SendMessageUseCase;
+    readonly edit: EditMessageUseCase;
+    readonly remove: DeleteMessageUseCase;
+    readonly typing: SignalTypingUseCase;
+    readonly watch: WatchConversationUseCase;
   };
   // Inside `auth`'s block below, because a key is issued *by* someone: without an auth
   // config there is no principal to be the issuer.
@@ -785,10 +836,18 @@ export class Container {
       this.transactions,
       this.shards,
     );
+    // Built here rather than with the messaging slice below, because the recipient
+    // reader takes it: `conversationMembers` is a routed read and a catalog resolve.
+    const conversations = new PgConversationRepository(
+      this.cluster,
+      this.transactions,
+      this.shards,
+    );
     const notificationRecipients = new PgNotificationRecipientReader(
       this.cluster,
       this.transactions,
       this.shards,
+      conversations,
     );
 
     const pushSubscriptions = new PgPushSubscriptionRepository(
@@ -868,6 +927,156 @@ export class Container {
       new IndexTextStage(this.storage),
     );
 
+    const messages = new PgMessageRepository(this.cluster, this.transactions, this.shards);
+    // One instance, shared: the membership check is the same question every messaging
+    // use-case asks, and a second copy is a second place for it to drift.
+    const conversationAccess = new ConversationAccess(conversations);
+    // Catalog-placed, beside a routed repository on purpose: a conversation's members
+    // are routed and their names are not, so the two are read apart and joined here.
+    const conversationNaming = new ConversationNaming(
+      new PgUserReader(this.cluster, this.transactions, this.shards),
+    );
+
+    const messageAttachments = new PgMessageAttachmentRepository(
+      this.cluster,
+      this.transactions,
+      this.shards,
+    );
+    const messageReactions = new PgMessageReactionRepository(
+      this.cluster,
+      this.transactions,
+      this.shards,
+    );
+    this.messaging = {
+      listConversations: new ListConversationsUseCase(
+        this.authorizer,
+        conversations,
+        messages,
+        conversationNaming,
+      ),
+      watch: new WatchConversationUseCase(this.authorizer, conversationAccess),
+      getConversation: new GetConversationUseCase(
+        this.authorizer,
+        conversationAccess,
+        messages,
+        conversationNaming,
+      ),
+      presence: new GetConversationPresenceUseCase(
+        this.authorizer,
+        conversationAccess,
+        new RedisPresenceReader(() => this.redis.realtimeClient()),
+      ),
+      createConversation: new CreateConversationUseCase(
+        this.authorizer,
+        conversations,
+        this.eventPublisher,
+        this.routedUnitOfWork,
+        this.tenantMemberships,
+        conversationNaming,
+      ),
+      addMember: new AddConversationMemberUseCase(
+        this.authorizer,
+        conversationAccess,
+        conversations,
+        this.eventPublisher,
+        this.tenantMemberships,
+        this.routedUnitOfWork,
+      ),
+      removeMember: new RemoveConversationMemberUseCase(
+        this.authorizer,
+        conversationAccess,
+        conversations,
+        this.eventPublisher,
+        this.routedUnitOfWork,
+      ),
+      leave: new LeaveConversationUseCase(
+        this.authorizer,
+        conversationAccess,
+        conversations,
+        this.eventPublisher,
+        this.routedUnitOfWork,
+      ),
+      rename: new RenameConversationUseCase(
+        this.authorizer,
+        conversationAccess,
+        conversations,
+        this.eventPublisher,
+        this.routedUnitOfWork,
+      ),
+      markRead: new MarkConversationReadUseCase(
+        this.authorizer,
+        conversationAccess,
+        conversations,
+        this.realtime,
+        this.routedUnitOfWork,
+      ),
+      listMessages: new ListMessagesUseCase(
+        this.authorizer,
+        conversationAccess,
+        messages,
+        messageReactions,
+        messageAttachments,
+      ),
+      listThread: new ListThreadUseCase(
+        this.authorizer,
+        conversationAccess,
+        messages,
+        messageReactions,
+        messageAttachments,
+      ),
+      react: new ReactToMessageUseCase(
+        this.authorizer,
+        conversationAccess,
+        messageReactions,
+        this.realtime,
+      ),
+      send: new SendMessageUseCase(
+        this.authorizer,
+        conversationAccess,
+        conversations,
+        messages,
+        this.eventPublisher,
+        this.realtime,
+        this.routedUnitOfWork,
+        this.cache,
+        this.clock,
+        { attachments: messageAttachments, storage: this.storage },
+      ),
+      requestAttachmentUpload: new RequestAttachmentUploadUseCase(
+        this.authorizer,
+        conversationAccess,
+        this.storage,
+      ),
+      openAttachment: new OpenAttachmentUseCase(
+        this.authorizer,
+        conversationAccess,
+        messageAttachments,
+        this.storage,
+      ),
+      edit: new EditMessageUseCase(
+        this.authorizer,
+        conversationAccess,
+        messages,
+        this.eventPublisher,
+        this.clock,
+        this.routedUnitOfWork,
+      ),
+      remove: new DeleteMessageUseCase(
+        this.authorizer,
+        conversationAccess,
+        messages,
+        this.eventPublisher,
+        this.clock,
+        this.routedUnitOfWork,
+      ),
+      typing: new SignalTypingUseCase(
+        this.authorizer,
+        conversationAccess,
+        this.realtime,
+        this.cache,
+      ),
+    };
+
     // A frozen list, and the registry rejects a duplicate name or an unknown event at
     // construction — so a wiring mistake is a startup crash rather than a lost event.
     this.subscribers = new SubscriberRegistry([
@@ -875,6 +1084,7 @@ export class Container {
       new ActivityRelaySubscriber(this.relayedActivity),
       new MemberRealtimeSubscriber(this.realtime),
       new NotificationSubscriber(this.notification.deliver),
+      new MessagingRealtimeSubscriber(this.realtime, conversations),
       // `DC.2`: a tenant's published Docs, kept in the semantic index.
       new DocIndexSubscriber(
         new PgDocPageRepository(this.cluster, this.transactions, this.shards),
