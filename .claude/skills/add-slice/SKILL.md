@@ -1,7 +1,6 @@
 ---
 name: add-slice
-description: The twelve-step run book for adding a feature slice.
-disable-model-invocation: true
+description: Twelve-step run book for adding a feature slice (new feature, domain entity, use case, or route end to end). Use before writing any slice code.
 ---
 
 # Adding a feature slice
