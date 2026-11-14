@@ -5,7 +5,7 @@ import { Button, Callout, EmptyState, useErrorMessage, useMessages } from "~/imp
 
 // What a thrown error renders as. The copy comes from the code the server sent, so a
 // FORBIDDEN reads as a permission problem rather than as a generic failure.
-export function ErrorBoundary({ error, reset }: { error: Error; reset: () => void }) {
+export function ErrorBoundary({ error, reset }: { error: unknown; reset: () => void }) {
   const { t } = useMessages("common");
   const describe = useErrorMessage();
   const failure = describe(error);
