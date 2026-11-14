@@ -20,6 +20,7 @@ later port has to work around the difference.
 | **Large docs spaces and the reader's delivery** | one web process per core (`cluster.mjs`); a trimmed nav, the `docSpace.nav` endpoint and a cached space list; one React in the SSR build; reader links as plain anchors; a page's HTML sent once; the doc readers' query plans pinned in specs | added 2026-10-03, big kit `cdb88c15..3f5bcf1b` on `dev`; its backlog §17 holds the hand checks |
 | **glass-scroll scrollbars** | `PageScrollbar`, a glass overlay for the page, and the themed thin bar for every inner scroller, coloured only from the twelve | added 2026-10-03, big kit `cdb88c15..3f5bcf1b` on `dev` |
 | **The platform organization run like any other** | `platform_admin` holds the whole catalog; Change role, the outrank and last-admin guards, `platformOnly` grants, revoke needs the key, no plan on the platform organization, `platform.doc.grant` to open a space, and the platform menu | added 2026-10-03, big kit `cdb88c15..3f5bcf1b` on `dev`, with all eight platform pages in `PLATFORM_ROUTE_PERMISSION` |
+| **Private spaces: the three fixes after `owner`** | `FC.11`, an `owner` space read only inside the platform organization; `BL.15`, a departed author's space listed by slug for a manager to delete; `BL.16`, a private address ending in six random characters | added 2026-11-14, big kit `d2f25c6a..32bcdbad` on `dev`, as its `DONE.md` §17 `LP.4`–`LP.6`; they had no row here, which is how they were missed for a month |
 
 ## How to back-port
 
