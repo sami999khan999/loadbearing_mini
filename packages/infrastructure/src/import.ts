@@ -350,8 +350,7 @@ export { Redis, type RedisOptions } from "ioredis";
 export type { Nodes as MdastNodes, Root as MdastRoot } from "mdast";
 
 // ── nodemailer ───────────────────────────────────────────────────────────────
-// Its types ship separately and are pinned to the same major: a `@types/nodemailer` a
-// major behind describes a `sendMail` that is *almost* the one being called.
+// Its types ship with it since 10, so no `@types/nodemailer` can fall a major behind.
 export { createTransport, type Transporter } from "nodemailer";
 // ── pg ───────────────────────────────────────────────────────────────────────
 export { Pool } from "pg";

@@ -456,7 +456,7 @@ pnpm add --filter @loadbearing/infrastructure @loadbearing/core@workspace:* @loa
 >
 > **Why it depends on `application`:** the ports are abstract classes living there, and every concrete class here extends one. Adapters depend inward on the domain; the domain depends on nothing. `application` never imports this package, so there is no cycle.
 >
-> `drizzle-kit`, `tsx`, `@types/pg` and `@types/nodemailer` arrived as devDependencies from the scaffold — build-time only, they must not ship. Server-only package.
+> `drizzle-kit`, `tsx` and `@types/pg` arrived as devDependencies from the scaffold — build-time only, they must not ship. Server-only package.
 >
 > This is a departure from the architecture docs, which split Postgres into a package of its own; see the note in [00](00-README.md) and the rationale in [15](15-infrastructure-package.md).
 

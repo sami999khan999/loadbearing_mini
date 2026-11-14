@@ -47,16 +47,14 @@ const envelopeFor = <N extends DomainEventName>(name: N) =>
     payload: DOMAIN_EVENTS[name],
   });
 
-// Built once at module load and frozen, for the reason `classes.md` gives: a lazily-built
-// lookup on a `static readonly` is mutable state wearing a keyword.
-const ENVELOPE = Object.freeze(
-  z.discriminatedUnion(
-    "name",
-    NAMES.map((name) => envelopeFor(name)) as unknown as [
-      ReturnType<typeof envelopeFor>,
-      ...ReturnType<typeof envelopeFor>[],
-    ],
-  ),
+// Built once at module load, never lazily (`classes.md`). Not frozen: zod 4.6 binds
+// `parse` onto the schema on first use, and a frozen schema throws there.
+const ENVELOPE = z.discriminatedUnion(
+  "name",
+  NAMES.map((name) => envelopeFor(name)) as unknown as [
+    ReturnType<typeof envelopeFor>,
+    ...ReturnType<typeof envelopeFor>[],
+  ],
 );
 
 // The closed vocabulary of facts this system publishes. A name that is not here cannot be

@@ -42,7 +42,6 @@
     "@types/hast": "catalog:",
     "@types/mdast": "catalog:",
     "@types/node": "catalog:",
-    "@types/nodemailer": "catalog:",
     "@types/pg": "catalog:",
     "@types/web-push": "catalog:",
     "drizzle-kit": "catalog:",
