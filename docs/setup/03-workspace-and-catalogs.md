@@ -57,7 +57,7 @@ catalog:
   "@aws-sdk/s3-request-presigner": ^3.700.0
 
   # ── auth ──
-  "better-auth": ^1.6.26
+  "better-auth": ~1.6.34
 
 catalogs:
   react:
@@ -142,7 +142,7 @@ What belongs here is the pnpm mechanics and the three entries with a history.
 
 **Pin all four `@orpc/*` packages to one version line.** They pin `@orpc/shared` **exactly** rather than with a caret, so a skew puts two copies of it in the tree. `syncpack lint` cannot see this — it checks one dependency across packages, not a declared group — which is why it is the fifth assertion in [26](26-hygiene-and-ci.md). Not theoretical: this catalog shipped `@orpc/server` at `^1.13.7` beneath a comment reading *"pin all four together"*, and every check passed.
 
-**`better-auth` is floored above a known auth CVE, deliberately.** The API-key plugin had an authentication flaw (CVE-2025-61928) patched in 1.3.26. You aren't going to use that plugin ([16](16-auth-package.md) explains why), but a floor below a known auth CVE is not a floor worth having. Its export map is also what makes the back-end target list reachable: `./node` covers pure Node, Express, Fastify and Nest, `./next-js` and `./tanstack-start` cover two front-end targets, and the core web `Request`/`Response` handler covers Hono.
+**`better-auth` is floored above a known auth CVE, deliberately.** The API-key plugin had an authentication flaw (CVE-2025-61928) patched in 1.3.26. You aren't going to use that plugin ([16](16-auth-package.md) explains why), but a floor below a known auth CVE is not a floor worth having. It is held on the 1.6 line with a tilde: 1.7 adds a `verified` column to the two-factor table and changes `unlinkAccount`, so moving to it is a migration, and its three advisories below 1.7.7 are in plugins this kit does not load. Its export map is also what makes the back-end target list reachable: `./node` covers pure Node, Express, Fastify and Nest, `./next-js` and `./tanstack-start` cover two front-end targets, and the core web `Request`/`Response` handler covers Hono.
 
 > **Do not add `@better-auth/cli` to this catalog to match.** It is published from a different release line and trails the library — 1.4.21 against a 1.6.26 runtime at the time of writing — so its generator emits a schema for fields the installed version does not have. [16](16-auth-package.md) reads the pinned runtime's own table definitions instead, which cannot skew because there is only one version involved.
 
