@@ -1,7 +1,6 @@
 ---
 name: add-docs
-description: Write or extend a package's docs/ — index.md, reference pages, and meta.json.
-disable-model-invocation: true
+description: Run book for writing or extending a package's docs/ (index.md, reference pages, meta.json). Use when documenting a package or its exports.
 ---
 
 # Adding a package's docs
