@@ -1,5 +1,5 @@
 // One `biome check` per chunk of staged paths, rather than one invocation carrying all of
-// them. See docs/setup/26 — the limit this exists for is Windows', not Biome's.
+// them. The limit this exists for is Windows' command length, not Biome's.
 const CHUNK = 40;
 
 export default {

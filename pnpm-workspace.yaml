@@ -6,7 +6,7 @@ packages:
 # Every version in this repository lives here, grouped by what a dependency can do
 # to portability. The kit targets React, Next.js and TanStack Start on the front,
 # and pure Node, Express, NestJS, Fastify and Hono on the back — a dependency's
-# tier says which of those it is able to constrain. See docs/setup/03.
+# tier says which of those it is able to constrain.
 catalog:
   # ════════════════════════════════════════════════════════════════════════════
   # Tier 1 — never ships
@@ -16,7 +16,7 @@ catalog:
   #
   # One exception worth knowing: `tsup` never ships but decides what does. It is
   # what makes every package ESM-only, and what determines whether a "use client"
-  # directive survives into dist/ — see docs/setup/06.
+  # directive survives into dist/.
   # ════════════════════════════════════════════════════════════════════════════
 
   # ── language & build ──
@@ -55,8 +55,7 @@ catalog:
 
   # ── hooks & commit messages ──
   #    Root devDependencies only. `husky` installs the git hooks, `lint-staged` runs
-  #    Biome over the staged set, and commitlint holds the closed scope enum — see
-  #    docs/setup/26.
+  #    Biome over the staged set, and commitlint holds the closed scope enum.
   husky: ^9.1.7
   lint-staged: ^17.3.0
   "@commitlint/cli": ^21.2.2
@@ -137,7 +136,7 @@ catalog:
   #
   # Each entry names a framework, and each is quarantined to the one layer
   # allowed to name it. Nothing here may appear in `packages/*` except the
-  # React-scoped group, and `check-architecture.mjs` asserts it (docs/setup/26).
+  # React-scoped group, and `check-architecture.mjs` asserts it.
   # ════════════════════════════════════════════════════════════════════════════
 
   # ── the transport seam — packages/api-server and apps/*/src/server/ only ──
@@ -152,7 +151,7 @@ catalog:
 
   # ── multi-framework by export map — ./node, ./next-js, ./tanstack-start ──
   #    ./node covers pure Node, Express, Fastify and Nest; the core web handler
-  #    covers Hono. Floored above CVE-2025-61928 — see docs/setup/03.
+  #    covers Hono. Floored above CVE-2025-61928.
   #    Held on the 1.6 line with a tilde: 1.7 adds a `verified` column to the two-factor
   #    table and changes `unlinkAccount`, so it is a migration, not a bump. Its three
   #    advisories below 1.7.7 are in plugins this kit does not load.
