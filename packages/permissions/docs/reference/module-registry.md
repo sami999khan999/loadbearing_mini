@@ -1,24 +1,19 @@
 ---
 title: module-registry
-description: ModuleRegistry — nav gates as a second registry, why content may name a module but never a permission, and the gate barrel missing from the build doc.
+description: ModuleRegistry — nav gates as a second registry, why content may name a module but never a permission, and the gate barrel that mirrors the catalog.
 ---
 
 # `ModuleRegistry`
 
-The permission catalog answers "may this actor do X." The module registry answers "should this actor
-see the finance section at all," which is a different question with a different owner.
+The permission catalog answers "may this actor do X"; the module registry answers "should they see the
+finance section at all" — a different question with a different owner.
 
-**The two module vocabularies are not the same set, and that is deliberate.**
-`PermissionMeta.module` groups the catalog — it is the first segment of every key, by the grammar
-`<module>.<subject>.<action>`, and `EffectivePermissionsInspector` renders one section per value.
-`ModuleKey` is `keyof typeof GATES`: the modules something navigates to. `apikey` is a grouping
-module with no gate, the same way `accountRoutes` declares routes with no gate — nothing links to
-API keys yet.
-
-They drifted once, in the direction that is hard to see: `member.*` and `apikey.*` declared
-`module: "rbac"` while opening with their own name, so `byModule("member")` answered nothing about
-a module that has a gate, and the inspector filed five keys under a heading they do not belong to.
-A spec now asserts that every key opens with the module it declares.
+**The two module vocabularies differ on purpose.** `PermissionMeta.module` groups the catalog (the first
+segment of every `<module>.<subject>.<action>` key; `EffectivePermissionsInspector` renders a section
+per value). `ModuleKey` is `keyof typeof GATES`: modules something navigates to. `apikey` is a grouping
+module with no gate, as `accountRoutes` has routes with no gate. They drifted once — `member.*` and
+`apikey.*` declared `module: "rbac"`, so `byModule("member")` answered nothing and the inspector misfiled
+five keys — and a spec now asserts every key opens with its declared module.
 
 ```ts
 export interface ModuleGate {
@@ -38,24 +33,16 @@ export class ModuleRegistry {
 ```
 
 ```ts
-ModuleRegistry.instance.visibleModules(caps);        // ["member"]
+ModuleRegistry.instance.visibleModules(caps);        // the modules caps may enter
 ModuleRegistry.instance.gate("rbac").route;          // "/settings/roles"
 ```
 
----
-
 ## Why this is a separate registry
 
-`@loadbearing/content` owns the navigation menu — its labels, order, and icons — and a content editor
-may change all three. What an editor must **not** be able to change is which permission gates a
-module, or where its route points.
-
-So `nav.data.ts` in `content` carries `module: "finance"`, never
-`permission: "finance.read.global"`, and `ModuleRegistry` maps that key to its gate. `content` may
-import `ModuleKey` as a type and must never reference `PermissionKey` at all.
-
-That rule is enforced, not merely documented — `tooling/eslint-config/src/index.js` bans the two
-identifiers by name for that package alone:
+`@loadbearing/content` owns the menu's labels, order and icons, which an editor may change; an editor
+must **not** change which permission gates a module or where it routes. So `nav.data.ts` carries
+`module: "finance"`, never `permission: "finance.read.global"`, and `content` may import `ModuleKey` as
+a type but never `PermissionKey`. ESLint enforces it for that package alone:
 
 ```js
 {
@@ -73,21 +60,15 @@ identifiers by name for that package alone:
 ```
 
 > [!WARNING]
-> That rule is the **core** `no-restricted-imports`, which has no `allowTypeImports` option and
-> therefore flags `import type` as well. Since `content` is only ever meant to import `ModuleKey`,
-> that is not currently a problem — but it will be the moment anyone reaches for a type-only
-> exception. See [20](../../../../docs/setup/20-content-package.md).
+> This is the **core** `no-restricted-imports`, with no `allowTypeImports`, so it flags `import type`
+> too — harmless while `content` imports only `ModuleKey`, a problem the day someone wants a type-only
+> exception.
 
-Folding the gate onto `PermissionMeta` would collapse the two registries into one and put the
-gating decision inside the file a content editor edits. The separation is the whole point.
+Folding gates into `PermissionMeta` would put the gating decision in a file a content editor edits.
 
----
+## `src/gate/` mirrors the catalog
 
-## `src/gate/index.ts` was missing from the build doc
-
-[08](../../../../docs/setup/08-permissions-package.md) shows the file in its tree listing and
-`module-registry.ts` imports `GATES` from it, but the doc never writes it out. It mirrors the catalog
-barrel exactly:
+One fragment per slice, merged by a platform-owned barrel:
 
 ```ts
 import { rbacGates } from "./rbac.gate.js";
@@ -98,22 +79,17 @@ export const GATES = {
 } as const;
 ```
 
-The same paper cycle applies as in the catalog: `gate/rbac.gate.ts` imports `ModuleGate` from
-`../module-registry.js` while `module-registry.ts` imports `GATES` from `./gate/index.js`. The
-fragment's import is `import type`, so nothing survives to run.
-
-And the same typo-safety follows from `as const satisfies Record<string, ModuleGate>` — verified:
+Fragment ↔ registry imports are `import type` — a cycle on paper only. `as const satisfies
+Record<string, ModuleGate>` gives the same typo-safety:
 
 ```ts
 ModuleRegistry.instance.gate("finance");
 // TS2345: Argument of type '"finance"' is not assignable to
-//         parameter of type '"rbac" | "member"'.
+//         parameter of type '"rbac" | "member" | …'.
 ```
 
-`satisfies ModuleGate` also type-checks each gate's `permission` against `PermissionKey`, so a gate
-pointing at a permission that does not exist fails to compile — and since `route` is `AppRoute` from
-[the route table](routes.md) rather than `string`, the same holds for a gate pointing at a path that
-does not exist:
+`satisfies` also checks each `permission` against `PermissionKey`, and `route` is an `AppRoute` from
+[the route table](routes.md), so a gate on a missing permission or path fails to compile:
 
 ```ts
 rbac: { permission: "rbac.role.read", route: "/settings/rolez" },
@@ -121,12 +97,10 @@ rbac: { permission: "rbac.role.read", route: "/settings/rolez" },
 //         Did you mean '"/settings/roles"'?
 ```
 
----
-
 ## `visibleModules()` is a filter, not a policy
 
-It delegates every decision to `CapabilitySet.can()`, so all five resolution rules apply unchanged —
-including a wildcard holder losing a module they have been explicitly denied:
+It delegates to `CapabilitySet.can()`, so all resolution rules hold — a wildcard holder explicitly
+denied a gate's key loses that module:
 
 ```ts
 const caps = CapabilitySet.from({
@@ -135,25 +109,21 @@ const caps = CapabilitySet.from({
   goals: {},
 });
 
-ModuleRegistry.instance.visibleModules(caps); // ["member"] — not both
+ModuleRegistry.instance.visibleModules(caps); // every module except "rbac"
 ```
 
-Gates are asked without a `goalId`, so a module gated on a goal-scoped permission is never visible —
-to anyone, ever, with nothing to indicate why. Gate modules on org-scoped keys, and note this is a
-**checked** claim rather than a documented one:
+Gates are asked without a `goalId`, so a module gated on a goal-scoped key would be invisible to
+everyone, silently. Gate on org- or platform-scoped keys — a checked claim:
 
 ```ts
-it("gates every module on an org-scoped permission", () => {
+it("gates no module on a goal-scoped permission", () => {
   for (const [module, gate] of Object.entries(GATES)) {
-    expect(PermissionRegistry.instance.scopeOf(gate.permission), module).toBe("org");
+    expect(PermissionRegistry.instance.scopeOf(gate.permission), module).not.toBe("goal");
   }
 });
 ```
 
-Same shape as the `ProcedurePermissions` coverage test in
-[10](../../../../docs/setup/10-contracts-package.md) — a cross-check the type system cannot express.
-
----
+The same shape as `contracts`' `ProcedurePermissions` coverage test — a cross-check types cannot express.
 
 ## See also
 
@@ -161,4 +131,3 @@ Same shape as the `ProcedurePermissions` coverage test in
 - [CapabilitySet](capability-set.md) — every decision here delegates to `can()`
 - [PermissionRegistry](permission-registry.md) — the vocabulary a gate points into
 - [ROUTES](routes.md) — the destination table a gate's `route` points into
-- [20 · content](../../../../docs/setup/20-content-package.md) — the package this registry exists to constrain

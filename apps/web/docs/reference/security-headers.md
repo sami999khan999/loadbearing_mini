@@ -17,23 +17,16 @@ keeps any header a route already set, so a route can still say otherwise (`FC.13
 | `referrer-policy` | `strict-origin-when-cross-origin` | Another site sees the origin, never a doc's path or a token in a query |
 | `strict-transport-security` | `max-age=31536000` | Only when `AUTH_URL` is `https` |
 
-**The policy sets no `script-src`.** Start inlines its hydration scripts, and a policy that does not
-allow them with a nonce leaves every page blank. Docs Markdown goes through `rehype-sanitize` when
-it is rendered, which is what stands between a page and a script today. A nonce-based `script-src` is the
-next step, and it needs Start to hand the nonce to its own inline scripts.
-
-**HSTS is sent only over https.** Over http a browser ignores it, and a dev host that later gains a
-certificate would be pinned to https for a year. `includeSubDomains` is left off, because it would
-bind hosts this app does not own.
-
-A redirect's headers, and those of a fetched response, cannot be changed in place, so
-`SecurityHeaders.apply` copies such a response around the same body.
-
-The realtime stream is served by `apps/realtime` on its own origin and does not pass through here.
+- **No `script-src`** — Start inlines hydration scripts, so a policy without a nonce blanks every page.
+  Today rendering docs Markdown through `rehype-sanitize` is the script barrier; a nonce `script-src` needs
+  Start to pass the nonce to its own scripts.
+- **HSTS only over https** — ignored over http, and would pin a dev host for a year once it gains a
+  certificate. No `includeSubDomains`, which would bind hosts this app does not own.
+- Redirect and fetched-response headers are immutable, so `SecurityHeaders.apply` copies the response
+  around the same body. The realtime stream (`apps/realtime`, its own origin) does not pass through here.
 
 ## Server functions refuse a cross-site call
 
-The same file registers Start's `createCsrfMiddleware`, filtered to server functions: a call whose
-`Sec-Fetch-Site`, `Origin` or `Referer` is not this origin gets a 403. Every server function reads
-today, so this is ahead of the first that writes. `/api/*` is not filtered in: oRPC and Better
-Auth check their own origins against `AUTH_TRUSTED_ORIGINS`, which the desktop shell needs.
+The same file registers Start's `createCsrfMiddleware` for server functions: a foreign `Sec-Fetch-Site`,
+`Origin` or `Referer` gets a 403 (all server functions read today; this precedes the first writer).
+`/api/*` is excluded — oRPC and Better Auth check `AUTH_TRUSTED_ORIGINS`, which the desktop shell needs.

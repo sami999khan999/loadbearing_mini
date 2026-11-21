@@ -5,10 +5,9 @@ description: EntitlementMask — what an org's plan allows, as a filter over rol
 
 # `EntitlementMask`
 
-An org's roles say what each person may do. Its plan says what the org has paid for. When the plan
-shrinks, the roles do not change. The org admin set them, and an upgrade next month should bring them
-back exactly as they were. So entitlement is a **mask**: it filters the grants a principal holds
-before `CapabilitySet.from` ever sees them, and it deletes nothing.
+Roles say what each person may do; the plan says what the org paid for. A shrinking plan leaves the
+admin's roles intact so an upgrade restores them exactly — entitlement is a **mask** over grants before
+`CapabilitySet.from`, deleting nothing.
 
 ```ts
 const mask = EntitlementMask.from({
@@ -23,7 +22,7 @@ CapabilitySet.from(mask.narrow(resolved.toJSON()));
 
 ## Which key survives
 
-The rules are checked in this order, and the first that applies decides.
+First match decides.
 
 | # | Rule | Why |
 |---|---|---|
@@ -33,27 +32,19 @@ The rules are checked in this order, and the first that applies decides.
 | 4 | An added key is | An add widens the plan for one org, with an expiry for a trial |
 | 5 | Otherwise, whatever the plan says | `"all"` answers yes to everything |
 
-**`"all"` is resolved at the question, never listed.** The unlimited plan is a property of the plan
-row, not a set of `plan_permissions` rows. Rows would have to be reconciled on every deploy that
-adds a key, and a deploy that skipped it would hide the new key from every tenant. The spec pins
-this with a key the catalog has never declared.
+**`"all"` is resolved at the question, never listed** — `plan_permissions` rows would need reconciling
+on every deploy that adds a key. The spec pins it with an undeclared key.
 
 ## What `narrow` touches
 
 **Grants only**, at the org and in every goal. Everything else passes through:
 
-- **Denies.** A mask that dropped a deny would *widen* access. That is the one direction a filter
-  must never move.
-- **The platform axis.** No plan reaches it.
-- **`wildcard`.** Nothing in production sets it (see [the platform scope](platform-scope.md)). A set
-  that had it would pass through unmasked, which is one more reason it stays `false`.
+- **Denies** — dropping one would *widen* access.
+- **The platform axis** — no plan reaches it.
+- **`wildcard`** — passes unmasked, one more reason production never sets it ([platform scope](platform-scope.md)).
 
 ## What it does not do
 
-**It does not read the database.** The four inputs arrive already resolved. Where they come from
-(plans, adjustments with their expiry, disabled modules) is the capability repository's job, and it
-reads them in one statement.
-
-**It does not close over `requires`.** A plan is stored already closed both ways, so the mask trusts
-it. Closing on write is `PermissionRegistry.closure` and `dependentClosure`; see
-[permission-registry](permission-registry.md#requires-and-its-mirror).
+- **No database reads** — the capability repository resolves the four inputs in one statement.
+- **No `requires` closure** — plans are stored closed both ways on write
+  ([permission-registry](permission-registry.md#requires-and-its-mirror)).

@@ -5,9 +5,8 @@ description: One flat config holding the rules Biome cannot express — the AST-
 
 # `@loadbearing/eslint-config`
 
-Biome does the formatting and the bulk of the linting. This package exists for what Biome
-cannot express. It is one config with `files`-scoped blocks — not three presets a package
-picks from.
+Biome formats and does most linting; this package holds what Biome cannot express — one config of
+`files`-scoped blocks, not presets.
 
 | | |
 | --- | --- |
@@ -30,7 +29,7 @@ tooling/eslint-config/
 
 ## The division of labour
 
-Two linters is a cost, so it is worth being precise about what each one buys.
+Two linters cost something, so each owns a precise share:
 
 | Concern | Owner | Why |
 | --- | --- | --- |
@@ -43,14 +42,11 @@ Two linters is a cost, so it is worth being precise about what each one buys.
 | Bans needing named-export or type-import nuance | **ESLint** | Biome cannot exempt either |
 
 > [!IMPORTANT]
-> **Whenever a rule exists in both tools, Biome owns it.** Three rules are explicitly `"off"`
-> here for that reason — `no-explicit-any`, `no-unused-vars`, `consistent-type-imports`. Two
-> linters reporting the same violation produces duplicate editor diagnostics and teaches
-> people to ignore both.
+> **A rule in both tools belongs to Biome** — `no-explicit-any`, `no-unused-vars` and
+> `consistent-type-imports` are `"off"` here, since duplicate diagnostics teach people to ignore both.
 
-The fast tool runs on every save and every commit; this one runs on pre-push and in CI. That
-split is why the pre-commit hook stays under a second, and a hook that runs is worth more
-than a thorough hook that gets disabled.
+Biome runs on save and commit; ESLint on pre-push and CI — keeping the pre-commit hook under a second, and
+a hook that runs beats a thorough one that gets disabled.
 
 ---
 
@@ -66,15 +62,12 @@ export { default } from "@loadbearing/eslint-config";
 "devDependencies": { "@loadbearing/eslint-config": "workspace:*" }
 ```
 
-**No package has a lint config, and no package has a lint script.** Both linters take the
-whole repo in one invocation from the root, keyed on file globs. Fourteen fewer config files,
-and no package can quietly opt itself out of a rule that exists to constrain it.
+**No package has a lint config or lint script** — both linters run once from the root on globs, so no
+package can opt out of a rule meant to constrain it.
 
 > [!NOTE]
-> ESLint 9 resolves flat config from the **working directory**, not per file — a nearer config
-> is ignored. In a per-package setup that is a footgun: a package missing its config silently
-> inherits the root's weaker rule set with a green run. Here it is a non-issue, because there
-> is exactly one config and everything runs from the root.
+> ESLint 9 resolves flat config from the **working directory**, ignoring nearer configs — a per-package
+> footgun (a missing config silently inherits weaker root rules). With one root config it cannot bite.
 
 ---
 
@@ -87,22 +80,13 @@ and no package can quietly opt itself out of a rule that exists to constrain it.
 }
 ```
 
-**Declare what you import.** `src/index.js` imports `typescript-eslint` at runtime, so it is a
-real dependency. It does **not** import `eslint` — that is the host loading this config — so
-`eslint` is a devDependency, present for the `Linter` type in `src/types/index.d.ts` and to
-satisfy `typescript-eslint`'s peer deterministically.
+**Declare what you import:** `typescript-eslint` is imported at runtime (a dependency); `eslint` is the
+host, so a devDependency — for the `Linter` type and a deterministic `typescript-eslint` peer.
 
 > [!CAUTION]
-> **This package does not supply the `eslint` binary to anyone.** pnpm links executables only
-> from a package's _direct_ dependencies, and this package has no `bin` field — so depending
-> on it never puts `eslint` in a consuming package's `node_modules/.bin`.
->
-> What makes `eslint .` work is the **root** `eslint` devDependency: pnpm puts the
-> workspace-root `.bin` on `PATH` for every script it runs. Do not remove it on the
-> assumption this package covers it.
-
-The catalog pins one version for the workspace, so the root and this package resolve to the
-same physical copy in the store — declaring it twice costs no disk and cannot skew.
+> **This package supplies no `eslint` binary** — pnpm links executables only from *direct* dependencies,
+> and there is no `bin`. `eslint .` works via the **root** `eslint` devDependency (the root `.bin` is on
+> every script's `PATH`); do not remove it. The catalog pins one version, so both resolve to one copy.
 
 ---
 
@@ -118,11 +102,8 @@ declare const config: Linter.Config[];
 export default config;
 ```
 
-Without it the root `eslint.config.js` reports
-`TS7016: Could not find a declaration file for module '@loadbearing/eslint-config'`.
-
-The file is itself in the `ignores` list — `**/*.d.ts` is not inside any package's tsconfig
-`include`, so a type-aware rule would fail on it with a parsing error rather than a finding.
+Without it the root config reports `TS7016: Could not find a declaration file`. It is itself ignored —
+`**/*.d.ts` is in no tsconfig `include`, so typed rules would fail with a parsing error.
 
 ---
 
@@ -131,5 +112,3 @@ The file is itself in the `ignores` list — `**/*.d.ts` is not inside any packa
 - [Rules](reference/rules.md) — every block in the config and why it is there
 - [`@loadbearing/tsconfig`](../../tsconfig/docs/index.md) — `verbatimModuleSyntax` pairs with
   Biome's `useImportType` the way it used to pair with `consistent-type-imports`
-- [Build order · 05 · Lint & Format](../../../docs/setup/05-lint-and-format.md) — the
-  `biome.json` half, and the two failure modes verified against Biome 2.5.7

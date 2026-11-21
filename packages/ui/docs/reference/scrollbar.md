@@ -15,23 +15,16 @@ description: PageScrollbar — the glass overlay for the page and the themed thi
 
 ## Colours come from the twelve
 
-The theme is four `color-mix()` values over `--fg-muted`, `--fg` and `--bg`, plus a
-`transparent` track. No literal colour is written, so `check-architecture` §32 holds, and the bar
-follows every theme and mode.
-
-**There is no dark palette.** The tokens already change with `data-mode`, so `colorScheme` is
-`"light"`, and the package's own dark twin is never used.
+Four `color-mix()` values over `--fg-muted`, `--fg` and `--bg` plus a `transparent` track — no literal,
+so §32 holds and every theme and mode follows. **No dark palette:** the tokens already change with
+`data-mode`, so `colorScheme` is `"light"`.
 
 ## Why `themeScope="[data-theme]"`
 
-A custom property's `var()` references are resolved on the element that declares it. Declared
-only on `:root`, `var(--fg-muted)` is the page's value everywhere, including inside a
-`ThemeScope`. The doc reader is one such scope: a space opens in its own theme.
-
-So without `themeScope`, a plum-light space inside a graphite-dark page kept graphite-dark bars:
-pale grey on a light page. `themeScope="[data-theme]"` re-declares the variables on every element
-carrying `data-theme`, and each scroller takes the nearest scope's colours. The option was added
-to the package, in 0.2.0, for this.
+A custom property's `var()`s resolve where it is declared, so declared only on `:root` it ignores a
+`ThemeScope` like the doc reader's — a plum-light space in a graphite-dark page kept pale-grey bars.
+`themeScope="[data-theme]"` (added to the package in 0.2.0 for this) re-declares them on every
+`data-theme` element, so each scroller takes its nearest scope.
 
 ## Opting an element out
 

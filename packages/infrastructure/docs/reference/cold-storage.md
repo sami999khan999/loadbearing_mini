@@ -102,13 +102,10 @@ which is re-runnable, rather than an object nothing points at, which is invisibl
 stay for thirty days after the tenant is gone, because a delete that also destroyed the archive
 would be unrecoverable at the moment it is most likely to have been a mistake.
 
-`sweepDeleted(before)` is what ends that window, and it reads a **tombstone**. The purge calls
-`markTenantDeleted` before the row goes, stamping `deleted_at` on every one of that tenant's
-`partition_archive` rows. The nightly `retention` job sweeps the rows whose `deleted_at` is older
-than thirty days **and** whose `organization_id` matches no `organizations` row — `not exists`, not
-a left join, because this reads a table that only grows. Per row: delete the object, then delete
-the row, so a crash re-runs cleanly. One `cold.objects.swept` line per run, carrying
-`reason: "tenant_deleted"` and both counts; nothing at all when there was nothing to sweep.
+`sweepDeleted(before)` ends the window by a **tombstone**: the purge's `markTenantDeleted` stamps
+`deleted_at` first; the nightly `retention` job takes rows older than thirty days with no `organizations`
+row (`not exists`), object then row, one `cold.objects.swept` line (`reason: "tenant_deleted"`) when it did
+something.
 
 > [!IMPORTANT]
 > **`archived_at` is the wrong column for this.** Keyed on the archive time, the window would
@@ -125,26 +122,15 @@ pnpm db:partitions --sweep <organization_id>
 
 ## An export is the same writer, pointed at live rows
 
-`exportTenant(organizationId, day)` reuses the NDJSON-and-gzip path above and changes one thing:
-it reads **live** rows rather than a detached partition. An export must not take the tenant's data
-offline, so there is no detach, no drop, and no `partition_archive` row — the objects are a copy,
-not the archive.
+`exportTenant(organizationId, day)` reuses the NDJSON-gzip path over **live** rows — no detach, drop or
+`partition_archive` row; a copy, not the archive. One object per tenant and catalog table under
+`export/<organization_id>/<yyyy-mm-dd>/<table>.ndjson.gz`, plus `manifest.json` (counts, sizes,
+checksums); an empty table's object is uploaded then deleted (cheaper than counting twice).
 
-One object per tenant-owned table under `export/<organization_id>/<yyyy-mm-dd>/<table>.ndjson.gz`,
-plus one per catalog table, plus a `manifest.json` carrying every object's row count, byte size
-and checksum. A table the tenant has no rows in gets **no object**: the row count is only known
-once the stream has drained, so the upload happens and the empty object is deleted, which is
-cheaper than counting the table twice.
-
-The tenant's uploaded doc images are copied in as well, from `doc/<organization>/` to
-`export/<organization>/<yyyy-mm-dd>/doc-image/<space>/<file>`. They are streamed object to object
-and listed a page at a time, so a tenant with tens of thousands never has one in memory or hits the
-thousand-key cap. Each is an entry in the manifest with `table: "doc-image"` and `rowCount: 0`,
-because a file has no rows. One deleted between the listing and the copy is skipped. The export
-page does not link them one by one: `list-tenant-exports` leaves them out so the table files are
-not buried. Instead each export day has a button that saves a tab-separated file of every copy's
-path and a presigned link valid for an hour, from `list-tenant-export-images` (`RW.4`). Fetch them
-all with:
+Doc images copy from `doc/<organization>/` to `export/…/doc-image/<space>/<file>`, streamed and paged
+(no memory or thousand-key limits), listed in the manifest as `table: "doc-image"`, `rowCount: 0`; ones
+deleted mid-copy are skipped. The export page omits them; each day has a button saving a TSV of paths
+and one-hour presigned links (`list-tenant-export-images`, `RW.4`):
 
 ```sh
 while IFS=$'\t' read -r path url; do curl -fsS --create-dirs -o "$path" "$url"; done < links.tsv
@@ -193,14 +179,8 @@ retrying it.
 
 ## The unwind stops the stream first, and waits for it
 
-`Readable.from` starts pulling the moment it is piped, so by the time `putStream` rejects the
-keyset loop is already paging. Nothing consumes those pages: in production a full scan of the month
-that is thrown away, and in the spec a query still in flight when `afterEach` drops the partition —
-an unhandled rejection reported beside a green suite rather than as a failure.
-
-So the unwind destroys the gzip stream and its source **and awaits `close`** before re-attaching.
-`destroy()` returns before the page already in flight does, and the caller drops the partition the
-instant `archive()` throws. Waiting is what makes "no query is outstanding" true rather than likely.
+`Readable.from` keeps paging after `putStream` rejects — a wasted scan, and in specs a query racing the
+partition drop. So the unwind destroys gzip and source **and awaits `close`** before re-attaching.
 
 ## NDJSON, and paging out of a detached partition
 
@@ -212,15 +192,10 @@ formatting**, and naming it keeps a formatter from ever treating it as the latte
 Keyset pagination on `(<partition column>, id)`, so a month that does not fit in memory never has
 to. `OFFSET` would re-scan everything it already returned.
 
-**The keyset needs an index to walk, and only `activity_log` had one** (`CR.23`). `notifications`
-indexes lead with the tenant, and `outbox_event`'s only such index is partial on unpublished rows,
-which an archived month has none of. Every page was a scan of the month with a top-N sort: a
-30-million-row month is three thousand of them, and pages reached the statement timeout. A month
-of more than one page now gets `<child>_walk` on `(<partition column>, id)`, built on the detached table through the direct pool — one sort instead
-of three thousand, and dropped with the table. The unwind drops it before attaching, so
-a month that goes back carries no index its siblings lack. The predicate is built as a variable
-rather than inline: a ternary between two `sql` templates makes the row type infer through `after`,
-which `after` is then assigned from — a cycle the compiler reports as an implicit `any`.
+**The keyset needs an index, and only `activity_log` had one** (`CR.23`) — a 30-million-row month was
+three thousand scans with top-N sorts, timing out. A multi-page month gets `<child>_walk` on the detached
+table (direct pool), dropped with it and by the unwind before attaching. The predicate is a variable
+because an inline ternary of `sql` templates is an inference cycle (implicit `any`).
 
 The count is taken **after** the detach. Detaching first is what makes the export a closed set, so
 counting first would count a different set from the one uploaded: rows written in between would be

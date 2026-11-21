@@ -5,8 +5,8 @@ description: One key, one node, three placements — how a query finds its datab
 
 # Sharding
 
-Nothing here is about running more than one Postgres. It is about being able to, later, without
-finding out then which twenty use-cases assumed one.
+Not about running more Postgres — about being able to later without discovering then which use-cases
+assumed one.
 
 | Piece | Where | What it answers |
 |---|---|---|
@@ -44,9 +44,7 @@ and which carries an explicit `invalidate` when it happens.
 
 ## Three placements, and the tripwire between them
 
-Every table is `catalog`, `local` or `routed`, and `TablePlacement.of` is the only thing that
-says which. Each repository **declares** its placement rather than deriving one, because a
-repository that guessed would guess wrong exactly once.
+`TablePlacement.of` is the only list; each repository **declares** its placement (a guess is wrong once):
 
 - **catalog** — what a principal is built from before a key is known, plus RBAC, the two
   tenant-less lookups, the archive index, the policy rows, flags, entitlement and doc grants.
@@ -56,22 +54,11 @@ Twenty-four tables.
 - **routed** — everything a tenant produces. It is the **default**, so a new slice's table needs
   no edit here, and an unplaced table routes rather than silently reading the catalog.
 
-`BaseRepository.db` compares its own placement against the open transaction's and throws when
-they disagree. `local` is compatible with both of the others, which is what its name means.
-
-`tests/primitive/placement.spec.ts` is what holds all of this: a routed read with no key throws,
-so does a routed `run`, a catalog read inside a routed transaction throws, a routed transaction
-nested in a catalog one throws — and the same-placement case still goes through, which is the
-assertion that keeps the other four from being satisfied by breaking everything.
-
-**The point is that this throws on one node.** A catalog repository used inside a routed
-transaction is not a bug today — one Postgres holds both — and it is a data-corruption bug the
-day there are two. Failing now, in every environment, is the difference between finding those
-call sites in a test run and finding them in production.
-
-`PgUnitOfWork` carries the same rule one level up: a routed `run` nested inside a catalog one
-throws rather than becoming a savepoint. A catalog use-case calling a routed one inside its
-transaction is precisely the coupling a split cannot honour.
+`BaseRepository.db` throws when its placement disagrees with the open transaction's (`local` fits both).
+`tests/primitive/placement.spec.ts` asserts a keyless routed read or `run`, a catalog read in a routed
+transaction, and a routed transaction nested in a catalog one all throw — and same-placement passes.
+**It throws on one node** — harmless today, data corruption the day there are two, so found in tests,
+not production. `PgUnitOfWork` likewise refuses a routed `run` nested in a catalog one.
 
 ## No read crosses a placement
 
@@ -83,38 +70,25 @@ records a rule rather than guarding one.
 
 ## A sweep is placed on a node, not on a tenant
 
-`ShardScope` holds `{ key, node }`, and `key` is `null` in a cross-tenant pass:
-`ShardScope.atNode` is what the outbox drain, the partition runway and the digest fan-out run
-inside, through `Container.eachShard`. Serial, not `Promise.all` — these are DDL and drain passes,
-and running them against every node at once multiplies this process's pool by the shard count.
-A node that throws is logged as `shard.sweep.failed` and skipped; the rest still run, and the first
-error is rethrown at the end, so one node down delays only its own work.
-
-Inside a node-only scope a `local` table resolves to that node's pool rather than the catalog's,
-which is the whole point: `outbox_event` and `activity_log` exist on every node and the row you
-want is on the one you are walking. Outside any scope both fall back to node 0. Which passes loop
-and which deliberately do not is [the consumers](../../../../apps/worker/docs/reference/consumers.md).
+Cross-tenant passes run in `ShardScope.atNode` (`key: null`) via `Container.eachShard` — **serially**
+(parallel multiplies the pool by node count); a failing node logs `shard.sweep.failed`, the rest run, the
+first error rethrows. There a `local` table resolves to the walked node; outside any scope, node 0. Which
+passes loop: [the consumers](../../../../apps/worker/docs/reference/consumers.md).
 
 ### `catalogDb` is the one sanctioned crossing
 
-`PgPartitionArchiveGateway` detaches a partition on the node it is walking and records the object
-in `partition_archive`, which is catalog. That is a genuine span, not an accident, and
-`BaseRepository.catalogDb` is where it goes: it throws for any placement but `local`, and it
-returns the catalog pool's client rather than the open transaction's — that transaction is on the
-node being swept, and the index row does not live there.
+`PgPartitionArchiveGateway` detaches on the walked node and records in catalog `partition_archive` through
+`BaseRepository.catalogDb` — which throws unless `local` and returns the catalog pool, not the open
+transaction.
 
 It is deliberately the only one. A routed repository reaching the catalog is what the split
 reader above avoided, and the guard makes that call a throw rather than a review comment.
 
 ## `PgShardResolver` is not a `BaseRepository`, and takes thunks
 
-It is what `DatabaseCluster.forKey` calls. A resolver that routed would ask itself where it
-lives, so it reads the catalog pool directly.
-
-It takes `() => Database`, `() => CacheStore` and `() => Logger` rather than the values, because
-the container builds the cluster **with** this resolver: neither the pool nor the cache exists
-when it is constructed. The thunks are called later, on a request, by which time the container
-is fully assembled.
+`DatabaseCluster.forKey` calls it, so it reads the catalog pool directly (routing would recurse). It takes
+thunks (`() => Database`, `() => CacheStore`, `() => Logger`) because the cluster is built **with** it,
+before pool and cache exist.
 
 ## A missing directory row is an error, not node 0
 
@@ -154,33 +128,16 @@ Lite has no tenant move. It kept the part a move needs from every write path, so
 needs no migration and no change to a repository — see
 [Shard nodes](../../../../docs/scale/shard-nodes.md).
 
-**The freeze is a refusal, not a queue.** `shard_assignments.moving_to` non-null means the tenant is
-being moved. `PgShardResolver` answers `frozen: true` for it, and `PgUnitOfWork.run` throws
-`ForbiddenError("shard.move.inFlight")` for any `routed` or `local` write. Reads keep answering from
-the current node. A catalog write is never refused: a move copies no catalog row, so it cannot lose
-one. Nothing in lite sets `moving_to`.
-
-**So every routed write goes through `run`, including a single statement** (`CR.11`). The freeze is
-checked there and nowhere else — `BaseRepository.db` cannot tell a read from a write, and refusing
-reads would take the tenant down for the whole move. A routed write with no unit of work would land
-on the source during a move, and an *update* is invisible to a count check, so it would be lost at
-the flip. A new routed write that skips `run` is that bug again.
-
-**A job re-reads its placement at every transaction — `24.2b`.** A request places itself once and
-finishes in seconds. A worker job can keep opening transactions for much longer. So `withShard`
-places a job with `recheck`, and `PgUnitOfWork.run` re-reads the placement each time it opens a
-transaction. If the tenant is frozen, or its node has changed, it throws and the job is retried. A
-savepoint does not re-read, and neither does a catalog transaction. The cost is one cached resolve
-per job transaction.
-
-**A catalog transaction's audit row goes through the outbox for a tenant off node 0 — `24.2a`.**
-An invitation, a role change or an API key is a catalog transaction, and a catalog transaction is
-on node 0 whichever node the tenant is on. Written straight into `activity_log` there, a tenant on
-another node would have audit rows where its runway and its archive never look. So
-`PgActivityLogger` asks the directory where the tenant is. For a tenant off node 0 it publishes
-`activity.recorded` into node 0's outbox instead, in the same transaction. The drain delivers it to
-`ActivityRelaySubscriber`, placed on the tenant, which writes it on the tenant's node with the
-event's id and time and `on conflict do nothing`. A tenant on node 0 is unchanged.
+- **The freeze refuses, not queues:** a non-null `moving_to` makes `PgShardResolver` answer
+  `frozen: true` and `PgUnitOfWork.run` throw `ForbiddenError("shard.move.inFlight")` for `routed`/`local`
+  writes; reads continue, catalog writes pass. Nothing in lite sets `moving_to`.
+- **So every routed write goes through `run`, even one statement** (`CR.11`) — `db` cannot tell reads from
+  writes, and an *update* outside `run` would evade a move's count check.
+- **A job re-reads its placement every transaction** (`24.2b`) via `withShard`'s `recheck`; frozen or moved
+  throws and retries. Savepoints and catalog transactions skip it.
+- **Catalog-transaction audit rows for a tenant off node 0 go through the outbox** (`24.2a`): catalog
+  transactions run on node 0, so `PgActivityLogger` publishes `activity.recorded` there and
+  `ActivityRelaySubscriber` writes it on the tenant's node (`on conflict do nothing`).
 
 **A placement already in scope for the tenant is the answer, and the resolver is asked only without
 one.** The founder depends on that. Its directory row is uncommitted when it writes
@@ -203,19 +160,10 @@ developer machine, measured in the big kit:
 | **cold** — cache read, catalog query, cache write | 2 568 µs |
 | a cache invalidate, for reference | 667 µs |
 
-The absolute numbers are this machine's: Redis in Docker on Windows, where **one round trip is
-about 0.67 ms**. The invalidate row is there to say so — it is one `DEL` and nothing else, and it
-costs the same as the warm resolve. On a deployment where Redis answers in 100 µs, both rows move
-together.
-
-**The shape is the finding, and it is the right one.** A routed request pays *one cache read* to
-learn where it lives, never a query; a miss costs three round trips rather than one, and happens
-once per key per five minutes. `resolve` runs once per request, not once per query — see above —
-so this is the whole of what routing adds.
-
-**The walk is serial and the reading says so**: two `count(*)`s across two nodes, 135 ms, one node
-after the other. That is `Container.eachShard`, and a pass that fanned out would hold a connection
-open on every node at once.
+This machine's Redis round trip is ~0.67 ms (the one-`DEL` invalidate row shows it); faster Redis moves
+both rows together. **The shape is the finding:** a routed request pays one cache read, never a query; a
+miss is three round trips, once per key per five minutes. The serial `eachShard` walk read two nodes'
+`count(*)` in 135 ms.
 
 ### Writes under load — `24.6`
 
@@ -230,57 +178,31 @@ shipped `DATABASE_POOL_MAX`. 1× is four writers at once and 10× is forty, 1 00
 | 1× | 4 | 23 | 151 ms | 324 ms | 467 ms | 0 |
 | 10× | 40 | 142 | 265 ms | 498 ms | 577 ms | 0 |
 
-**Routing is not where the time goes.** The warm resolve above is under 1 ms of a write's 150. The
-rest is the commit's `fsync`, and on Docker Desktop on Windows that alone is about 100 ms. It is
-also why a crashed catalog container spends minutes in recovery here. Ten times the writers buys six
-times the throughput, because concurrent commits share a flush. Latency grows by less than 2×.
-
-**What the test asserts is not the numbers.** They are this machine's disk. The assertions are
-that no write fails at either level, and that every acknowledged row is on its tenant's node and
-none is on the other. A routing slip under load would be a row that reads back from nowhere. A
-node that is *provisioned*, rather than a second container on one machine, is `S.3`'s remaining
-half, and its numbers are the ones a capacity plan should use.
+**Routing is not the time:** under 1 ms of 150; the rest is `fsync` (~100 ms on Docker Desktop/Windows).
+10× writers bought 6× throughput (shared flushes), latency under 2×. **The test asserts correctness, not
+numbers:** no failed write, every row on its tenant's node only. Provisioned-node numbers (`S.3`) are the
+ones to plan with.
 
 ## Sharding by something else: four edits, and nothing else
 
-A fork that shards by region, by plan, or by anything other than the organization changes four
-places. Nothing else in the repository names the choice, which is the property this whole seam
-exists to have.
+A fork sharding by region or plan changes four places, and nothing else names the choice:
 
-1. **`TenantKey` on the allowlist** — `application/src/primitive/partitioned-table.ts`, today
-   `"organization_id"`. It is the column name every tenant-owned table partitions by, and
-   `PartitionedTable` reads it to compose the `PARTITION BY LIST` clause. Change it and every
-   table's partition key changes with it.
-2. **One strategy class** — `composition/src/shard/organization.strategy.ts`, whose whole body is
-   `Shard.keyOf(principal.organizationId)`. `keyOf(principal)` is what the middleware calls once
-   a request has a principal, and a deployment sharding on region returns the region here.
-3. **`TENANT_COLUMN` in `check-architecture.mjs`** — the assertion that every domain table carries
-   the column and that every unique index leads with it. Asserted equal to `TenantKey`, so the
-   two cannot drift.
-4. **The worker's key derivation** — `apps/worker/src/bootstrap/with-shard.ts`, which turns a
-   job's payload into a principal. A job carries an organization id today; a region-sharded fork
-   carries whatever its strategy reads.
+1. **`TenantKey`** in `application/src/primitive/partitioned-table.ts` (`"organization_id"`) — every
+   table's `PARTITION BY LIST` column.
+2. **The strategy** — `composition/src/shard/organization.strategy.ts`, body
+   `Shard.keyOf(principal.organizationId)`.
+3. **`TENANT_COLUMN`** in `check-architecture.mjs`, asserted equal to `TenantKey`.
+4. **The worker's key derivation** — `apps/worker/src/bootstrap/with-shard.ts`.
 
-**`shard_key` is opaque text and does not change.** The directory column is `text`, not a uuid and
-not a foreign key, precisely so a fork can put a region code in it without a migration. And both
-the generator and the seed read the alias rather than spelling the column, so neither is a fifth
-place.
+`shard_key` stays opaque `text` (no migration for a region code); generator and seed read the alias.
 
 ## Read replicas
 
-A read replica is a second copy of a node that follows the primary and answers reads. **The
-problem with one is staleness.** It replays the primary's changes a moment late, so a row
-committed on the primary may not be on the replica yet. A job that writes a row and then reads it
-back from the replica would not find it.
-
-**So a read uses the replica only once it has caught up — `DatabaseCluster.readerAt`.** Before
-the read, it asks the primary for its current write position (`pg_current_wal_lsn()`), then asks
-the replica whether it has replayed that far (`pg_last_wal_replay_lsn()`). If it has, the replica
-holds everything the primary held when the read began, and it answers. If it has not, or cannot
-be reached, the primary answers. No caller reasons about lag, because the read is never staler
-than the primary it stands in for. `replica.smoke.spec.ts` proves it against a live standby. A
-row inserted on the primary is found by the read straight after it, and again by the first read
-the replica is chosen for. With the check removed, the first read misses the row.
+**The problem is staleness** — a replica replays late, so a write then a replica read can miss the row.
+**`DatabaseCluster.readerAt` uses the replica only once caught up:** it reads the primary's
+`pg_current_wal_lsn()` and the replica's `pg_last_wal_replay_lsn()`; caught up, the replica answers,
+otherwise the primary. No caller reasons about lag. `replica.smoke.spec.ts` proves it on a live standby
+(without the check, the first read misses).
 
 | | cost |
 |---|---|
@@ -294,13 +216,10 @@ placed with `replica: true`. And the repository must ask for it, through `BaseRe
 than `db`. Inside a transaction `reader()` is the transaction, because a transaction reads its own
 writes.
 
-**What reads there today is the public docs.** `apps/web/src/server/doc.fn.ts` places the
-platform's doc reads with `replica: true`, and `PgDocPageRepository.findPublished` and `search`,
-and `PgDocSpaceRepository.list` and `findBySlug`, read through `reader()`. The worker's `withShard`
-accepts the option, and no job passes it today. The status panel also opens the replica pool for
-its lag, which is `now() - pg_last_xact_replay_timestamp()`, and zero when the replica has replayed
-everything it has received. An idle primary sends nothing, so the timestamp alone would read as
-growing lag on a replica that is fully caught up.
+**Today the public docs read there** (`doc.fn.ts` places them with `replica: true`;
+`PgDocPageRepository.findPublished`/`search` and `PgDocSpaceRepository.list`/`findBySlug` use `reader()`);
+no job passes the option. The status panel's lag is `now() - pg_last_xact_replay_timestamp()`, zero once
+everything received is replayed (an idle primary sends nothing).
 
 Unset, `DATABASE_REPLICA_URL` means every read goes to the primary. Lite's compose file starts no
 standby; adding one is [Read replica](../../../../docs/scale/read-replica.md).

@@ -15,20 +15,17 @@ export abstract class ContentSource {
 
   public abstract messages(locale: Locale, namespaces: readonly Namespace[]): Promise<MessageSnapshot>;
   public abstract translator(locale: Locale, namespaces: readonly Namespace[]): Promise<Translator>;
+  public abstract media(key: ImageKey): Promise<ResolvedMedia>;
+  public abstract nav(): Promise<readonly NavItem[]>;
 }
 ```
-
-> [!NOTE]
-> **Two methods at first, four now.** `media()` and `nav()` joined
-> the contract once `@loadbearing/asset`'s manifest and the nav collection exist. See
-> [Why the contract is short](#why-the-contract-is-short-rather-than-stubbed).
 
 ---
 
 ## Why an abstraction with one implementation
 
-`StaticContentSource` is the only implementation today, and the seam still earns its place: adding a
-CMS later is one line in `Container` rather than a rewrite of every screen.
+`StaticContentSource` is the only implementation, and the seam earns its place: a CMS later is one
+`Container` line, not a rewrite of every screen.
 
 ```ts
 this.content = new StaticContentSource(SERVER_CATALOG);
@@ -36,19 +33,13 @@ this.content = new StaticContentSource(SERVER_CATALOG);
 // this.content = new DbContentSource(this.database, this.cache);
 ```
 
-Skip the abstraction now because there is only one implementation, and the CMS conversation becomes
-"we would have to touch every component."
-
-**Every method is async even though the static implementation is mostly synchronous.** That is the
-same decision: a `DbContentSource` cannot be synchronous, so a synchronous seam would make the swap a
-breaking change at every call site.
+**Every method is async though the static implementation mostly is not** — a `DbContentSource` cannot
+be synchronous, so a sync seam would make the swap breaking everywhere.
 
 > [!CAUTION]
-> `@typescript-eslint/require-await` is an error across `packages/*/src/**`, so a method that
-> satisfies an async signature with no `await` in its body must be written
-> `return Promise.resolve(x)` rather than `async`. Identical return type, identical call sites, no
-> rule exemption — and it stops the method claiming asynchrony it does not have. `messages()` and
-> `translator()` genuinely await, so they stay `async`.
+> `require-await` is an error in `packages/*/src/**`, so an await-free method satisfying an async
+> signature returns `Promise.resolve(x)` instead of being `async` — same type and call sites, no
+> exemption, no false claim of asynchrony. `messages()` and `translator()` really await.
 
 ---
 
@@ -61,14 +52,10 @@ await new StaticContentSource().messages("bn", []);
 // namespaces: ["common", "error"]
 ```
 
-So "`common` and `error` are always there" is enforced by the base class rather than remembered by
-every caller. A route that declares `["auth"]` still gets working error copy and loading states, and a
-future `DbContentSource` inherits the guarantee for free.
-
-That guarantee is what makes
-[`ERROR_COPY`](error-copy.md#the-value-type-is-shellmessagekey-and-that-is-load-bearing) safe: every
-value in it is a shell key, so an error page can render whatever it is handed, on any route, with no
-namespace declaration of its own.
+So "`common` and `error` are always there" is enforced by the base class: a route declaring `["auth"]`
+still gets error copy and loading states, and a `DbContentSource` inherits it. That is what makes
+[`ERROR_COPY`](error-copy.md#the-value-type-is-shellmessagekey-and-that-is-load-bearing) safe on any
+route.
 
 ---
 
@@ -80,20 +67,18 @@ public constructor(private readonly catalog: MessageCatalog = CLIENT_CATALOG) {
 }
 ```
 
-The default is the client catalog; the server passes `SERVER_CATALOG` explicitly, which is how the
-email namespace stays server-only without a second entrypoint.
+The default is the client catalog; the server passes `SERVER_CATALOG`, keeping `email` server-only
+without a second entrypoint.
 
-### English is always loaded alongside the target locale — per namespace
+### One bundle per locale, and `base` stays empty
 
 ```ts
-const [base, overrides] = await Promise.all([
-  StaticContentSource.load(this.catalog.en, wanted),
-  locale === "en" ? Promise.resolve({}) : StaticContentSource.load(this.catalog[locale], wanted),
-]);
+const overrides = await StaticContentSource.load(this.catalog[locale], wanted);
+return { locale, namespaces: wanted, base: {}, overrides };
 ```
 
-That is the fallback layer, and it is what makes a `Partial` locale safe. Loading English *wholesale*
-was the original bug; loading it for the namespaces in play is the fallback doing its job.
+Every shipped bundle is a total `NamespaceBundle`, so there is no gap for an English layer to fill
+(`23.15` dropped it); a CMS source is free to fill `base`.
 
 ### A namespace the catalog cannot serve is skipped, not thrown
 
@@ -103,39 +88,22 @@ const present = namespaces
   .filter((loader): loader is BundleLoader => loader !== undefined);
 ```
 
-A client catalog has no `email` cell, so asking for it yields nothing: no loader, no keys in the
-snapshot, and `t()` renders the key. **A browser structurally cannot obtain server-only copy even if
-something asks for it by name** — that is a property of the data, not a check somebody wrote.
-
-`noUncheckedIndexedAccess` forces the lookup to be `BundleLoader | undefined` and the filter to be
-written, so this is checked rather than assumed.
+A client catalog has no `email` cell, so asking yields no keys and `t()` renders the key: **a browser
+structurally cannot obtain server-only copy** — a property of the data, not a check.
+`noUncheckedIndexedAccess` forces the `| undefined` lookup and the filter.
 
 ---
 
 ## Why the contract is short rather than stubbed
 
-`media()` and `nav()` were not declared at first, and the alternative was worse in both
-available forms.
+`media()` and `nav()` joined only once `asset`'s manifest and the nav collection existed. An abstract
+method cannot be deferred — it is a compile error in every subclass — so declaring it early means
+implementing early or stubbing a throw, and **a seam whose implementations throw is worse than a shorter
+seam**: it looks complete, typechecks everywhere, and fails at runtime in whichever screen calls first.
+Adding a method later is mechanical.
 
-An abstract method is not a placeholder you can defer — it is a compile error in every subclass until
-it is implemented. So declaring `media()` today would mean either writing `StaticMediaResolver` today
-(which needs `@loadbearing/asset`'s `ImageManifest`, a later step) or stubbing it to throw. **A seam
-whose implementations throw is worse than a seam with fewer methods**: it looks complete, it typechecks
-at every call site, and it fails at runtime in whatever screen happened to call it first.
-
-Adding a method to an abstract class later is a mechanical change in one implementation. Nothing
-outside this package depends on the count.
-
----
-
-## What is not written yet
-
-| | |
-| --- | --- |
-| `media()`, `nav()` | with `@loadbearing/asset` and the nav collection |
-| `SERVER_CATALOG` | with the `email` namespace — a copy of `CLIENT_CATALOG` would be a boundary that enforces nothing |
-| `BundledContentSource` | with the desktop app: every locale statically imported, `snapshotSync` for a first render with no await and no chunk fetch |
-| `MessageStore` | when a route loader calls `ensure()` |
+**Not written yet:** `BundledContentSource`, with the desktop app — every locale statically imported,
+`snapshotSync` for a first render with no await or chunk fetch.
 
 ---
 
@@ -144,4 +112,3 @@ outside this package depends on the count.
 - [Translator](translator.md) — what `translator()` hands back
 - [namespace](namespace.md) — `SHELL_NAMESPACES` and the union it comes from
 - [error-copy](error-copy.md) — the caller that depends on the shell guarantee
-- [Build order · 20 · content](../../../../docs/setup/20-content-package.md)

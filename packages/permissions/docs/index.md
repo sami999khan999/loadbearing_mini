@@ -5,13 +5,9 @@ description: The shared authorization kernel — one permission vocabulary, one 
 
 # `@loadbearing/permissions`
 
-The architecture's strongest claim is that there is no hardcoded role check anywhere and no second
-security model to keep in sync. That claim survives contact with reality only if the vocabulary,
-the resolution algorithm, and the scope rules are **one artifact** every runtime loads — the oRPC
-handler, React route guards, the `<Can>` component, the worker, and the Tauri shell.
-
-So this package has no database, no HTTP, no React, and no Node built-ins. It is pure data plus one
-algorithm, and it loads anywhere.
+No hardcoded role check and no second security model holds only if vocabulary, resolution and scope
+rules are **one artifact** every runtime loads — oRPC handler, route guards, `<Can>`, worker, Tauri shell.
+So: no database, HTTP, React or Node built-ins — pure data plus one algorithm.
 
 | | |
 | --- | --- |
@@ -23,59 +19,17 @@ algorithm, and it loads anywhere.
 | **Build** | `tsup` → `dist/index.js` + `dist/index.d.ts` |
 
 ```
-packages/permissions/
-├── vitest.config.ts
-├── src/
-│   ├── index.ts                     ← the public barrel; names only folder barrels
-│   ├── registry/                    ← no import.ts: this package takes nothing from outside
-│   │   ├── index.ts
-│   │   ├── permission-registry.ts   → PermissionRegistry, PermissionKey, PermissionMeta, PermissionScope
-│   │   ├── module-registry.ts       → ModuleRegistry, ModuleKey, ModuleGate
-│   │   └── flag-registry.ts         → FlagRegistry, FlagKey, FlagMeta
-│   ├── capability/
-│   │   ├── index.ts
-│   │   ├── capability-set.ts        → CapabilitySet, CapabilitySetDto, ScopedSetDto
-│   │   └── entitlement-mask.ts      → EntitlementMask, EntitlementInput
-│   ├── catalog/                     ← one fragment per slice, team-owned
-│   │   ├── index.ts                 ←   merges fragments (platform-owned)
-│   │   ├── core.permissions.ts      ←   held by every principal (rule 5)
-│   │   ├── platform.permissions.ts  ←   above the tenant; never in a tenant role
-│   │   ├── rbac.permissions.ts
-│   │   ├── member.permissions.ts
-│   │   ├── apikey.permissions.ts
-│   │   ├── ai.permissions.ts
-│   │   ├── doc.permissions.ts
-│   │   └── notification.permissions.ts
-│   ├── gate/                        ← same pattern for nav gates
-│   │   ├── index.ts
-│   │   ├── doc.gate.ts
-│   │   ├── document.gate.ts
-│   │   ├── notification.gate.ts
-│   │   ├── platform.gate.ts
-│   │   └── rbac.gate.ts
-│   ├── flag/                        ← same pattern for feature flags
-│   │   └── index.ts                 → FLAGS, empty in lite
-│   └── route/                       ← same pattern for destinations
-│       ├── index.ts                 → ROUTES, AppRoute, RoutePath
-│       ├── shell.routes.ts          ←   platform-owned: home, sign-in, forbidden
-│       ├── rbac.routes.ts
-│       ├── doc.routes.ts
-│       ├── document.routes.ts
-│       ├── notification.routes.ts
-│       ├── platform.routes.ts
-│       ├── account.routes.ts        ←   no gate: your own password is not a capability
-│       └── organization.routes.ts   ←   no gate: founding your own tenant is not either
-└── tests/
-    ├── registry/
-    │   ├── permission-registry.spec.ts
-    │   ├── module-registry.spec.ts
-    │   └── flag-registry.spec.ts
-    ├── capability/
-    │   ├── capability-set.spec.ts
-    │   └── entitlement-mask.spec.ts
-    └── route/
-        └── route.spec.ts
+packages/permissions/src/
+├── index.ts                    ← the public barrel; names only folder barrels
+├── registry/                   ← flag-registry, module-registry, permission-registry (no import.ts: nothing from outside)
+├── capability/                 → CapabilitySet, CapabilitySetDto, ScopedSetDto, EntitlementMask
+├── catalog/                    ← permission fragments: ai apikey core doc member messaging notification platform rbac
+├── gate/                       ← nav gates: assistant doc document messaging notification platform rbac
+├── flag/                       ← flag fragments: none in lite
+└── route/                      ← destinations: account assistant doc document messaging notification organization platform rbac shell
 ```
+
+Tests mirror `src/` under `tests/`.
 
 ---
 
@@ -92,9 +46,8 @@ PermissionRegistry.instance.isKnown(rowFromDatabase); // type predicate
 PermissionRegistry.instance.scopeOf("member.read");   // "org" | "goal"
 ```
 
-A frozen catalog of keys, each carrying its scope, module, and label. `isKnown()` is the boundary
-between untrusted text and the typed vocabulary — every role grant, per-user override, and API-key
-scope arrives from the database as a raw string and must pass it first.
+A frozen catalog (scope, module, label per key). `isKnown()` is the boundary every database string — role
+grant, override, API-key scope — must pass.
 
 ### [`CapabilitySet`](reference/capability-set.md) — the algorithm
 
@@ -106,9 +59,8 @@ caps.intersect(issuerCaps);              // an API key can never exceed its issu
 CapabilitySet.from(caps.toJSON());       // server → SSR payload → browser, same class
 ```
 
-Deny by default, explicit deny beats every grant including the wildcard, and a goal-scoped
-permission asked without a `goalId` is `false` rather than a throw. Four rules, one implementation,
-four runtimes.
+Deny by default; explicit deny beats every grant, wildcard included; a goal-scoped key without `goalId`
+is `false`, not a throw. One implementation, four runtimes.
 
 ### [The platform scope](reference/platform-scope.md) — above the tenant
 
@@ -116,9 +68,8 @@ four runtimes.
 caps.can("platform.tenant.manage");      // the third axis, and only the third axis
 ```
 
-A tenant's wildcard does not reach it, the `core` exception does not apply to it, an API key's
-`intersect` empties it, and `owner: "all"` excludes it at seed time. Four leak paths, one branch
-in `can()`, four cases in the spec.
+No tenant wildcard, no `core` exception, emptied by an API key's `intersect`, excluded from
+`owner: "all"` — four leak paths, one branch in `can()`, four spec cases.
 
 ### [`ModuleRegistry`](reference/module-registry.md) — the nav gates
 
@@ -126,10 +77,8 @@ in `can()`, four cases in the spec.
 ModuleRegistry.instance.visibleModules(caps); // readonly ModuleKey[]
 ```
 
-"May this actor do X" and "should this actor see the finance section at all" are different
-questions with different owners. `@loadbearing/content` owns the menu's labels, order, and icons —
-and must never be able to change which permission gates a module. That separation is why this is a
-second registry rather than a field on the first.
+"May they do X" and "should they see the section" have different owners: `content` owns labels, order
+and icons but must never change a gate — hence a second registry.
 
 ### [`ROUTES`](reference/routes.md) — the destinations
 
@@ -137,11 +86,9 @@ second registry rather than a field on the first.
 ROUTES.rbac.roles;                            // "/settings/roles"
 ```
 
-One hand-written table of every destination the product has, which `GATES` points into and every
-shell links against. It lives here rather than in a shell because a router's generated route tree
-cannot be the source — a Nest process has none at all, and web, desktop, and Next each generate a
-different one. `ModuleGate.route` is typed `AppRoute`, so a gate naming an undeclared path fails to
-compile.
+One hand-written table of destinations that `GATES` and every shell use — not a generated route tree,
+which Nest lacks and each shell generates differently. `ModuleGate.route` is `AppRoute`, so an undeclared
+path fails to compile.
 
 ### [`EntitlementMask`](reference/entitlement-mask.md) — what the org's plan allows
 
@@ -149,10 +96,8 @@ compile.
 EntitlementMask.from({ plan: "all", added, removed, disabledModules }).narrow(dto);
 ```
 
-A filter over the grants an org's roles hold, applied before `CapabilitySet.from`. It narrows
-grants and never touches a deny, a `core` key or the platform axis. So every check downstream obeys
-a plan without knowing plans exist, and an upgrade restores the org admin's roles at once, because
-nothing was deleted.
+Filters role grants before `CapabilitySet.from`, never touching denies, `core` keys or the platform
+axis — every check obeys plans unaware, and an upgrade restores roles at once.
 
 ### [`FlagRegistry`](reference/flag-registry.md) — what is switched on
 
@@ -160,17 +105,15 @@ nothing was deleted.
 FlagRegistry.instance.clientGating();   // the flags sent to a browser — none in lite
 ```
 
-Every flag is declared in code with an owner and an expiry date, and switched in Postgres. Lite
-declares none, so `FLAGS` is empty. In the big kit, client-gating is derived from the widgets that
-name a flag. Lite has no widgets, so `clientGating()` returns nothing, and a flag you add stays
-server-only until [widgets](../../../docs/scale/widgets.md) are ported back.
+Declared in code with owner and expiry, switched in Postgres. Lite declares none; client-gating derives
+from widgets, which lite lacks, so new flags stay server-only until [widgets](../../../docs/scale/widgets.md)
+are ported.
 
 ---
 
 ## Fragmented from day one
 
-One `CATALOG` object works until three teams edit it in the same sprint and every pull request
-conflicts. Both registries merge team-owned fragments in a platform-owned barrel:
+One `CATALOG` conflicts once three teams edit it, so team fragments merge in a platform barrel:
 
 ```ts
 // src/catalog/index.ts — changes only when a module is added
@@ -180,7 +123,7 @@ export const CATALOG = {
 } as const;
 ```
 
-The literal-union type survives the spread, so typo-safety is unaffected — verified:
+The literal union survives the spread:
 
 ```ts
 caps.can("rbac.role.reed");
@@ -188,10 +131,8 @@ caps.can("rbac.role.reed");
 ```
 
 > [!IMPORTANT]
-> **A permission key is never deleted, only stopped being granted.** Deleting a key makes
-> `isKnown()` start rejecting rows that already exist in `role_permissions` — correct behaviour, and
-> a confusing way to discover the change. Remove the grants in a migration first, the key in a later
-> release.
+> **A key is never deleted, only stopped being granted** — deleting it makes `isKnown()` reject existing
+> `role_permissions` rows. Grants go in a migration first, the key in a later release.
 
 ### The key format
 
@@ -199,16 +140,14 @@ caps.can("rbac.role.reed");
 <module>.<subject>.<action>[.<qualifier>]
 ```
 
-Lowercase, dot-separated, no plurals. The `.self` qualifier means "the same action, but only on rows
-you own" — the entity decides what "own" means, so `task.update` and `task.update.self` are two
-keys, not one key with a flag.
+Lowercase, dotted, no plurals. `.self` means "only rows you own" (the entity defines own), so
+`task.update` and `task.update.self` are two keys.
 
 ---
 
-## Five places the doc's listing was wrong
+## Five bugs the specs pin
 
-Every one of these is proven by a failing test in this package rather than argued from reading. See
-the reference pages for the mechanism in each case.
+Each was found by a failing test:
 
 | # | Defect | Where |
 | --- | --- | --- |
@@ -218,25 +157,19 @@ the reference pages for the mechanism in each case.
 | 4 | `intersect()` filtered org grants through `can()`, dropping org-level grants of goal-scoped keys | [capability-set](reference/capability-set.md#intersect-is-a-security-boundary) |
 | 5 | `intersect()` filtered only `this`'s grants, so a wildcard set intersected down to nothing | [capability-set](reference/capability-set.md#intersect-is-a-security-boundary) |
 
-`src/gate/index.ts` was also missing from the listing entirely, though `module-registry.ts` imports
-`GATES` from it.
-
 ---
 
 ## Testing
 
-Tests live in this package's `tests/` directory, named `<subject>.spec.ts` and mirroring the `src/`
-tree — `src/capability-set.ts` is covered by `tests/capability-set.spec.ts`. `vitest.config.ts`
-narrows `include` to `tests/**/*.spec.ts` so the runner never picks up compiled output from
-`dist/`, and `tsconfig.json` includes `tests/**` so `pnpm typecheck` still covers the specs.
+`tests/` mirrors `src/` (`src/capability/capability-set.ts` → `tests/capability/capability-set.spec.ts`);
+`vitest.config.ts` includes only `tests/**/*.spec.ts` (never `dist/`), and `tsconfig.json` includes
+`tests/**` for typecheck.
 
 ```bash
 pnpm --filter @loadbearing/permissions test
 ```
 
-Every key the shipped catalog defines is org-scoped, so the goal-scoped branch of `can()` is
-unreachable through it. `capability-set.spec.ts` stubs `PermissionRegistry.instance.scopeOf` to
-reach that branch rather than leaving rule 3 unverified until a slice adds a goal-scoped key.
+No shipped key is goal-scoped, so `capability-set.spec.ts` stubs `scopeOf` to verify rule 3.
 
 ---
 
@@ -244,5 +177,4 @@ reach that branch rather than leaving rule 3 unverified until a slice adds a goa
 
 - [PermissionRegistry](reference/permission-registry.md) · [CapabilitySet](reference/capability-set.md) · [The platform scope](reference/platform-scope.md) · [ModuleRegistry](reference/module-registry.md) · [ROUTES](reference/routes.md) · [EntitlementMask](reference/entitlement-mask.md) · [FlagRegistry](reference/flag-registry.md)
 - [Visibility](../../../docs/opinions/visibility.md) — the four mechanisms and the order they resolve in
-- [Build order · 08 · permissions](../../../docs/setup/08-permissions-package.md)
 - [`@loadbearing/core`](../../core/docs/index.md) — the layer below

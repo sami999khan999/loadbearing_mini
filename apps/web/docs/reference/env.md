@@ -1,54 +1,34 @@
 ---
 title: Env and Endpoint
-description: Why the schema parses eagerly, the two cross-field rules that earn their exception, why Endpoint is a separate file, and why the auth base URL ends in .invalid.
+description: Why the schema parses eagerly, the configs it refuses at boot, why Endpoint is a separate file, and why the auth base URL ends in .invalid.
 ---
 
 # `Env` and `Endpoint`
 
 ## `Env` is server-only, and the marker is what enforces it
 
-`env.ts` opens with Start's server-only marker. Its import-protection plugin fails the build when a
-module carrying it is reachable from the client graph — **the one guarantee a naming convention
-cannot give.** Before it was there, `Env` shipped in the browser bundle as `Schema.parse({})` and
-threw on `DATABASE_URL` before the first render.
+`env.ts` opens with Start's server-only marker, so import protection fails the build if the client graph
+reaches it — **what no naming convention can guarantee** (before, `Env` shipped to the browser and threw
+before first render). A side-effect import cannot be re-exported, hence its own imports. It and each other
+app's `env.ts` are the only `process.env` readers.
 
-That marker is a side-effect import, which cannot be re-exported, which is why this file keeps its
-own imports rather than reading `~/import.ts`.
+**Parsed at module load**, so a missing `AUTH_SECRET` crashes boot with a field path, not a 500 an hour later.
 
-It is one of exactly two `process.env` readers in the repository; the other is
-`apps/worker/src/env.ts`. Everything else receives configuration.
+## Configs refused at boot
 
-## Parsed at module load, not on first access
+Each refuses at boot a config that would fail later, elsewhere, silently:
 
-A missing `AUTH_SECRET` should crash the process at boot with a field path, not produce a 500 on the
-first sign-in an hour later.
+- **`bootstrap` with no `BOOTSTRAP_ORGANIZATION_SLUG`** silently enrols nobody. No default slug — unset
+  means no enrolment.
+- **`EMBEDDING_PROVIDER` other than `none` without `EMBEDDING_API_KEY`** — the first index fails auth
+  ([embedding](../../../../packages/infrastructure/docs/reference/embedding.md)).
+- **`ASSISTANT_PROVIDER` other than `none`/`fake` without `ASSISTANT_API_KEY`** — the first question fails
+  ([assistant](../../../../packages/infrastructure/docs/reference/assistant.md)).
+- **An `http` `AUTH_URL` in production** (`FC.15`) — Better Auth marks the cookie `Secure` only over https.
+  Loopback (`localhost`, `127.0.0.1`, `[::1]`) is allowed.
 
-## The two cross-field rules
-
-`bootstrap` with no `BOOTSTRAP_ORGANIZATION_SLUG` is a mode that **silently enrols nobody**:
-every sign-up succeeds, every first sign-in is refused, and nothing in either log says why. Failing
-at boot with a field path is the whole reason this file parses eagerly, and it is why the schema
-carries a refinement at all.
-
-There is deliberately no default for the slug. Unset means no enrolment, which is the production
-posture.
-
-**An `EMBEDDING_PROVIDER` other than `none` with no `EMBEDDING_API_KEY`** is the second, and it is the
-same shape of failure one layer down. Without the rule the first document indexed fails with a
-vendor auth error, in the worker's log rather than the one someone is watching. See
-[embedding](../../../../packages/infrastructure/docs/reference/embedding.md).
-
-**`ASSISTANT_PROVIDER` other than `none` or `fake` with no `ASSISTANT_API_KEY`** is refused the
-same way: the first question would fail with a vendor auth error. `none`, the default, turns the AI
-assistant off. See [assistant](../../../../packages/infrastructure/docs/reference/assistant.md).
-
-**An `http` `AUTH_URL` in production** is refused too (`FC.15`). Better Auth marks the session
-cookie `Secure` only when `AUTH_URL` is https, so a mis-set URL shipped the cookie in the clear and
-nothing said so. A loopback host, `localhost`, `127.0.0.1` or `[::1]`, is allowed, because that is a
-production build tried on a laptop.
-
-**`WEB_DATABASE_CONNECTIONS`** is read by `cluster.mjs` before any process parses this schema; it is
-declared here only so a bad value fails with a field path (`FC.14`).
+`WEB_DATABASE_CONNECTIONS` is read by `cluster.mjs` first; declared here so a bad value fails with a path
+(`FC.14`).
 
 ## Values whose absence is the decision
 
@@ -63,84 +43,39 @@ them somewhere is [`docs/scale/logs.md`](../../../../docs/scale/logs.md).
 
 ## Values with a cap rather than a default
 
-`AUTH_COOKIE_CACHE_MAX_AGE_SECONDS` is capped in the schema, not by convention. A deploy that raises
-it "to improve cache hit rate" fails at boot instead of quietly widening the gap between removing
-access and access stopping. See
-[`auth/docs/reference/capability-cache.md`](../../../../packages/auth/docs/reference/capability-cache.md).
-
-`AUTH_SECRET` has a length floor: a short secret is a real weakness, and this schema is the only
-place anyone will ever check.
-
-`EMAIL_FROM` is never defaulted. An address the sending domain does not authorise bounces or lands in
-spam, and a wrong default fails that way silently on the first real deploy.
-
-`APP_BASE_URL` is not `AUTH_URL`, and the duplication is deliberate. `AUTH_URL` is Better Auth's own
-origin and lives only in this schema; `APP_BASE_URL` is the origin a link inside a message points at,
-and the worker needs it while parsing no auth configuration at all. Collapsing the two would put an
-auth block in the worker's schema to serve one string.
-
-## `trustedOrigins` has one home
-
-Better Auth's CSRF check reads it through `containerConfig()`; the CORS layer reads it directly. Two
-consumers, one list — a second hardcoded copy is how one of them goes stale.
+- **`AUTH_COOKIE_CACHE_MAX_AGE_SECONDS` is capped** — raising it widens the revoke-to-stop gap
+  ([capability-cache](../../../../packages/auth/docs/reference/capability-cache.md)).
+- **`AUTH_SECRET` has a length floor** — nowhere else checks.
+- **`EMAIL_FROM` has no default** — an unauthorised sender silently bounces or lands in spam.
+- **`APP_BASE_URL` ≠ `AUTH_URL`, deliberately** — the worker needs message links without an auth block.
+- **`trustedOrigins` has one home** — Better Auth's CSRF (via `containerConfig()`) and CORS read one list.
 
 ## `Endpoint` exists because `Env` cannot
 
-`Env` parses the full server schema at module load, so importing it from `router.tsx` or a route
-component drags `DATABASE_URL` and `AUTH_SECRET` into the client bundle — where Vite replaces the
-environment object with an empty one and the parse throws before the app can hydrate.
-
-Client code needs two addresses, so it gets **two addresses and no schema**.
-
-The RPC and auth paths are same-origin: the app is served by the same process that answers them, so
-there is no host to configure. They are kept in step with the handler's `prefix` and with the file
-routes that mount them, which spell the path again because `createFileRoute()` takes a literal the
-generator reads without executing anything.
+Importing `Env` client-side drags the server schema into the bundle, where the parse throws before
+hydration. Client code needs **two addresses and no schema**. Both are same-origin, kept in step with the
+handler `prefix` and the mounting routes (which repeat the literal, since `createFileRoute()` takes one).
 
 ### Both addresses are absolute, and the RPC one was not
 
-oRPC's `RPCLink` and Better Auth's client resolve their base through `new URL()` with **no second
-argument**. A relative value therefore throws for both — Better Auth during SSR, and `RPCLink`
-`TypeError: Failed to construct 'URL': Invalid URL` on the *first call the browser makes*.
-
-`rpc` was relative for the life of the app, so no RPC call from a browser had ever succeeded.
-Nothing saw it: SSR goes through `ApiClient.inProcess`, and every suite calls the handler or
-`/api/rpc` directly. `rpcPath` now keeps the literal for the handler prefix and the route files;
-`rpc` and `auth` are both built from one private `origin()`.
+`RPCLink` and Better Auth's client call `new URL()` with **no base**, so relative values throw
+(`Failed to construct 'URL'` on the browser's first call). `rpc` was relative from the start — no browser
+RPC had ever succeeded, unseen because SSR is in-process and suites call the handler. `rpcPath` keeps the
+literal; `rpc` and `auth` come from one private `origin()`.
 
 ### Why the auth base URL ends in `.invalid`
 
-Better Auth's client is the one caller that cannot take a path. It resolves `baseURL` through
-`new URL()` **in its constructor**, so a relative value throws `BetterAuthError: Invalid base URL` —
-during SSR, where there is no `location` to resolve against, which blanks the sign-in page behind a
-failed Suspense boundary.
-
-Every `AuthClient` method runs from a browser event, so the server never issues a request through
-this value; it only has to parse. `.invalid` is reserved by RFC 2606 and is guaranteed never to
-resolve, so a call that does slip into an SSR pass fails loudly and names that line rather than
-quietly reaching some other localhost.
-
-The desktop shell is cross-origin against both and supplies absolute URLs of its own through
-`import.meta.env`.
+Better Auth parses `baseURL` **in its constructor**, so during SSR (no `location`) a relative value
+blanks the sign-in page. Every `AuthClient` call is a browser event, so on the server it need only parse;
+RFC 2606's `.invalid` never resolves, so a stray SSR call fails loudly. The desktop shell supplies its own
+absolute URLs via `import.meta.env`.
 
 ## `vite build` must not load `.env`
 
-`dev` and `preview` load the root `.env` because they run server code that needs it. **`build` must
-not**, and the missing flag in `apps/web/package.json` is deliberate rather than an oversight.
-
-`.env` sets `NODE_ENV=development` — correct for a local process, and `.env.example` ships it. Load
-it into `vite build` and `@vitejs/plugin-react` emits the **development** JSX transform into the
-production bundle: twenty-six files calling `jsxDEV`, which the production React build does not
-export. The server then answers **500 on every page** with
-`TypeError: (0 , import_jsx_dev_runtime.jsxDEV) is not a function`, while `/api/health` — which
-renders no JSX — answers 200.
-
-Every gate passes. `pnpm build` succeeds, the bundle assertion passes, `typecheck`, `lint` and the
-suites are green, and the artefact is broken on its first request.
-
-The build reads no configuration by design: `Env` is parsed at runtime and is server-only, and the
-two addresses `Endpoint` holds are derived from `location`. Nothing at build time needs `.env`, so
-nothing should hand it one.
+`dev` and `preview` load the root `.env`; **`build` must not** (the missing flag in
+`apps/web/package.json` is deliberate). `.env`'s `NODE_ENV=development` makes `@vitejs/plugin-react` emit
+`jsxDEV` into production — **500 on every page** (`jsxDEV is not a function`) while `/api/health` answers
+200, and every gate green. The build needs no config: `Env` is runtime, `Endpoint` derives from `location`.
 
 ## The shard block, and the two rules that make it safe
 
@@ -148,16 +83,10 @@ nothing should hand it one.
 `DATABASE_SHARD_<n>_DIRECT_URL` and `DATABASE_SHARD_<n>_REPLICA_URL` beside each. Absent is one node, which is every deployment until
 the split — `DATABASE_URL` is node 0 and also the catalog.
 
-**Two rules, both enforced at boot rather than discovered later.** The indexes must be contiguous
-from 1: the cluster indexes the array it builds, so a `DATABASE_SHARD_2_URL` with no shard 1
-before it would put every tenant assigned to node 2 on the wrong database. And there is no
-`DATABASE_SHARD_0_URL`: node 0 is `DATABASE_URL`, and a second name for one pool is a
-disagreement waiting to happen about which is the catalog.
-
-There is no range or key configuration here, and that is the design.
-`shard_assignments` on the catalog names the node, one row per tenant, so adding a node is two
-variables and a placement decision — not a config file two processes have to agree about. See
-[sharding](../../../../packages/infrastructure/docs/reference/sharding.md).
+**Two boot rules:** indexes are contiguous from 1 (a gap would misplace every tenant on later nodes), and
+there is no `DATABASE_SHARD_0_URL` (a second name for the catalog pool). No range or key config —
+`shard_assignments` names each tenant's node, so a node is two variables and a placement decision
+([sharding](../../../../packages/infrastructure/docs/reference/sharding.md)).
 
 ## The six database variables, and which of them a pooler would see
 
@@ -167,53 +96,31 @@ pgBouncer sat in front in transaction mode, so adding one is config — see
 that would go past it, and is what migrations, the seed, `drizzle-kit` and the archive's DDL use; it
 defaults to `DATABASE_URL`, which is correct only while nothing is pooling.
 
-`DATABASE_POOL_MAX`, `DATABASE_POOL_IDLE_TIMEOUT_MS` and `DATABASE_POOL_CONNECT_TIMEOUT_MS` are
-this process's own `pg.Pool`, per replica rather than per cluster. The connect timeout is the one
-with no previous default worth having: without it an unreachable Postgres holds a request for the
-OS default, which is longer than every timeout in front of it.
-
-`DATABASE_STATEMENT_TIMEOUT_MS` is the one value this file and `apps/worker/src/env.ts` deliberately
-disagree about — 30 s here, 120 s there. A request a browser is waiting on and a batch nobody is
-waiting on do not want the same ceiling.
+`DATABASE_POOL_MAX`, `_IDLE_TIMEOUT_MS` and `_CONNECT_TIMEOUT_MS` size this replica's `pg.Pool`; without a
+connect timeout an unreachable Postgres holds requests past every timeout in front. `DATABASE_STATEMENT_TIMEOUT_MS`
+deliberately differs from the worker's — 30 s versus 120 s.
 
 **Through a pooler, that variable is not what enforces the timeout.** `pg` sends it as a startup
 parameter, pgBouncer drops it, and `SHOW statement_timeout` reads `0`. The baseline migration's role
 setting (`0000_lite_baseline.sql`, 30 s) is the floor, and `PgUnitOfWork` raises it per transaction
 with `SET LOCAL`. The full mechanism is in [`upstream:docs/infra/reference/pgbouncer.md`](https://github.com/prodicle/loadbearing_tanstack_start_kit/blob/3fafa78c2f42d2d718236d7666429b858199118a/docs/infra/reference/pgbouncer.md).
 
-## The two realtime numbers are per process
+## The two realtime numbers
 
-`REALTIME_MAX_STREAMS_PER_USER` (8) caps how many concurrent streams one person may hold **on this
-replica**, and `REALTIME_STREAM_MAX_AGE_SECONDS` (1800) is how long any one of them lives before it
-ends and the client reconnects.
+`REALTIME_MAX_STREAMS_PER_USER` (8) caps one person's concurrent streams — checked per process first,
+then across processes through stream leases (`26.6`,
+[realtime](../../../../packages/infrastructure/docs/reference/realtime.md)).
+`REALTIME_STREAM_MAX_AGE_SECONDS` (1800) is how long a stream lives before the client reconnects.
 
-Neither is cluster-wide, and that is the decision rather than a limitation. A shared counter would
-cost a Redis round trip on every stream open, and the failure the cap exists to prevent — one tab
-in a reconnect loop opening streams faster than it closes them — is local to the replica it is
-happening on. Behind a load balancer the effective per-person total is the cap times the replica
-count, which is the right order of magnitude for a limit whose job is to bound one bug.
-
-The age limit is what releases a channel nobody is reading. The server spreads it by ±10 % so tabs
-opened together do not all end together. A stream ended by the server is not an error: the
-client's `RealtimeStream` reopens it within a second and is replayed what it missed. That path is exercised on every
-deploy anyway, so it is better to run it on a schedule than to discover it does not work at 3am.
+The age limit releases unread channels, spread ±10 %; the client reopens within a second and is replayed
+— a path every deploy exercises anyway, better run on a schedule than discovered at 3am.
 
 ## `SERVER_SHUTDOWN_TIMEOUT` is srvx's, and the container waits it out
 
-Nitro's Node server is srvx. On `SIGTERM` it stops accepting, gives the requests in flight
-`SERVER_SHUTDOWN_TIMEOUT` seconds — five by default — and then closes what is left. It fires no
-Nitro `close` hook, and it does not exit the process: the preset wires neither.
-
-So the web process disposed nothing (`CR.34`). Its pools and Redis sockets were dropped rather than
-drained, and while they were open the process could not exit on its own; the orchestrator's kill
-ended it. A `SIGTERM` listener that disposed at once would be worse, closing the pools under the
-very requests srvx is letting finish.
-
-`server/container.ts` listens for `SIGTERM` once, waits `Env.shutdownGraceMs` — srvx's window plus a
-second — and disposes the container. `dispose` runs every step even when one throws, and a closed
-Redis connection refuses to reopen, so a stream's `finally` that runs late cannot build a new
-socket. The schema reads the variable srvx reads, rather than a second one of this app's own, so
-the two cannot disagree.
-
-**Checked by build, not by hand.** Windows delivers no catchable `SIGTERM`; the real signal on
-Linux is `BACKLOG.md` §12's `CP7.5`.
+On `SIGTERM` srvx (Nitro's Node server) stops accepting, gives in-flight requests
+`SERVER_SHUTDOWN_TIMEOUT` seconds (five), then closes — firing no `close` hook and not exiting. So the web
+process once disposed nothing (`CR.34`) until the orchestrator killed it; disposing at once would close
+pools under finishing requests. `server/container.ts` waits `Env.shutdownGraceMs` (srvx's window plus a
+second), then disposes; `dispose` runs every step even if one throws, and closed Redis refuses to reopen.
+The schema reads srvx's own variable, so they cannot disagree. Measured on Linux in `CP7.5` (Windows has no
+catchable `SIGTERM`).

@@ -10,32 +10,22 @@ Uuid.v7();               // "0194a5c3-8f21-7b4e-9a02-3c8d1f6e0a7b"
 Uuid.isValid(someInput); // boolean
 ```
 
-A static-only class with a `private constructor()`, the standard namespacing shape here. Biome's
-`noStaticOnlyClass` is [off on purpose](../../../../tooling/biome-config/docs/index.md) for exactly
-this pattern.
+A static-only class with a `private constructor()` (Biome's `noStaticOnlyClass` is
+[off for this](../../../../tooling/biome-config/docs/index.md)).
 
 ---
 
 ## Why v7 rather than v4
 
-Every primary key in the schema is a UUID, so this choice compounds across every table.
-
-A **v4** key is entirely random, so each insert lands at a random point in the primary-key index.
-The B-tree fragments, and the working set the database has to keep warm is the *whole* index
-rather than its tail.
-
-A **v7** key embeds a 48-bit millisecond timestamp in the high bits. Inserts are append-mostly,
-pages fill in order, and rows created together sit together on disk — which also makes
-`created_at`-ordered range scans cheap without a second index.
-
-On a table with a few hundred thousand rows the difference is measurable. On a few million it is
-the difference between a fast insert path and a slow one.
+Every primary key is a UUID, so this compounds across every table. A **v4** is random: inserts scatter
+across the index, the B-tree fragments, and the whole index must stay warm. A **v7** puts a 48-bit
+millisecond timestamp in the high bits: inserts append, pages fill in order, rows created together sit
+together, and `created_at`-ordered scans need no second index — measurable at hundreds of thousands of
+rows, decisive at millions.
 
 > [!WARNING]
-> **v7 IDs leak their creation time**, to the millisecond, to anyone holding one. That is fine for
-> internal identifiers. Avoid it for anything a customer sees in a URL where creation order or
-> volume is itself sensitive — in that case, carry a separate opaque public identifier rather than
-> switching the primary key back to v4.
+> **v7 ids leak creation time** to the millisecond. Fine internally; where a customer-visible URL makes
+> order or volume sensitive, add a separate opaque public id rather than reverting to v4.
 
 ---
 
@@ -67,37 +57,24 @@ bytes[6] = ((bytes[6] ?? 0) & 0x0f) | 0x70;
 bytes[8] = ((bytes[8] ?? 0) & 0x3f) | 0x80;
 ```
 
-Sixteen random bytes first, then the first six are overwritten with the big-endian timestamp and
-two nibbles are forced. `Date.now()` here is the **only** sanctioned read of the system clock in
-`packages/` — see [clock](clock.md) — and it is building an identifier, not deciding anything.
-
-The `?? 0` on the two reads can never fire; a `Uint8Array(16)` always has indices 6 and 8. It is
-there because `noUncheckedIndexedAccess` types the read as possibly-`undefined`, and it discharges
-that without a non-null assertion, which Biome's `noNonNullAssertion` flags.
+Sixteen random bytes, the first six overwritten with the timestamp, two nibbles forced. This
+`Date.now()` is the **only** sanctioned system-clock read in `packages/` ([clock](clock.md)) — building
+an id, deciding nothing. The `?? 0` never fires; it satisfies `noUncheckedIndexedAccess` without a
+non-null assertion (which Biome flags).
 
 ---
 
 ## Why `crypto` is not a global here
 
 > [!CAUTION]
-> Written the obvious way — a bare `crypto.getRandomValues(...)` — this file compiles **by
-> accident**, and the accident is invisible.
+> A bare `crypto.getRandomValues(...)` compiles **by invisible accident**.
 
-TypeScript declares the `crypto` global in `lib.dom.d.ts` and `lib.webworker.d.ts` only.
-[`library.json`](../../../../tooling/tsconfig/docs/reference/presets.md) sets `lib: ["ES2024"]` and loads
-neither, which is exactly what makes this package honestly isomorphic.
-
-So why did it typecheck? `tests/clock.spec.ts` imports `vitest`; vitest's types pull in vite's; and
-vite carries `/// <reference types="node" />`, which drops the whole `@types/node` global surface —
-`crypto` included — into `core`'s program. Delete the spec files and the package stops compiling
-with `TS2304: Cannot find name 'crypto'`. Verified by compiling `src/uuid.ts` alone against a bare
-ES2024 lib.
-
-Moving the specs from `src/` to `tests/` did not change this: `tsconfig.json` includes `tests/**`,
-so the spec files are still in the same program. Removing that glob reproduces the `TS2304` —
-also verified.
-
-The fix names the one method actually used and reaches it off `globalThis`:
+TypeScript declares `crypto` only in `lib.dom.d.ts` and `lib.webworker.d.ts`;
+[`library.json`](../../../../tooling/tsconfig/docs/reference/presets.md)'s `lib: ["ES2024"]` loads
+neither. It typechecked because `tests/primitive/*.spec.ts` import `vitest`, whose types pull in vite's,
+which carry `/// <reference types="node" />` — dropping `@types/node`'s globals into `core`'s program
+(`tsconfig.json` includes `tests/**`). Without the specs: `TS2304: Cannot find name 'crypto'` (verified
+both ways). The fix names the one method used and reads it off `globalThis`:
 
 ```ts
 type WebCrypto = {
@@ -109,7 +86,7 @@ private static webCrypto(): WebCrypto {
 }
 ```
 
-Three alternatives were considered and rejected:
+Rejected alternatives:
 
 | Alternative | Why not |
 | --- | --- |
@@ -117,12 +94,9 @@ Three alternatives were considered and rejected:
 | add `"DOM"` to `lib` | brings back `window`, which [`ServerOnly`](server-only.md) depends on *not* being declared |
 | an ambient `declare const crypto` in `src/*.d.ts` | collides with `@types/node`'s own declaration wherever both land in one program |
 
-`WebCrypto` is not exported, so it never reaches `dist/index.d.ts`; the declaration emits
-`private static webCrypto;` and consumers see nothing.
-
-At **runtime** the doc's original claim holds unchanged: `crypto.getRandomValues` is Web Crypto,
-global in Node 19+, in every browser, and in a Tauri webview. No import, no polyfill. This is a
-type-level problem only.
+`WebCrypto` is unexported, so `dist/index.d.ts` shows only `private static webCrypto;`. At runtime
+nothing changes: Web Crypto is global in Node 19+, every browser and the Tauri webview — a type-level
+problem only.
 
 ---
 
@@ -132,28 +106,23 @@ type-level problem only.
 /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 ```
 
-Two constrained nibbles, and they mean different things. `[1-8]` is the version — every version RFC
-9562 defines — and `[89ab]` is the variant. So:
+`[1-8]` is the version (every RFC 9562 version), `[89ab]` the variant:
 
 - `…-7000-0000-000000000000` is **rejected** — the variant nibble is `0`.
 - The nil UUID and the max UUID are **rejected** — neither carries a defined version.
 - A well-formed **v4** is **accepted**, deliberately.
 
-**The version group used to be `[0-9a-f]`**, which is to say the version was not checked at all: a
-string with a correct variant and a version nibble of `0` or `f` passed, and neither is an
-identifier anything mints. That was a defect, and fixing it does not make this a v7 assertion.
-
-`isValid` is a cheap shape guard for untrusted input at the edge. An identifier minted elsewhere —
-by a client, an import, an older row — is still an identifier, and rejecting it here would move a
-schema decision into a regex. If you need "is this specifically a v7", check `value[14] === "7"` at
-the call site, where the reason for wanting that is visible.
+The version group was once `[0-9a-f]` — unchecked, so versions `0` and `f` passed; fixing that did not
+make it a v7 assertion. `isValid` is a cheap edge guard: ids minted elsewhere (a client, an import, an
+older row) are still ids, and rejecting them would put a schema decision in a regex. For "specifically
+v7", check `value[14] === "7"` at the call site.
 
 ---
 
 ## Tests
 
-`tests/uuid.spec.ts` pins the timestamp with `vi.setSystemTime` and asserts the leading 48 bits
-round-trip, which is the claim the whole B-tree argument rests on:
+`tests/primitive/uuid.spec.ts` pins the clock with `vi.setSystemTime` and asserts the leading 48 bits
+round-trip — the claim the B-tree argument rests on:
 
 ```ts
 const at = new Date("2026-01-01T00:00:00.000Z");

@@ -17,25 +17,16 @@ Two static methods and no instances. `random()` returns hex over `bytes` of CSPR
 
 ## Why it is in `core` and not beside `ApiKeyHasher`
 
-`ApiKeyHasher` in [`auth`](../../../auth/docs/index.md) does the same digest for API keys, and for
-a while it was the only place that could. Then invitations needed it on both sides of the boundary:
-`InviteMemberUseCase` in `application` hashes before saving, and `PgInvitationClaimer` in
-`infrastructure` hashes before looking up. Neither package can import `auth` — it sits to their
-right in [Layering](../../../../docs/ai/rules/layering.md) — so the primitive moved down to the one
-place both can reach.
-
-That is the test for anything in this package: not "is it small" but "does more than one layer need
-it, with no seam between them where a fake could go".
+`ApiKeyHasher` in [`auth`](../../../auth/docs/index.md) does the same for API keys, but invitations need
+it on both sides — `InviteMemberUseCase` (`application`) hashes to save, `PgInvitationClaimer`
+(`infrastructure`) to look up — and neither can import `auth` ([Layering](../../../../docs/ai/rules/layering.md)).
+The test for this package: does more than one layer need it, with no seam for a fake between them?
 
 ## The pairing is the point
 
-**`random()` goes to the recipient; `hash()` goes to the table.** An invitation token is a bearer
-string — combined with a verified mailbox it joins someone to a tenant — so `invitations.token_hash`
-stores the digest and the plaintext exists only in the mail that was sent and the URL its recipient
-holds. A dump of that table carries nothing anyone can accept with.
-
-`api_keys.token_hash` had been doing exactly this two files over, which is what made `invitations`
-the odd one out rather than a judgement call.
+**`random()` goes to the recipient; `hash()` to the table.** An invitation token plus a verified mailbox
+joins a tenant, so `invitations.token_hash` stores the digest and the plaintext lives only in the mail and
+URL — a dump grants nothing, as with `api_keys.token_hash`.
 
 ## Both globals are read off `globalThis`
 
@@ -46,10 +37,7 @@ type WebCrypto = {
 };
 ```
 
-`lib: ["ES2024"]` declares neither `crypto` nor `TextEncoder`, and adding a DOM or Node lib to
-borrow one method would bind this package to a runtime it has to load in all of. Same reasoning,
-and same shape, as [uuid](uuid.md#why-crypto-is-not-a-global-here).
-
-`subtle.digest` is the reason `hash()` is `async` while `random()` is not. It is Web Crypto's only
-digest API, it returns a promise everywhere, and the alternative is a synchronous SHA-256 written
-by hand — which is a dependency or a bug, and this package takes neither.
+`lib: ["ES2024"]` declares neither `crypto` nor `TextEncoder`, and a DOM or Node lib would bind the
+package to one runtime ([uuid](uuid.md#why-crypto-is-not-a-global-here)). `hash()` is `async` because
+`subtle.digest`, Web Crypto's only digest, returns a promise; a hand-written sync SHA-256 is a dependency
+or a bug.

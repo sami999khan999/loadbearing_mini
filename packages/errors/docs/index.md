@@ -5,9 +5,9 @@ description: One failure shape every runtime throws, serialises and reconstructs
 
 # `@loadbearing/errors`
 
-A failure has to be understood in four places: the use-case that throws it, the transport that maps it
-to a status, the component that decides what to render, and the worker that logs it and retries or does
-not. This package is the vocabulary all four share.
+A failure is understood in four places — the use-case throwing it, the transport mapping it to a
+status, the component rendering it, the worker logging and maybe retrying it. This is their shared
+vocabulary.
 
 ```
 packages/errors/
@@ -32,10 +32,10 @@ packages/errors/
     └── normalizer/error-normalizer.spec.ts
 ```
 
-Zero dependencies — the root of the workspace graph. Any dependency would exclude one of those four
-runtimes, and then the vocabulary stops being shared. `@loadbearing/core` depends on *this* package,
-not the other way round, because [`ServerOnly.assert`](../../core/docs/reference/server-only.md)
-throws and there is no such thing here as a bare `Error`.
+Zero dependencies, the root of the workspace graph — any dependency would exclude one of those
+runtimes. `core` depends on *this* package because
+[`ServerOnly.assert`](../../core/docs/reference/server-only.md) throws, and nothing here throws a bare
+`Error`.
 
 ---
 
@@ -47,12 +47,10 @@ throws and there is no such thing here as a bare `Error`.
 new ForbiddenError("task.reactivate").message; // "FORBIDDEN"
 ```
 
-Every word a user reads lives in [`@loadbearing/content`](../../content/docs/index.md), keyed by code
-and translated. This is the same division `permissions` draws — `permissions` owns `PermissionKey`,
-`content` owns the label, and `content` is lint-banned from naming a permission at all.
-
-It is also the strongest available form of "no built-in error messages", because there is no message
-to leak, to forget to translate, or to match on. Three things follow, and each is an improvement:
+Every user-facing word lives in [`@loadbearing/content`](../../content/docs/index.md), keyed by code
+and translated — the split `permissions` draws (it owns `PermissionKey`, `content` the label, and
+`content` may not name a permission). With no message there is nothing to leak, forget to translate or
+match on:
 
 - **Logs get fields, not sentences.** `{ code, permission, goalId }` is what you filter on at 3am.
 - **The server never sends prose.** It sends `{ code, context }`; the client renders in *its* locale.
@@ -60,27 +58,23 @@ to leak, to forget to translate, or to match on. Three things follow, and each i
 - **A reporter groups by code**, rather than fragmenting one bug into a thousand interpolated strings.
 
 > [!WARNING]
-> The temptation is to add "just a short developer message" to the base class. Don't. The moment such a
-> field exists, something renders it — a toast, a log line pasted into a ticket, a `<pre>` in an error
-> boundary — and user-facing text now lives outside `content` and outside translation. Structured
-> `context` covers every legitimate use.
+> Do not add "just a short developer message" to the base class: once it exists something renders it (a
+> toast, a pasted log line, an error-boundary `<pre>`), and user-facing text escapes `content` and
+> translation. Structured `context` covers every legitimate use.
 
 ### There is no exception, including the one that used to exist
 
-`ServerOnly.assert` in `core` is the hardest case in the repository: it fires at module load, for a
-developer reading a console, and never crosses a wire. It throws `ServerOnlyError` — code
-`SERVER_ONLY`, context `{ package }` — and the long sentence it used to carry inline now lives in
-`content` as `error.serverOnly`, with `{package}` interpolated from that context.
+`ServerOnly.assert` is the hardest case — module load, a developer's console, no wire — and it throws
+`ServerOnlyError` (code `SERVER_ONLY`, context `{ package }`); its old inline sentence is now `content`'s
+`error.serverOnly`.
 
 ```ts
 new ServerOnlyError("@loadbearing/infrastructure").message;   // "SERVER_ONLY"
 ErrorCopy.message(translator, error.toJSON());    // "@loadbearing/infrastructure was imported into a client …"
 ```
 
-Nothing was lost — the words are identical, and now translatable. What the throw site keeps is a
-greppable code and a field a log query can filter on. The full argument, including the case *for*
-the exception and why it fails, is on
-[core's `ServerOnly` page](../../core/docs/reference/server-only.md#why-the-hardest-case-for-prose-still-loses).
+Nothing was lost; the words are now translatable, and the throw site keeps a greppable code and a
+filterable field ([the full argument](../../core/docs/reference/server-only.md#why-the-hardest-case-for-prose-still-loses)).
 
 ---
 
@@ -98,9 +92,8 @@ error.toJSON();    // the wire envelope
 AppError.from(envelope);  // reconstructed on the client, or null if the code is unknown
 ```
 
-`toJSON()` / `from()` is deliberately the same idiom as `CapabilitySet` — the server throws, the wire
-carries JSON, the client rebuilds a class it can branch on. `from()` returns `null` for an unrecognised
-code rather than trusting it, because an envelope is untrusted input.
+`toJSON()`/`from()` is `CapabilitySet`'s idiom — throw on the server, JSON on the wire, a branchable
+class on the client. `from()` returns `null` for an unknown code: an envelope is untrusted input.
 
 ### [`ErrorNormalizer`](reference/error-normalizer.md) — the handler
 
@@ -116,34 +109,32 @@ ErrorNormalizer.normalize(anythingAtAll); // → AppError, always
 
 ### [`ERROR_CATALOG`](reference/catalog.md) — the vocabulary
 
-Team-owned fragments merged in a platform-owned barrel, exactly like the permission catalog, with
-`ErrorCode = keyof typeof ERROR_CATALOG` as a closed union. Metadata is transport-agnostic: `retryable`
-is a fact about the code that `query` and the worker both read, so they cannot disagree by convention;
-`severity` separates "someone tried something they cannot do" from "we are broken".
+Team-owned fragments merged by a platform barrel, like the permission catalog;
+`ErrorCode = keyof typeof ERROR_CATALOG` is closed. Metadata is transport-agnostic: `retryable` is read by
+both `query` and the worker so they cannot disagree; `severity` separates "tried something not allowed"
+from "we are broken".
 
 ### `HTTP_STATUS` — quarantined on purpose
 
-Total over `ErrorCode`, so a new code fails to compile until it has a status. `application` may not
-import it: `ForbiddenError` is a domain concept and `403` is a transport one, and that separation is
-most of what keeps the transport swappable. ESLint enforces the import name.
+Total over `ErrorCode` (a new code needs a status to compile). `application` may not import it —
+`ForbiddenError` is domain, `403` transport, and that split keeps the transport swappable; ESLint bans the
+import name.
 
 ---
 
 ## Testing
 
-32 tests. The ones worth knowing about:
+32 tests; the ones worth knowing:
 
-- **`normalize()` is total** — an `Error`, a string, `undefined`, `null`, a number and a plain object
-  all yield a valid envelope.
-- **No original text escapes.** A Postgres-flavoured `Error("… relation \"user_api_keys\" …")` is
-  normalised and the table name is asserted absent from `JSON.stringify(envelope)`. That is the
-  requirement, so it is tested directly rather than inferred.
-- **Zod's default message is discarded** — asserted against a realistic issue that carries one.
-- **Structural detection works across package copies**, and an unknown code is *not* mistaken for ours.
+- **`normalize()` is total** — `Error`, string, `undefined`, `null`, number and plain object all yield a
+  valid envelope.
+- **No original text escapes** — a Postgres-flavoured `Error("… relation \"user_api_keys\" …")` is
+  normalised and the table name asserted absent from `JSON.stringify(envelope)`.
+- **Zod's default message is discarded**, against a realistic issue carrying one.
+- **Structural detection works across package copies**, and an unknown code is not mistaken for ours.
 - **The catalog and `HTTP_STATUS` have not drifted.**
-- **`ServerOnlyError` names its context key `package`** — asserted as a key list, because that key is
-  the placeholder in `error.serverOnly` and renaming it breaks only the rendered sentence.
-  `content` pins the other end of the same seam.
+- **`ServerOnlyError`'s context key is `package`** — the `error.serverOnly` placeholder; `content` pins
+  the other end.
 
 ```bash
 pnpm --filter @loadbearing/errors test
@@ -154,7 +145,6 @@ pnpm --filter @loadbearing/errors test
 ## See also
 
 - [AppError](reference/app-error.md) · [ErrorNormalizer](reference/error-normalizer.md) · [catalog](reference/catalog.md)
-- [Build order · 09 · errors](../../../docs/setup/09-errors-package.md)
 - [`@loadbearing/content`](../../content/docs/reference/error-copy.md) — the other half: `ERROR_COPY`, `ErrorCopy`
 - [`@loadbearing/core`](../../core/docs/reference/server-only.md) — the one caller that throws at module load
 - [`@loadbearing/permissions`](../../permissions/docs/index.md) — the same codes-here/copy-there split

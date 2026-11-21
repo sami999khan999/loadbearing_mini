@@ -8,7 +8,7 @@ description: The repository's gate scripts, and every place lite's check-archite
 The scripts CI runs and a developer runs before claiming a change is done: `check-architecture.mjs`,
 `check-contrast.mjs`, `comment-density.mjs`, `boot-smoke.mjs`, and the compose wrappers. What each
 `check-architecture` assertion greps for, and the failure that put it there, is in
-[`docs/setup/26-hygiene-and-ci.md`](../../../docs/setup/26-hygiene-and-ci.md).
+`check-architecture.mjs`.
 
 `guide-publish.mjs` is not a gate. `pnpm guide:publish` publishes the super admin guide, the
 Markdown pages and manifest in `tooling/scripts/guide/`, into a running app's docs through its own

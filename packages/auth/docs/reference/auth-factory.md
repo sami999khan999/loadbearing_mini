@@ -5,41 +5,36 @@ description: The one place Better Auth is configured, option by option — the t
 
 # `AuthFactory`
 
-`AuthFactory.create()` is the only call to `betterAuth()` in the repository. Every option in it is
-either a security boundary or the reason a whole surface works; none of it is taste. This page
-carries the reasoning, so the file itself can state constraints and stop.
+`AuthFactory.create()` is the only `betterAuth()` call in the repository. Every option is a security
+boundary or what makes a whole surface work; this page carries the reasoning so the file can state
+constraints and stop.
 
 ## Why the return type is inferred
 
-`create()` is the one method in this package with no return annotation, and it has to stay that
-way. `ReturnType<typeof betterAuth>` is `Auth<BetterAuthOptions>` — the *unconfigured* instance —
-and the two-factor plugin widens the user type, so annotating with it fails to assign. The type is
-inferred from the options object and read back out:
+`create()` is the package's one method with no return annotation, and must stay so:
+`ReturnType<typeof betterAuth>` is the *unconfigured* `Auth<BetterAuthOptions>`, and the two-factor
+plugin widens the user type, so annotating fails to assign. The type is read back out of the options:
 
 ```ts
 export type AuthInstance = ReturnType<typeof AuthFactory.create>;
 ```
 
-That alias is what every consumer names: `BetterAuthSessionResolver` takes one, `Container` holds
-one.
+Every consumer names that alias (`BetterAuthSessionResolver` takes one, `Container` holds one).
 
 ## The two secondary-storage traps
 
-Configuring `secondaryStorage` changes two unrelated defaults, and both of them move a credential
-off Postgres and onto the `allkeys-lru` Redis instance.
+Configuring `secondaryStorage` flips two unrelated defaults, each moving a credential off Postgres onto
+the `allkeys-lru` Redis:
 
 | Option | Default with secondary storage | What that costs |
 |---|---|---|
 | `session.storeSessionInDatabase` | Better Auth stops writing the `sessions` row | An ordinary eviction is a random sign-out |
 | `verification.storeInDatabase` | The verification table is never created | A reset link stops working, with no error on either side |
 
-Both are set to `true` here. **Redis sits in front of Postgres, never instead of it** — every read
-falls through to the table on a miss, which is the property that makes eviction survivable. See
-[`docs/opinions/data-and-scale.md`](../../../../docs/opinions/data-and-scale.md) for the rule this
-is an instance of.
-
-Rate-limit counters go the other way and use `storage: "secondary-storage"` deliberately: a lost
-counter means a few extra attempts, never a lockout.
+Both are `true` here. **Redis sits in front of Postgres, never instead of it** — every miss falls
+through to the table, which makes eviction survivable
+([`data-and-scale.md`](../../../../docs/opinions/data-and-scale.md)). Rate-limit counters deliberately
+use `storage: "secondary-storage"`: a lost counter means a few extra attempts, never a lockout.
 
 ## The cookie cache window
 
@@ -47,17 +42,15 @@ counter means a few extra attempts, never a lockout.
 cookieCache: { enabled: true, maxAge: config.cookieCacheMaxAgeSeconds }
 ```
 
-Most requests skip the session lookup entirely. It is the single largest performance win available
-in this file and it costs one block — but the window is the same kind of number as the
-`CapabilityCache` TTL: it is how long a revoked session keeps working. `env.ts` caps
-`AUTH_COOKIE_CACHE_MAX_AGE_SECONDS` at 60 so a deploy that raises it fails at boot rather than
-quietly widening that gap. See [`capability-cache.md`](./capability-cache.md).
+Most requests skip the session lookup — the largest performance win in the file, for one block. But
+the window is how long a revoked session keeps working, like the `CapabilityCache` TTL, so `env.ts`
+caps `AUTH_COOKIE_CACHE_MAX_AGE_SECONDS` at 60 and a deploy raising it fails at boot
+([`capability-cache.md`](./capability-cache.md)).
 
 ## The session-create hook resolves the tenant
 
-`databaseHooks.session.create.before` is where a session acquires its `activeOrganizationId`. It
-resolves the tenant once, at sign-in, so every later request reads it off a session Better Auth was
-going to load anyway.
+`databaseHooks.session.create.before` gives a session its `activeOrganizationId`, once at sign-in, so
+later requests read it off a session Better Auth loads anyway:
 
 ```ts
 const organizationId =
@@ -66,21 +59,16 @@ const organizationId =
 if (!organizationId) return false;
 ```
 
-Two decisions are load-bearing here:
+- **The reader runs first**, answering every session after the first — enrolment is not on the sign-in
+  path.
+- **Not a `user.create.after` hook:** Better Auth queues those until the sign-up endpoint finishes,
+  *after* this hook has refused the session. This is the first moment a membership can exist and be
+  seen.
 
-- **The reader runs first.** It answers on every session after the first — enrolment is not on the
-  sign-in path.
-- **This is not a `user.create.after` hook.** Better Auth queues those until the whole sign-up
-  endpoint has finished, which is *after* this hook has already run and refused the session. This
-  is the first moment a membership can exist and still be seen by the code that needs it.
-
-Returning `false` aborts the session, so a user with no membership gets a failed sign-in rather
-than an unscoped principal. Which enroller is bound is `AUTH_ENROLMENT_MODE` — see
-[`enrolment.md`](./enrolment.md).
-
-`surface` is pinned in the same hook from the request origin, and both it and
-`activeOrganizationId` are declared `input: false`: that is what stops a sign-up body from naming
-its own tenant or claiming a surface.
+`false` aborts the session, so a user with no membership fails sign-in rather than getting an unscoped
+principal. `AUTH_ENROLMENT_MODE` picks the enroller ([`enrolment.md`](./enrolment.md)). `surface` is
+pinned here from the request origin, and it and `activeOrganizationId` are `input: false`, so a
+sign-up body cannot name its tenant or claim a surface.
 
 ## Desktop origins
 
@@ -88,17 +76,14 @@ its own tenant or claiming a surface.
 const DESKTOP_ORIGINS: readonly string[] = ["tauri://localhost", "http://tauri.localhost"];
 ```
 
-Both, because the scheme genuinely differs by platform — `tauri://localhost` on macOS and Linux,
-`http://tauri.localhost` on Windows. Shipping one produces an app that works for half the team.
-`AuthSurface.of` compares the origin exactly: an `Origin` header carries nothing after the host,
-and a prefix match let `http://tauri.localhost.example` pass as the desktop app.
-The `bearer()` plugin is not optional for the same reason: a session cookie is never sent
-cross-origin, and the Tauri webview is always cross-origin.
+Both: `tauri://localhost` on macOS and Linux, `http://tauri.localhost` on Windows — one alone works
+for half the team. `AuthSurface.of` compares exactly (an `Origin` carries nothing after the host, and
+a prefix match let `http://tauri.localhost.example` pass). The `bearer()` plugin is required because a
+session cookie is never sent cross-origin, and the Tauri webview always is.
 
 ## Rate limits: twenty is for endpoints nobody attacks
 
-The global rule is 20 a minute. It is far too loose for five paths, each of which is either a guess
-against a credential or an email this server pays to send:
+The global rule is 20 a minute — far too loose for paths that guess a credential or send a paid email:
 
 | Path | Window | Max |
 |---|---|---|
@@ -111,28 +96,20 @@ against a credential or an email this server pays to send:
 | `/invitation/accept` | 60 s | 5 |
 | `/organization/switch` | 60 s | 20 |
 
-Paths are Better Auth's own, relative to `basePath`, and are verified against the pinned runtime:
-**a rule keyed on a path that does not exist silently rate-limits nothing.** Creating a tenant seeds
-a role set and accepting an invitation is a guess against a token, which is why the organization
-plugin's paths are down here too — see [`organization-plugin.md`](./organization-plugin.md).
+Paths are Better Auth's own, relative to `basePath`, verified against the pinned runtime: **a rule on a
+path that does not exist silently limits nothing.** Creating a tenant seeds a role set and accepting an
+invitation guesses a token, hence the organization plugin's paths
+([`organization-plugin.md`](./organization-plugin.md)).
 
-## Credential options, and what each one prevents
+## Credential options, and what each prevents
 
-**Every one of these four hooks now enqueues rather than sends.** `AuthMailer` takes a
-`MailRecipient` — address, user id, and the locale from `users.locale`, which Better Auth carries as
-an additional field — instead of a bare address, and `QueuedAuthMailer` turns each call into a job on
-`QueueName.MAIL`. Two consequences worth knowing before the first local sign-up:
-
-- **The worker must be running for any of this mail to arrive.** A stopped worker means a
-  verification link that is queued and never rendered. That is the price of one send path, and it is
-  the reason auth mail is published at `high` priority with five attempts.
-- Better Auth's hooks are the reason the recipient is a shape rather than a string. They are called
-  from a token endpoint that carries no request, so the old implementation composed every message in
-  the default locale and there was nowhere to put the person's own.
-
-`AuthFactory.recipient` normalises `user.locale` against the known locales rather than trusting it.
-It is an additional field and therefore loosely typed, and an unrecognised value would otherwise
-reach `ContentSource.translator` and ask for a catalog that does not exist.
+**All four mail hooks enqueue rather than send.** `AuthMailer` takes a `MailRecipient` (address, user
+id, and the locale from `users.locale`, an additional field) and `QueuedAuthMailer` turns each call
+into a `QueueName.MAIL` job, at `high` priority with five attempts. So **the worker must run for any
+auth mail to arrive**. The recipient is a shape because these hooks are called from a token endpoint
+with no request — previously every message was composed in the default locale.
+`AuthFactory.recipient` normalises `user.locale` against known locales, since a loosely typed
+unrecognised value would ask `ContentSource.translator` for a missing catalog.
 
 | Option | Value | The failure it prevents |
 |---|---|---|
@@ -145,59 +122,48 @@ reach `ContentSource.translator` and ask for a catalog that does not exist.
 | `emailVerification.sendOnSignUp` | `true` | Otherwise the account exists, the flag is false, and nothing that could clear it is ever dispatched |
 | `autoSignInAfterVerification` | `false` | Verifying proves the mailbox was reachable, not that the person reading it is at that browser |
 
-`sendChangeEmailConfirmation` is delivered to `user.email` — the address being moved *away from*.
-Better Auth hands the new address to the same callback and it is deliberately unused: confirming at
-the destination means a session someone else is holding can move the account to an address its
-owner cannot reach.
+`sendChangeEmailConfirmation` goes to `user.email` — the address being moved *away from*. Better Auth
+also passes the new address, deliberately unused: confirming at the destination would let someone
+holding a session move the account where its owner cannot reach.
 
 ## Account linking
 
-`trustedProviders: ["google"]`. Google asserts a verified address, so a Google sign-in matching an
-existing account is the same person, and linking is the right answer — the alternative is a dead end
-where a real user is told the email is taken by themselves. Untrusted providers still require an
-explicit link from the settings page.
+`trustedProviders: ["google"]` — Google asserts a verified address, so a matching sign-in is the same
+person and linking avoids telling a real user their email is taken by themselves. Untrusted providers
+need an explicit link from settings. `requireLocalEmailVerified` stays `true`: it stops someone
+pre-registering an unverified account at a victim's address and having the victim's Google identity
+linked in ([`social-login.md`](./social-login.md)).
 
-`requireLocalEmailVerified` defaults to `true` and is deliberately left alone: it is what stops
-someone pre-registering an unverified account at a victim's address and having the victim's Google
-identity linked into it. See [`social-login.md`](./social-login.md).
-
-`socialProviders` is absent rather than half-configured when no credentials were supplied. An empty
-client id is rejected at Google's consent screen, which is a failure the user sees and nobody can
-diagnose from a log line here — and its absence is what lets the sign-in page decide whether to
-render the button at all. `prompt: "select_account"` stops Google silently reusing whichever account
-the browser is already signed into.
+`socialProviders` is absent, not half-configured, without credentials — an empty client id fails at
+Google's consent screen where no log here explains it, and absence lets the sign-in page decide
+whether to render the button. `prompt: "select_account"` stops Google silently reusing the browser's
+current account.
 
 ## Model naming and ids
 
-`modelName` is what the Drizzle adapter looks up in the schema object, so those five names *are* the
-export names in
-[`packages/infrastructure/src/pg/schema/auth.schema.ts`](../../../infrastructure/src/pg/schema/auth.schema.ts).
-They are renamed to this repository's plural convention — `users` beside `organizations`, `roles`,
-`memberships` — rather than Better Auth's singular defaults. Field names need no mapping: Better
-Auth's are already camelCase, which is the convention here too.
+`modelName` is what the Drizzle adapter looks up, so those five names *are* the exports in
+[`auth.schema.ts`](../../../infrastructure/src/pg/schema/auth.schema.ts), renamed to this repository's
+plurals (`users` beside `organizations`, `roles`, `memberships`). Field names need no mapping —
+already camelCase.
 
-`advanced.database.generateId` returns `Uuid.v7()`. Better Auth's default is an opaque string, which
-is what forced `user_id` to be `text` on the domain tables; with time-ordered uuids, `UserId` —
-declared `z.uuid().brand<"UserId">()` in `contracts` — is finally true rather than aspirational.
+`advanced.database.generateId` returns `Uuid.v7()`. Better Auth's opaque default forced `user_id` to be
+`text`; with time-ordered uuids, `UserId` (`z.uuid().brand<"UserId">()` in `contracts`) is finally true.
 
-Two additional user fields are worth naming:
+Additional user fields:
 
-- **`locale`** sits on the user rather than a preferences table because it is read on the first
-  server render of every request, before anything else about the user is needed.
-- **`deactivatedAt`** is a state, not a delete: the activity log still points at this row and always
-  will. `input: false` keeps it off every registration payload.
-- **`lastActiveOrganizationId`** is written by the organization plugin through
-  `internalAdapter.updateUser`, which is why it must be declared here and not only in the Drizzle
-  schema.
+- **`locale`** — on the user, not a preferences table, because the first server render of every
+  request reads it.
+- **`deactivatedAt`** — a state, not a delete: the activity log points at this row forever.
+  `input: false` keeps it off registration.
+- **`lastActiveOrganizationId`** — written by the organization plugin via `internalAdapter.updateUser`,
+  so it must be declared here, not only in the Drizzle schema.
 
-`cookiePrefix: "app"` is user-visible in the browser and kept generic rather than named after the
-project: changing it later invalidates every cookie already issued.
+`cookiePrefix: "app"` is generic because it is user-visible, and changing it invalidates every issued
+cookie.
 
 ## Two-factor options
 
-`issuer` defaults to `appName` already and is stated so the coupling is visible at the line that
-depends on it. `backupCodeOptions` is ten single-use codes of ten characters — the recovery path for
-a lost phone, and the reason enabling 2FA cannot lock someone out. `otpOptions.period` is **minutes,
-not seconds**; Better Auth's default is 3, and five is a compromise with mail delivery latency.
-Anything much longer widens the window in which a forwarded message is still a valid second factor.
-See [`two-factor.md`](./two-factor.md).
+`issuer` already defaults to `appName`; it is stated so the coupling is visible. `backupCodeOptions` is
+ten single-use ten-character codes — the lost-phone recovery path, and why enabling 2FA cannot lock
+anyone out. `otpOptions.period` is **minutes, not seconds** (default 3; five allows for mail latency —
+longer widens the window a forwarded code stays valid). See [`two-factor.md`](./two-factor.md).

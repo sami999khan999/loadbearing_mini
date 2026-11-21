@@ -5,17 +5,15 @@ description: How to reach the server — the typed oRPC client, the auth-strateg
 
 # `@loadbearing/api-client`
 
-**`api-client` is how to reach the server. [`query`](../../query/docs/index.md) is how to cache what
-comes back.** They change for different reasons — this one when the backend changes, `query` when
-product behaviour does — which is why they are two packages.
+**`api-client` reaches the server; [`query`](../../query/docs/index.md) caches what comes back** — two
+packages because they change for different reasons.
 
 ```bash
 grep -rnE "@tanstack|from \"react\"" packages/api-client/src
 ```
 
-Returns nothing, and that is a hard constraint rather than a preference. This package must load in a
-plain Node script, an integration test, and any future non-React host — a CLI, a migration script, a
-sidecar. **One React import makes all of those impossible.**
+returns nothing — a hard constraint: it must load in plain Node, integration tests and any non-React
+host (CLI, script, sidecar). **One React import breaks all of them.**
 
 | | |
 | --- | --- |
@@ -53,37 +51,29 @@ packages/api-client/tests/
 └── client/api-client.spec.ts
 ```
 
-`auth/` **is the entire difference between a web client and a desktop client.** Everything above it —
-`query`, `feature`, every component — is identical either way.
+`auth/` **is the whole difference between web and desktop clients**; everything above is identical.
 
 ## Two factories, and the one that skips the network
 
-The obvious design, `new ApiClient(baseUrl, auth)`, has a hidden cost during SSR: `"/api/rpc"`
-resolves to your own server, so every loader makes a real HTTP request out through the loopback and
-back in. Six loaders on a page is six self-requests before a byte renders, competing with real user
-traffic for the same connection pool.
-
-So the constructor is private:
+`new ApiClient(baseUrl, auth)` would make every SSR loader an HTTP round trip through the loopback —
+six self-requests before a byte renders, competing with real traffic. So the constructor is private:
 
 | Factory | Used by | Transport |
 | --- | --- | --- |
 | `ApiClient.overHttp(baseUrl, auth)` | browser, Tauri webview, CLI | `RPCLink` over `fetch` |
 | `ApiClient.inProcess(rpc)` | SSR loaders in `apps/web` | the router client, directly |
 
-`createQueryClient()` in [21](../../../docs/setup/21-query-package.md) picks per environment. Both
-satisfy the same type, so nothing downstream can tell which it got — and on client-side navigation
-the same loader runs in the browser and picks up the HTTP client automatically.
+`createQueryClient()` in `query` picks per environment; both satisfy one type, and on client
+navigation the same loader picks up the HTTP client.
 
 > [!IMPORTANT]
-> **In-process is a transport optimisation, never an authorization shortcut.** `apps/web` passes the
-> real request headers into the router context. Skipping them because "we are already on the server"
-> either breaks auth or tempts someone into constructing a privileged principal directly. Same
-> middleware, same `Authorizer.assert()`; only the serialisation is skipped.
+> **In-process is a transport optimisation, never an authorization shortcut.** `apps/web` passes the real
+> request headers in; skipping them breaks auth or tempts a hand-built privileged principal. Same
+> middleware and `Authorizer.assert()`; only serialisation is skipped.
 
 ## The auth seam
 
-A Tauri webview runs on a `tauri://` origin, so a cookie set by the API is **never** sent with its
-requests. That single fact is why `AuthStrategy` exists.
+A Tauri webview's `tauri://` origin **never** sends the API's cookie — why `AuthStrategy` exists.
 
 | | `CookieAuthStrategy` | `BearerAuthStrategy` |
 | --- | --- | --- |
@@ -91,32 +81,19 @@ requests. That single fact is why `AuthStrategy` exists.
 | `credentials` | `include` | **`omit`** |
 | Host | browser | Tauri webview, CLI, integration test |
 
-`credentials: "omit"` on the bearer path is not tidiness. A desktop shell that calls a third-party
-origin must not hand it a session cookie the API would not have read anyway.
-
-**`TokenProvider` is abstract because *where* the token lives differs by host** — the OS keychain
-behind a Tauri `invoke`, a mobile keychain, an in-memory value in a test. All three are
-asynchronous, which is why `get()` returns a promise. Two methods, not three: `set(null)` is the
-clear path, and [30](../../../docs/setup/30-desktop-app.md) depends on that shape exactly —
-`noImplicitOverride` turns a stale `token()`/`store()`/`clear()` triple into a compile error.
-
-See [`docs/reference/auth-strategy.md`](reference/auth-strategy.md) for what the specs actually pin
-down at the wire.
+`credentials: "omit"` stops a desktop shell handing third-party origins a session cookie.
+**`TokenProvider` is abstract because token storage differs by host** (OS keychain via Tauri `invoke`,
+mobile keychain, in-memory in tests), all async, so `get()` returns a promise. Two methods: `set(null)`
+clears, and `noImplicitOverride` makes a stale `token()`/`store()`/`clear()` triple a compile error. Wire
+details: [auth-strategy](reference/auth-strategy.md).
 
 ## Why the vanilla Better Auth client
 
-`AuthClient` wraps `better-auth/client`, **never `better-auth/react`**. That package's `useSession`
-keeps its own cache with its own invalidation rules, which would mean two caching systems in one app:
-TanStack Query for everything, and a separate one for the single piece of state that gates all of it.
-When they disagree — and they do, on sign-out — the UI shows a signed-in shell wrapped around a run
-of `UNAUTHORIZED` responses.
-
-Wrapping the vanilla client here puts session state in the same cache as everything else, through
-`SessionStore` in `apps/web`, which rides the SSR payload. One owner, one invalidation story.
-
-**`AuthClient` throws rather than returning `{ data, error }`.** Better Auth's client returns the
-pair; the rest of this codebase throws. Normalising at the boundary means a `SignInForm` uses the same
-error handling as every other mutation.
+`AuthClient` wraps `better-auth/client`, **never `better-auth/react`**, whose `useSession` keeps a second
+cache that disagrees with TanStack Query on sign-out — a signed-in shell around `UNAUTHORIZED`s. The
+vanilla client puts session state in the one cache, via `apps/web`'s `SessionStore` riding the SSR
+payload. **It throws rather than returning `{ data, error }`**, so `SignInForm` handles errors like every
+other mutation.
 
 ## Reference
 
@@ -136,30 +113,22 @@ error handling as every other mutation.
 | Tauri desktop | `CookieAuthStrategy` → `BearerAuthStrategy` at one call site | none |
 | CLI or script | constructs `ApiClient.overHttp` directly, skips `query` | none |
 
-**When NestJS arrives, SSR loses its in-process shortcut** — the API becomes a separate process, so
-loaders make real HTTP calls. Point the server-side client at an internal URL and forward the
-incoming request's cookies onto the outbound call. That is a change to one factory, which is only
-true because loaders go through `ApiClient` instead of importing the router.
+**With NestJS, SSR loses its in-process shortcut** — point the server client at an internal URL and
+forward the request's cookies: one factory change, because loaders go through `ApiClient`, not the
+router.
 
 ## Picking the transport is a build-time decision, not a runtime one
 
-`apps/web/src/router.tsx` chooses with `createIsomorphicFn`, and the Start plugin removes the branch
-that does not apply along with its imports — which is what keeps `createServerRpcClient`, and the
-whole container graph behind it, out of the client bundle. The bundle assertion in
-[26](../../../docs/setup/26-hygiene-and-ci.md) is what proves that rather than assuming it.
+`apps/web/src/router.tsx` chooses with `createIsomorphicFn`; the Start plugin removes the inapplicable
+branch and its imports, keeping `createServerRpcClient` and the container graph out of the client
+bundle — proven by `check-architecture.mjs`'s bundle assertion.
 
 > [!IMPORTANT]
-> **`overHttp` refuses a relative base outside a browser.** `Endpoint.rpc` is `/api/rpc`, which is
-> correct in a browser and unresolvable under Node — `fetch` has no document to resolve against, so
-> the first call throws `TypeError: Invalid URL` from inside a route loader, several frames from the
-> line that chose the transport. The guard turns that into an `InternalError` at construction whose
-> `cause` names `ApiClient.inProcess`.
->
-> The sentence rides on `cause` rather than `message` because the code **is** the message here
-> ([`errors`](../../errors/docs/index.md)): the envelope stays wordless and the diagnostic reaches
-> the logger.
+> **`overHttp` refuses a relative base outside a browser.** `/api/rpc` cannot resolve under Node, so the
+> first call would throw `TypeError: Invalid URL` deep in a loader; the guard throws an `InternalError` at
+> construction whose `cause` names `ApiClient.inProcess` (on `cause`, since the code **is** the message —
+> [`errors`](../../errors/docs/index.md)).
 
-**Two namespace accessors, and the rest go through `raw`.** `role` and `member` have a `get` on
-`ApiClient`; a slice adds two lines — `public get task() { return this.rpc.task; }` — which is what
-keeps the public surface readable rather than a pass-through, and gives a per-namespace concern (a
-retry policy for a flaky procedure) somewhere to live later.
+**Two namespace accessors (`role`, `member`); the rest go through `raw`.** A slice adds
+`public get task() { return this.rpc.task; }`, keeping the surface readable and giving per-namespace
+concerns (a retry policy) a home.

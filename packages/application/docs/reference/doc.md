@@ -5,24 +5,16 @@ description: One slice for public, private and organization docs — why platfor
 
 # Docs
 
-A space is a sidebar of pages. An organization writes its own spaces for its own members. The
-platform organization writes the product's documentation. Some of it is public, and some of it is
-opened to chosen organizations, people and plans.
-
-**That is one slice, not three.** There is one schema, one set of use-cases, one renderer and one
-reader. This page explains why that holds, and what the storage does to make a read cheap.
+A space is a sidebar of pages. Organizations write spaces for their members; the platform organization
+writes the product's docs, some public, some opened to chosen organizations, people and plans. **One
+slice, not three** — one schema, use-case set, renderer and reader.
 
 ## Platform docs are the platform organization's rows
 
-The obvious design keeps the platform's docs in catalog tables beside `plans` and
-`feature_flags`, and a tenant's in routed tables. That is two schemas, two repositories, and a
-second copy of every rule.
-
-**The premise behind it does not hold.** "An anonymous reader has no shard" is true. But the shard
-key is an organization, not a person, and the platform's spaces belong to one organization that is
-always known: `PlatformReader.organizationId()`. So a public read is placed at that organization's
-node with `Container.placedAt`, which builds an empty system principal whose only job is to place
-the request.
+Catalog tables for platform docs would mean two schemas, two repositories, every rule twice. "An
+anonymous reader has no shard" is true, but the shard key is an organization, and the platform's is always
+known (`PlatformReader.organizationId()`) — so a public read is placed there by `Container.placedAt`, with
+an empty system principal that only places.
 
 | | Where it lives | Who writes it |
 |---|---|---|
@@ -30,18 +22,14 @@ the request.
 | The platform's spaces | the same four tables, under the platform organization | the platform organization's members, with the same keys |
 | Who may read a granted platform space | `doc_space_grants` — catalog | platform admins, `platform.doc.grant` |
 
-The grants are the one catalog table. A grant names an organization, a person or a plan anywhere
-in the deployment, and it is read before a request is placed, just like `entitlement_adjustments`.
-Its columns are `grantee_organization_id`, `grantee_user_id` and `grantee_plan_key`, never
-`organization_id`. With that column, §17 would read the table as a tenant's and require every
-unique index to lead with it.
+Grants are the one catalog table — they name anyone in the deployment and are read before placement,
+like `entitlement_adjustments`. Columns are `grantee_organization_id`, `grantee_user_id`,
+`grantee_plan_key`, never `organization_id` (which §17 would read as a tenant's).
 
 ## Who may write
 
-**Writing docs needs a membership in the organization that owns them.** Every write asserts its
-`doc.*` key against the actor's active organization, and every repository call is scoped to it, so
-another organization's ids are simply not found. `doc-write-authorization.spec.ts` pins this for
-each write.
+**Writing needs membership in the owning organization:** each write asserts its `doc.*` key there and
+every repository call is scoped to it (`doc-write-authorization.spec.ts`).
 
 | Key | Lets a member |
 |---|---|
@@ -49,11 +37,9 @@ each write.
 | `doc.page.publish` | publish a page |
 | `doc.space.manage` | create, edit and delete spaces |
 
-**Platform docs are the platform organization's**, so the same keys held there write them. Its
-`platform_admin` holds every key, and a custom role such as "Docs editor" can hold just the doc
-keys. One extra rule: **moving a space onto `public` or `granted` also needs `platform.doc.grant`**
-(`DocRules.assertMayOpen`), because opening docs to the internet or to other tenants is a platform
-decision, not just arranging spaces. A space already open can still be edited without it.
+The same keys in the platform organization write platform docs (`platform_admin` holds all; a "Docs
+editor" role can hold just these). **Moving a space onto `public` or `granted` also needs
+`platform.doc.grant`** (`DocRules.assertMayOpen`); editing an already-open space does not.
 
 ## Who may read a space
 
@@ -66,27 +52,16 @@ A space has an **audience**:
 | `granted` | platform admins, and anyone a grant reaches | the platform organization only |
 | `owner` | its author, and nobody else | any organization |
 
-`DocRules.assertAudience` refuses `public` and `granted` anywhere else, so a tenant can never
-publish to the world.
+`DocRules.assertAudience` refuses `public`/`granted` elsewhere. Inside an organization `doc.page.read`
+reads every `members` space; other audiences widen who *else* reads.
 
-Inside an organization, the permission is the answer for every audience but one. A member with
-`doc.page.read` reads every `members` space, and the other audiences only widen who *else* may
-read.
-
-**`owner` is the one audience that narrows.** An `owner` space is its author's alone, and
-`created_by` names the author. Everyone else is told it does not exist. That includes another
-member, an org admin, a platform admin and a signed-out visitor, and the answer is `NOT_FOUND`,
-never `FORBIDDEN`, so its slug cannot be probed. Every use-case that touches a space or one of its
-pages asks `DocRules.assertVisible` first. `list`, search and the tree filter with
-`DocRules.isVisible` before they rank or build anything, and `DocAccess.canRead` checks it before
-any grant. So an owner space never reaches `/llms.txt` or the public reader. A grant on one is
-refused (`error.field.private`), and only the author may switch a space to `owner`
-(`DocRules.assertAudienceChange`). `doc_spaces_owner_idx` covers the author's lookup.
-
-**A private space's address ends in six random characters** (`BL.16`). Slugs are unique per
-organization, so a manager creating `notes` used to be told `slug: taken` by someone's private
-`notes`, which said that it existed. `DocRules.storedSlug` adds the ending whenever a space becomes
-`owner` or a private one is renamed, and keeps it while the address is unchanged; the form says so.
+**`owner` is the one that narrows** — the author's (`created_by`) alone; everyone else, admins and
+platform admins included, gets `NOT_FOUND` (never `FORBIDDEN`, so slugs cannot be probed). Every use-case
+on a space or page calls `DocRules.assertVisible` first; `list`, search and the tree filter with
+`isVisible` before ranking; `DocAccess.canRead` checks it before any grant — so never `/llms.txt` or the
+public reader. Grants on one are refused (`error.field.private`); only the author switches to `owner`
+(`assertAudienceChange`); `doc_spaces_owner_idx` serves the lookup. **A private space's slug ends in six
+random characters** (`BL.16`, `DocRules.storedSlug`), else `slug: taken` would reveal it.
 
 | Viewer | `members` | `public` | `granted` | `owner` |
 |---|---|---|---|---|
@@ -95,34 +70,20 @@ organization, so a manager creating `notes` used to be told `slug: taken` by som
 | an org or platform admin | reads | reads | reads | `NOT_FOUND` |
 | a signed-out visitor | `NOT_FOUND` | reads | `NOT_FOUND` | `NOT_FOUND` |
 
-The platform organization's `public` and `granted` spaces are read from outside through
-`DocAccess.canRead`. The table's middle two columns apply to them there. A platform `owner` space
-is read by its author only inside the platform organization (`FC.11`).
+Platform `public`/`granted` spaces are read from outside through `DocAccess.canRead`; a platform
+`owner` space only by its author inside the platform organization (`FC.11`). **An orphaned `owner` space**
+(author no longer active, `BL.15`) is listed by slug alone to `doc.space.manage` holders
+(`ListOrphanedDocSpacesUseCase`, "Private spaces of former members") and deleted unread; otherwise it stays
+`NOT_FOUND`, and a reactivated author finds it intact.
 
-**An `owner` space outlives its author only until a manager deletes it** (`BL.15`). Once the
-author is no longer an active member, `ListOrphanedDocSpacesUseCase` names the space to holders of
-`doc.space.manage`, by its slug alone, on the manage page under "Private spaces of former members".
-`DeleteDocSpaceUseCase` then deletes it unread. Nothing else changes: the title and the pages stay
-`NOT_FOUND` to everyone, and a deactivated author who is reactivated finds the space as they left
-it, unless it was deleted in between.
-
-Outside it, `DocAccess.canRead` decides. A grant reaches a viewer three ways: to them by name, to
-their active organization, or to that organization's plan. **The plan is how a private space rides
-an entitlement.** Moving an organization to a plan opens every space granted to the plan, and
-moving it off closes them, with no per-organization rows to keep in step.
-
-The viewer's readable set is one catalog query, cached for sixty seconds under
-`doc:access:<organization>:<user>`. A grant write clears the whole prefix after it commits. A
-plan's grant reaches people nobody could list without reading every tenant, so there is no
-narrower key to delete.
-
-**Not yours is not found.** A private space asked for by someone who may not read it is
-`NOT_FOUND`, never `FORBIDDEN`. Answering differently would let anyone probe for private slugs.
+A grant reaches a viewer by name, via their active organization, or via its plan — **the plan is how a
+private space rides an entitlement**, with no per-organization rows. The readable set is one catalog
+query cached 60 s as `doc:access:<organization>:<user>`; a grant write clears the whole prefix (a plan's
+reach is unlistable). **Not yours is not found** — never `FORBIDDEN`.
 
 ## Access links: a doc that follows a feature
 
-The audience says who may open a space. An **access link** narrows it further, to readers who
-have a feature. A space or a page can link to four kinds of feature, stored as one rule in its
+An **access link** narrows the audience to readers with a feature — one rule in a space's or page's
 `access` column:
 
 | Link | The reader passes when | Read through |
@@ -132,18 +93,13 @@ have a feature. A space or a page can link to four kinds of feature, stored as o
 | `flag` | the flag is on for their organization | `FlagCache.onFor`, one read per request |
 | `plan` | their organization is on that plan | `EntitlementRepository.findPlanOf`, cached 60 s as `doc:plan:<org>` |
 
-**Every link set must pass.** A page linked to a module and a plan needs both. A page's rule adds
-to its space's rule, never replaces it. A hidden page takes its children with it, and a section
-left with nothing disappears.
-
-**Hidden is not found.** A doc a reader fails is absent from the sidebar, search, the space
-switcher, `/llms.txt` and raw Markdown, and a direct link to it is `NOT_FOUND`, as an `owner` space
-is. Three more rules follow:
-- **Signed out passes no link.** A signed-out reader has no organization, plan or permission, so a
-  linked doc is for signed-in readers only. An unlinked public page is unchanged.
-- **A key that no longer exists fails closed.** The doc hides; it never opens.
-- **A reader from another organization is judged against their own.** A platform doc linked to the
-  `apikey` module shows to whoever's organization has it.
+**Every link must pass**; a page's rule adds to its space's; a hidden page hides its children, and an
+emptied section disappears. **Hidden is not found** — absent from sidebar, search, switcher, `/llms.txt`
+and raw Markdown, and `NOT_FOUND` by link.
+- **Signed out passes no link** (no organization, plan or permission).
+- **A vanished key fails closed.**
+- **Readers are judged against their own organization** — a platform doc linked to `apikey` shows to
+  whoever has it.
 
 | Reader | No link | `module: apikey` | `permission: rbac.role.manage` | `plan: team` |
 |---|---|---|---|---|
@@ -151,41 +107,25 @@ is. Three more rules follow:
 | member, on a plan without `apikey`, on `free` | reads | `NOT_FOUND` | `NOT_FOUND` | `NOT_FOUND` |
 | signed out | reads (public only) | `NOT_FOUND` | `NOT_FOUND` | `NOT_FOUND` |
 
-`DocFeaturePolicy` holds the four checks. Module and permission links read the viewer's
-`CapabilitySet` in memory. The flag set and the plan are fetched only when a rule names one, once
-per request through `DocFeatureScope`, so **a reader of unlinked docs pays nothing**. A page's rule
-is copied onto its node in `doc_spaces.nav`, so filtering a tree reads no row per page.
-
-**Who may set a link.** `doc.space.manage` for a space and `doc.page.write` for a page. A link only
-narrows, so a writer cannot widen who reads a doc by setting one. `assertKnown` refuses a key no
-registry knows and a platform-scope permission, which no organization holds. It runs before the
-transaction, because a plan is a catalog row. A link is structure, like a slug: live on save, with
-the tree rebuilt in the same transaction. Leaving `access` out of a save keeps the stored rule.
+`DocFeaturePolicy` holds the checks: module and permission read the in-memory `CapabilitySet`; flags
+and plan are fetched only when named, once per request (`DocFeatureScope`) — **unlinked docs cost
+nothing**. Rules are copied onto `doc_spaces.nav` nodes, so tree filtering reads no page rows.
+**Setting a link** needs `doc.space.manage` (space) or `doc.page.write` (page) — links only narrow.
+`assertKnown` (before the transaction; plans are catalog) refuses unknown keys and platform-scope
+permissions. A link is structure, live on save; omitting `access` keeps the stored rule.
 
 ## Raw Markdown, Open in AI and the repository link
 
-`/api/doc/<space>/<path>` serves a page's Markdown source. It reads as nobody, so it answers only
-for a **public, unlinked** page. The reader offers three things for such a page, in its Open menu:
-the raw Markdown, **Open in ChatGPT** and **Open in Claude**. Each AI entry opens a new conversation
-with a prompt naming the page's absolute source URL, which that tool then fetches.
-
-Any other page offers none of the three. A members-only, granted or linked page would hand the
-tool a URL that answers 404. `DocNavTree.isLinked` checks the space, the page and every page above
-it, because a hidden parent hides its children.
-
-A space's `repository_url` is an `https` link, checked by the contract. When it is set, the
-sidebar footer shows a GitHub icon beside the theme controls. When it is null, nothing shows.
+`/api/doc/<space>/<path>` serves Markdown source reading as nobody, so only for **public, unlinked**
+pages — which alone get the Open menu's raw Markdown, **Open in ChatGPT** and **Open in Claude** (a prompt
+naming the absolute source URL). Others would hand the tool a 404; `DocNavTree.isLinked` checks space,
+page and ancestors. A space's `https` `repository_url` shows a GitHub icon in the sidebar footer.
 
 ## A page is rendered once
 
-`PublishDocPageUseCase` renders the Markdown when a page is published, and never when it is
-read. The renderer is behind `MarkdownRenderer`, because the parser is a node-only dependency the
-domain must not name. See
-[`doc-renderer.md`](../../../infrastructure/docs/reference/doc-renderer.md) for the pipeline and
-the sanitiser.
-
-The preview in the editor calls the same renderer through `docPage.preview`. A client-side parser
-would be a second renderer, and the day the two disagreed the preview would lie about the page.
+`PublishDocPageUseCase` renders on publish, never on read, behind `MarkdownRenderer` (the parser is
+node-only; [`doc-renderer.md`](../../../infrastructure/docs/reference/doc-renderer.md)). The editor preview
+uses the same renderer via `docPage.preview` — a client parser would be a second, eventually lying, one.
 
 ## A read is one row
 
@@ -196,18 +136,10 @@ would be a second renderer, and the day the two disagreed the preview would lie 
 | `title`, `markdown`, `draft_version`, … | the editor |
 | `published_title`, `published_html`, `published_toc`, `published_markdown`, `revision_no`, … | the reader |
 
-Both bodies are TOASTed, so **no query here selects `*`**. The tree's query names the tree's
-columns, and each side names its own.
-
-The published snapshot on the row is what lets `doc_revision` be pure history. Archiving or
-dropping a month of revisions cannot break a live page, because no live page reads them.
-
-**The reader's sidebar is one column too.** `doc_spaces.nav` is the published tree as JSON. It is
-rebuilt by `DocTree` inside the same transaction as the publish, move or delete that changed it,
-and the row's `version` goes up by one each time.
-
-A tree node carries its page's `revision_no`. So a reader resolves the page's cache key from the
-tree alone:
+Both bodies are TOASTed, so **no query selects `*`**. The row's published snapshot makes `doc_revision`
+pure history — archiving revisions cannot break a live page. **The sidebar is one column:**
+`doc_spaces.nav`, rebuilt by `DocTree` in the changing transaction, `version` + 1 each time. Nodes carry
+`revision_no`, so a page's cache key comes from the tree alone:
 
 | Key | Holds | Lifetime |
 |---|---|---|
@@ -215,27 +147,18 @@ tree alone:
 | `doc:page:<org>:<page>:<revision>` | a published page | one day; never stale, since a new revision is a new key |
 | `doc:spaces:<org>` | every space in the organization, without trees | 60 s, deleted with any space |
 
-**A warm page is zero queries, and a cold one is two.** Cache delete after commit, never inside
-the transaction: a reader between the delete and the commit would put the old row straight back.
-The platform organization is remembered for the life of the process, so the public reader asks
-for it once, not four times a page.
+**Warm is zero queries, cold is two.** Deletes run after commit (inside, a reader would re-cache the old
+row). The platform organization id is remembered per process.
 
 ## A large space costs a page read nothing extra
 
-**A page read carries the tree trimmed.** `DocRules.trimNav` keeps every section's pages and the
-children of the pages above the one being read. Every other branch is `folded: true` with no
-children. The reader fetches the whole tree once the page is up:
-- from `docSpace.nav` in an organization's docs;
-- from `/api/doc-nav/<space>?v=<version>` for the platform's.
+**A page read carries the tree trimmed** — `DocRules.trimNav` keeps sections' pages and the read page's
+ancestors' children; other branches are `folded: true`. The full tree follows from `docSpace.nav`
+(organization) or `/api/doc-nav/<space>?v=<version>` (platform, versioned so `immutable` for signed-out
+readers and CDNs). Only open branches and near-viewport sections render.
 
-The version is in the request, so the answer never changes. The public URL is served
-`immutable` to anyone not signed in, and the browser and a CDN keep it. The sidebar renders only
-open branches, and an article lays out only the sections near the viewport.
-
-`pnpm doc:bench` measures it: a public 2,000-page space whose 20 largest pages sit at the
-200,000-character cap. It reports queries per request from `pg_stat_statements`. On 2026-10-01,
-on the development machine under heavy outside load (load average 11–15 on 4 cores), one web
-process:
+`pnpm doc:bench`: a public 2,000-page space, its 20 largest at the 200,000-character cap, queries from
+`pg_stat_statements`. 2026-10-01, one web process, load 11–15 on 4 cores:
 
 | Path | Before | After |
 |---|---|---|
@@ -246,12 +169,9 @@ process:
 | Search, p95 | 46 ms | 60 ms |
 | Render of the largest page | 792 ms | 563–1,201 ms, p95 7 ms |
 
-**The numbers above were flattered.** Until 2026-10-02 the production build could not
-server-render any page that used Base UI, so most of the page was drawn in the browser. A
-CommonJS shim loaded a second React. Each request failed early and cheaply, and the body arrived
-empty. Nitro now traces `react` and `react-dom` (`apps/web/vite.config.ts`), so there is one
-React and every page renders on the server. Measured again on 2026-10-02, one production
-process, same busy machine:
+**Those were flattered:** a CommonJS shim loaded a second React, so production SSR failed cheaply on any
+Base UI page. Nitro now traces `react` and `react-dom` (`apps/web/vite.config.ts`). 2026-10-02, one
+production process, same machine:
 
 | Path | Req/s |
 |---|---|
@@ -259,113 +179,65 @@ process, same busy machine:
 | A page in the 2,000-page space, 501 links in its sidebar | 18 → 39 |
 | Raw Markdown | 287 |
 
-Two fixes moved the large-sidebar figure:
-- **`DocLink` parsed every link's path as a UUID**, to spot manage routes. A failed `safeParse`
-  builds an error with a stack, which was half the render. It now parses only manage paths.
-- **Reader links are plain anchors.** One delegated listener (`useDocLinkNavigation`) routes a
-  click and preloads on hover or focus. A router `<Link>` builds a location while it renders.
+The large-sidebar gain: `DocLink` no longer UUID-parses every path (a failed `safeParse` builds a stack —
+half the render), and reader links are plain anchors with one delegated listener
+(`useDocLinkNavigation`) routing and preloading — a router `<Link>` builds a location per render.
 
-**The article's HTML is in the response once.** The hydration payload carries `html: ""` for a
-doc reading, and the browser reads the HTML back from the server's markup. That is
-`ArticleHtmlStore` in `apps/web`. It keeps what it read by page and revision, so going back to the
-page still has it. The largest page is 1.1 MB raw, mostly a sidebar repeating one set of class
-names, and 59 KB gzipped. The Node server does not compress; the proxy does
-(`docs/infra/deployment.md`).
+**Article HTML ships once:** hydration carries `html: ""` and `ArticleHtmlStore` (`apps/web`) reads the
+server markup back, kept by page and revision. The largest page is 1.1 MB raw, 59 KB gzipped — the proxy
+compresses, not Node (`docs/infra/deployment.md`).
 
 ## Two authors, one page
 
-Every save and publish names the `draft_version` it read. The write is
-`UPDATE … WHERE draft_version = $expected`. The row lock is what makes two saves racing for one
-version produce exactly one winner, and the loser gets `CONFLICT`.
+Saves and publishes `UPDATE … WHERE draft_version = $expected`; the row lock gives one winner, the
+loser `CONFLICT`. The revision number is a row counter under the same lock (a unique index on
+`doc_revision` cannot lead with the page once it has a month level).
 
-The revision number is a counter on the page row, moved under the same lock. It is not a count of
-`doc_revision` rows, because a unique index there cannot lead with the page once the table has a
-month level.
-
-A restore writes the revision's text into the **draft**. Making it live again is a publish, which
-is a second, deliberate step. A restore remounts the editor, so Restore stays disabled while the
-editor holds unsaved edits; autosave clears them within two seconds.
-
-The editor saves two seconds after the last key. Leaving the page inside that window, by a link or
-by closing the tab, asks first: the route holds a router blocker and `beforeunload` while the form
-reports unsaved edits.
-
-A revision can be compared with the draft before restoring it. The editor's history list opens a
-dialog that fetches the revision lazily, on the first Compare, and diffs its Markdown against the
-saved draft line by line in the browser (`diff`). Long unchanged runs fold to three lines of
-context. The server holds no diff: the revision is cached forever, so a second Compare costs
-nothing. Unsaved edits in the editor are not part of the comparison.
+- **Restore writes the draft**; going live is a separate publish. Restore is disabled with unsaved edits
+  (it remounts the editor; autosave clears them in two seconds).
+- **Autosave fires two seconds after the last key**; leaving inside that window prompts (router blocker
+  plus `beforeunload`).
+- **Compare** lazily fetches the revision and diffs its Markdown against the saved draft in the browser
+  (`diff`, unchanged runs folded to three lines); revisions cache forever, unsaved edits are excluded.
 
 ## Structure is live, content is published
 
-A page's text reaches readers only when it is published. Its **slug, icon and position are
-structure**, and they change the reader's tree as soon as they are saved, because a URL that only
-changed on publish would leave the tree and the pages disagreeing.
-
-Sections and links have no content at all, so they are in the tree from the moment they exist.
-
-Paths run through pages and never through sections: a page under the "Guides" section is
-`/writing`, not `/guides/writing`. That is why `DocRules.assertTree` checks paths across the whole
-tree rather than slugs among siblings. Two pages under two sections can collide.
+Text goes live on publish; **slug, icon and position are structure**, live on save (else tree and pages
+disagree). Sections and links, contentless, exist in the tree at once. Paths skip sections (`/writing`,
+not `/guides/writing`), so `DocRules.assertTree` checks paths tree-wide — pages under two sections can
+collide.
 
 ## Search
 
-`doc_sections` holds one row per heading of every published page, plus one for the page's own
-title. The rows are replaced in the publish's transaction, so a page is searchable the moment a
-reader can open it. Postgres writes a `tsvector` from each row, with the `simple` configuration,
-because the same index has to serve every language an author writes in.
+`doc_sections` holds a row per heading plus one per title, replaced in the publish transaction, with a
+`simple` `tsvector` (one index for every language). Every word becomes a prefix (`instal:*` finds
+"Installation"), rebuilt from letters and digits so no operator reaches `to_tsquery`; titles also match by
+trigram ("quik start"). Excerpts are plain text, never rendered as HTML.
 
-The palette searches while a word is still being typed, so every word becomes a prefix:
-"instal" is `instal:*` and finds "Installation". The query is rebuilt from its letters and
-digits alone, so no operator an author types reaches `to_tsquery`. Page titles are also
-matched by trigram, which is what finds "quik start".
-
-Excerpts come back as plain text, and nothing downstream renders them as HTML. The author
-wrote that text, and a `<script>` in a code sample is still just text in a search result.
-
-**The palette searches the whole docs, not the open space.** In `/doc` it covers every space of
-the organization the reader may see, and in `/docs` every platform space they may read. Spaces
-are filtered first, by audience and access links, and the index is asked about those spaces only,
-so a space the reader cannot see never takes a place among the ranked hits. Then each hit's page is
-checked against the space's tree as this reader sees it, filtered once per search. So a hidden page, and anything
-under one, never appears. The open space's hits come first; every other space follows under its
-own name, in the order the server ranked them.
+**The palette searches all docs** — every visible space in `/doc`, every readable platform space in
+`/docs`. Spaces are filtered first (audience, access links) and only they are queried, then each hit is
+checked against the reader's filtered tree, so hidden pages never appear. The open space's hits lead;
+others follow by name, in server rank.
 
 ### Search by meaning (`DC.2`)
 
-With an embedding provider (`EMBEDDING_PROVIDER` other than `none`), the tenant's own search is
-hybrid: full text as above, plus the semantic index. Every publish emits `doc.page.published`, and
-the `doc-index` subscriber queues the page (title, description and markdown) into the embedding
-pipeline as one document whose source id is the page's, with `sourceType: "doc"` and the page's
-`spaceId` on every chunk. Deletes emit `doc.page.deleted` or `doc.space.deleted` with every page
-removed, and the subscriber forgets them.
+With an embedding provider, tenant search is hybrid. `doc.page.published` makes the `doc-index`
+subscriber queue the page (title, description, markdown) as one document — source id the page's,
+`sourceType: "doc"`, `spaceId` on each chunk; `doc.page.deleted`/`doc.space.deleted` forget them.
+`DocSearch` queries `doc` chunks **within visible spaces only** (on the input set), fuses by page with
+reciprocal rank (k = 60), keeps text hits' headings and anchors, gives meaning-only pages one hit with the
+chunk text, then runs the tree check.
 
-`DocSearch` asks the vector index for `doc` chunks **inside the visible spaces only** — the
-`within` filter runs on the index's input set, so a hidden space's text is never ranked. The two
-lists are fused by page with reciprocal rank (k = 60): a page near the top of both beats one that
-leads only one. A page's text matches keep their headings and anchors; a page found by meaning
-alone is one hit, its excerpt the chunk's text with the markdown dropped. Then the tree check above
-runs on every hit, so a page deleted or hidden since it was indexed never shows.
-
-**What it costs.** One embedding call per search, so the palette's latency includes the
-provider's. A provider that fails costs the meaning half only: the search answers from full text.
-The platform's search (`/docs`) stays full text, because the platform's spaces are another tenant
-and the index is read on the requester's node.
-
-**Doc chunks never reach the shared document search.** A page is org-wide by goal, so
-`SearchDocumentsUseCase` ranks the shared corpus `except` the guarded source types, and
-`QueueDocumentIndexUseCase` refuses both the `doc` source type and a document id that is a page's.
-Pages published before `DC.2` are indexed by `pnpm ai:reindex --docs`.
+**Cost:** one embedding call per search; a failing provider falls back to full text. Platform search
+(`/docs`) stays full text — another tenant's index on the requester's node. **Doc chunks never reach
+shared document search** (`SearchDocumentsUseCase` excludes guarded types; `QueueDocumentIndexUseCase`
+refuses `doc` and page ids). Pre-`DC.2` pages: `pnpm ai:reindex --docs`.
 
 ## Images
 
-An image is uploaded straight from the browser to storage. `docPage.upload` checks the key,
-the type and the declared size, then signs one `POST` policy, which is good for five minutes.
-Storage enforces the policy: the length range and the content type are conditions of the signature,
-so a client that declares one size and sends another is refused. The app never holds the bytes.
-
-**The key is the index.** An image lives at `doc/<organization>/<space>/<id>.<type>`, so there
-is no table of images to keep in step:
+Images upload straight to storage: `docPage.upload` checks key, type and declared size and signs a
+five-minute `POST` policy whose length range and content type storage enforces; the app never holds the
+bytes. **The key is the index** — `doc/<organization>/<space>/<id>.<type>`, no image table:
 
 | When | What goes |
 |---|---|
@@ -373,37 +245,19 @@ is no table of images to keep in step:
 | A tenant is purged | its prefix, beside the partition drop |
 | A page is deleted | the space's unlinked images, an hour later, by `doc-image-orphans` |
 
-**A page's delete does not delete its images**, because another page may link them. It queues
-one `doc-image-orphans` job for the space instead, held back an hour and deduplicated while it
-waits. The worker places the job on the tenant's node and `DocImageOrphans` does the rest:
+**Deleting a page does not delete its images** (others may link them): it queues one deduplicated
+`doc-image-orphans` job, an hour later, placed on the tenant's node. `DocImageOrphans` collects every link
+from any tenant page (drafts, published, all revisions — so restores are safe) as a short list, pages
+through the prefix deleting unlinked images, **skips uploads under an hour old** (from the v7 id; uploads
+are signed before the linking text saves), never deletes a key it would not write, and logs
+`doc.images.swept` when it removed something.
 
-- it reads every link to the space's images from any page in the tenant, in drafts, published
-  pages and all revisions, as a short list of links rather than the bodies. Any space's page may
-  link the image, since it is served to whoever may read its own space;
-- it lists the space's prefix a page at a time and deletes each image nothing links;
-- it **skips anything uploaded in the last hour**, read off the version 7 id in the file name,
-  because an upload is signed before the text that links it is saved. An unsaved draft keeps its
-  images.
-
-A restored revision's images are safe for the same reason: revisions are searched too. A key
-the class would not have written is never deleted. A finished job logs `doc.images.swept` with the
-count, and nothing when every image was still linked.
-
-A page links `/api/doc-image/<organization>/<space>/<type>/<id>`, never the bucket.
-
-- **Why the route and not the bucket:** it applies the same reading rules as the page itself,
-  then redirects to a signed URL that lasts an hour.
-- **Why there is no file extension:** a dev server treats any path ending in `.png` as a static
-  file and never asks the app, which is also why the raw Markdown route has no `.md`.
-- **Why other organizations get a 404 before any lookup:** only the viewer's own organization or
-  the platform's can have an image to show. A guessed organization id is answered with 404 before
-  it is placed. Otherwise each guess would cost a shard lookup and an error log.
-
-**Only raster images are accepted.** An SVG is a document that can carry script, and it would be
-served to every reader of the page.
+Pages link `/api/doc-image/<organization>/<space>/<type>/<id>`, never the bucket: the route applies the
+page's reading rules and redirects to a one-hour signed URL; no extension, since dev servers serve
+`*.png` statically (likewise raw Markdown has no `.md`); a foreign organization is 404 before placement,
+so guesses cost no shard lookup. **Raster only** — an SVG can carry script.
 
 > [!IMPORTANT]
-> A browser upload is a cross-origin `POST`. MinIO allows every origin by default. An S3 or R2
-> bucket needs a CORS rule allowing `POST` from the app's origin, or every upload fails in the
-> browser with a CORS error and nothing in the app's logs. See
+> Uploads are cross-origin `POST`s: MinIO allows any origin, but S3 or R2 needs a CORS rule for the app's
+> origin, or uploads fail in the browser with nothing in the app's logs. See
 > [the bucket's CORS rule](../../../../docs/infra/deployment.md#the-buckets-cors-rule).

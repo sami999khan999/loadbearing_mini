@@ -5,8 +5,7 @@ description: The chat models behind AssistantModel — OpenAI, OpenRouter, Gemin
 
 # Assistant models
 
-`AssistantModel` is the port the AI assistant (`AI.1`, [`docs/plans/archive/AI-CHAT-PLAN.md`](../../../../docs/plans/archive/AI-CHAT-PLAN.md))
-generates through. One method, `stream(request, signal)`, yields the answer as `AssistantDelta`s:
+`AssistantModel` is the AI assistant's (`AI.1`) port: `stream(request, signal)` yields `AssistantDelta`s:
 
 | Delta | When |
 |---|---|
@@ -14,8 +13,8 @@ generates through. One method, `stream(request, signal)`, yields the answer as `
 | `{ kind: "usage", inputTokens, outputTokens }` | once, at the end, when the provider reports it |
 | `{ kind: "stop", reason }` | once, last: `stop` finished, `length` hit the cap, `filtered` the provider's own safety stop |
 
-`ASSISTANT_PROVIDER` picks the adapter once, in `Container.buildAssistantModel`, a `switch` the
-compiler checks. `none` builds nothing and `hasAssistant` is false: the feature is off.
+`ASSISTANT_PROVIDER` picks the adapter in `Container.buildAssistantModel` (a checked `switch`); `none`
+leaves `hasAssistant` false.
 
 | `ASSISTANT_PROVIDER` | Adapter | Default model | Needs |
 |---|---|---|---|
@@ -25,49 +24,40 @@ compiler checks. `none` builds nothing and `hasAssistant` is false: the feature 
 | `openrouter` | `OpenAiAssistantModel` at `https://openrouter.ai/api/v1` | `openai/gpt-4.1-mini` | `ASSISTANT_API_KEY` |
 | `gemini` | `GeminiAssistantModel` | `gemini-2.5-flash` | `ASSISTANT_API_KEY` |
 
-`ASSISTANT_MODEL` overrides the model, and `ASSISTANT_ENDPOINT` the base URL, for a proxy or an
-OpenAI-compatible server.
+`ASSISTANT_MODEL` overrides the model, `ASSISTANT_ENDPOINT` the base URL (a proxy or OpenAI-compatible server).
 
 ## The wire, without an SDK
 
-Both real adapters are `fetch` against the vendor's streaming endpoint, read by
-`ServerSentEventReader` in `src/sse/`. That folder is named for the protocol, not a vendor, because
-two vendors share it.
+Both real adapters `fetch` the streaming endpoint, read by `ServerSentEventReader` in `src/sse/` (named
+for the protocol two vendors share).
 
-- **OpenAI and OpenRouter** post `/chat/completions` with `stream: true` and
-  `stream_options.include_usage`, so the last chunk carries the token counts. `max_tokens` is the cap,
-  the name both read. OpenRouter can report a provider failure *inside* a 200 stream, as an `error`
-  chunk; the adapter reads it as `UNAVAILABLE`.
-- **Gemini** posts `models/<model>:streamGenerateContent?alt=sse`. A `system` message moves to
-  `systemInstruction`, first, so the fixed prompt stays a cacheable prefix. An assistant turn is
-  role `model`. The key is the `x-goog-api-key` header, never the query string a proxy log keeps.
-  Usage is a running total on every chunk, so only the last is reported.
+- **OpenAI/OpenRouter** post `/chat/completions` with `stream: true` and `stream_options.include_usage`
+  (usage on the last chunk); `max_tokens` caps. An OpenRouter `error` chunk inside a 200 is `UNAVAILABLE`.
+- **Gemini** posts `models/<model>:streamGenerateContent?alt=sse`; `system` moves first to
+  `systemInstruction` (a cacheable prefix), assistant turns are role `model`, the key is the
+  `x-goog-api-key` header (never a logged query string), and usage is a running total, so only the last counts.
 
 ## Timeouts, cancellation and failures
 
 `StreamWatch` gives each request one `AbortController`, aborted by whichever comes first:
 
-- **the first-byte window**, 30 s, before anything arrives: a reasoning model may think first;
-- **the idle window**, 20 s, after each chunk: a stream that stops sending is stalled, not slow;
-- **the caller's signal**: the reader pressed stop.
+- **first byte**, 30 s (a reasoning model may think first);
+- **idle**, 20 s after each chunk (stalled, not slow);
+- **the caller's signal** (stop pressed).
 
-A timeout is `UNAVAILABLE`, and so is a network failure or any refusal but one: a **429 is
-`RATE_LIMITED`**. Both are retryable in the error catalog. A cancel is not a failure: the stream
-ends quietly with what it had. Every failure logs `assistant.request.failed` with the dependency,
-the model and the status, and never the vendor's message, which may echo the prompt.
+Timeouts, network failures and refusals are `UNAVAILABLE`, except **429 → `RATE_LIMITED`**; both
+retryable. A cancel ends quietly with what it had. Failures log `assistant.request.failed` with
+dependency, model and status — never the vendor's message, which may echo the prompt.
 
 ## The fake
 
-`CannedAssistantModel` answers the last question with a fixed sentence, word by word, with usage
-and a stop, and calls nobody. It is for local work without a key and for the load test, where an
-optional delay between words gives a stream its shape. It is never a quality signal.
+`CannedAssistantModel` streams a fixed sentence word by word, with usage and a stop, calling nobody — for
+keyless local work and the load test, where an optional delay shapes the stream. Never a quality signal.
 
 ## The answer stream in Redis
 
-`RedisAssistantStreamPublisher` and `RedisAssistantStreamSubscriber` carry one answer from the
-worker to its author's tab. The rules they keep are the application's — see
-[the assistant slice](../../../application/docs/reference/assistant.md#one-log-per-answer) — and
-this is how.
+`RedisAssistantStreamPublisher`/`Subscriber` carry one answer from worker to its author's tab, keeping
+[the application's rules](../../../application/docs/reference/assistant.md#one-log-per-answer).
 
 | Key or channel | Holds | Lives |
 |---|---|---|
@@ -75,24 +65,14 @@ this is how.
 | `assistant:{<messageId>}` (pub/sub) | `<entry id>\|<frame JSON>` | delivered once |
 | `assistant:{<messageId>}:cancel` | `1` when its author pressed stop | 10 minutes |
 
-The braces are a hash tag, so all three land on one slot when the instance becomes a Redis Cluster.
+The braces are a hash tag: one Cluster slot for all three.
 
-**One script appends and announces.** `XADD`, `EXPIRE` and `PUBLISH` run in one `EVAL`, and the
-`PUBLISH` carries the id `XADD` just assigned. A reader that hears a frame live and also reads it
-from the log therefore drops the copy by id. `RedisRealtimePublisher`'s `MULTI` cannot do this,
-because inside a `MULTI` the id is not known until it ends. The channel is passed as an argument
-rather than as a key, because ioredis prefixes keys and never channels.
-
-**The reader attaches before it reads.** It subscribes first, then reads the log after the resume
-point with an exclusive `XRANGE`, then yields both in order. Ids only move forward, so anything
-heard live that the read already returned is skipped. It ends after `done`, when the stream's
-signal aborts, or ten minutes after it opened.
-
-**A failed publish throws**, unlike realtime's, which logs and moves on. A lost realtime frame is
-a stale screen. A lost answer frame is a hole in the text, and the generation that sent it is
-the one place that can stop and settle the answer.
-
-**Which instance.** `REDIS_ASSISTANT_URL` when set. Otherwise the realtime instance, and its
-subscriber connection is shared; the two listeners read disjoint channel names. Otherwise the
-cache's. The cache evicts under pressure, so a production deployment that streams many answers
-sets one of the first two.
+- **One script appends and announces** — `XADD`, `EXPIRE`, `PUBLISH` in one `EVAL`, the `PUBLISH`
+  carrying `XADD`'s id so a reader dedupes live vs log by id (a `MULTI` cannot know the id). The channel
+  is an argument, not a key, since ioredis prefixes keys, never channels.
+- **The reader attaches before it reads** — subscribe, exclusive `XRANGE` after the resume point, yield
+  in order, skipping live ids already read. It ends at `done`, on abort, or ten minutes after opening.
+- **A failed publish throws** (realtime's logs): a lost answer frame is a hole in the text, and only the
+  generation can stop and settle it.
+- **Instance:** `REDIS_ASSISTANT_URL`, else realtime's (subscriber shared; channels disjoint), else the
+  cache's — which evicts, so production streaming many answers sets one of the first two.

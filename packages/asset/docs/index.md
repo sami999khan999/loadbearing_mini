@@ -5,13 +5,9 @@ description: Every binary the product ships — images behind a closed key union
 
 # `@loadbearing/asset`
 
-**No package imports a binary except this one.** Images reach the UI through
-`ContentSource.media(key)`, icons through `IconRegistry` by name, fonts through a single CSS import
-in [`ui`](../../ui/docs/index.md).
-
-That one rule is why moving to a CDN or a per-tenant asset store later touches one resolver instead
-of every component. If components import images directly, migrating means finding every `<img src>`
-in the codebase. If they ask for `"brand.logo"`, migrating means changing one class.
+**No other package imports a binary.** Images reach the UI via `ContentSource.media(key)`, icons via
+`IconRegistry` by name, fonts via one CSS import in [`ui`](../../ui/docs/index.md) — so a CDN or
+per-tenant asset store later is one resolver, not a hunt for every `<img src>`.
 
 | | |
 | --- | --- |
@@ -42,8 +38,7 @@ packages/asset/
 
 ## Three entrypoints, and why this package is the exception
 
-CSS and SVG cannot live in a JavaScript barrel, so the `exports` map has three keys instead of one —
-the only package in the repository that does
+CSS and SVG cannot live in a JavaScript barrel, so this `exports` map has three keys
 ([Imports and exports](../../../docs/opinions/imports.md)):
 
 ```json
@@ -52,27 +47,21 @@ the only package in the repository that does
 "./sprite.svg": "./src/icon/sprite.svg"
 ```
 
-Both extra entries are **non-JS side-effect files that physically cannot be re-exported**. That is
-the whole exemption. A package wanting extra *JavaScript* subpaths is a signal it should be two
-packages.
+The extras are **non-JS files that cannot be re-exported** — the whole exemption; extra *JavaScript*
+subpaths would mean two packages.
 
 ## The sprite, and why not icon components
 
-`build-sprite.mjs` runs as `prebuild`, so `pnpm build` cannot produce a package whose registry
-disagrees with the files on disk. It writes two things: `sprite.svg`, and `icon-registry.ts`
-carrying `ICON_NAMES`, `IconName` and `IconRegistry`.
+`build-sprite.mjs` runs as `prebuild`, so a build cannot ship a registry disagreeing with the files: it
+writes `sprite.svg` and `icon-registry.ts` (`ICON_NAMES`, `IconName`, `IconRegistry`).
 
-**Every icon inherits `currentColor`**, so a theme recolours the whole set with no per-theme variants
-and no JavaScript. `ui`'s `<Icon>` is four lines: `<svg><use href={sprite + "#" + name} /></svg>`.
+- **Every icon inherits `currentColor`** — a theme recolours the set with no variants or JS; `ui`'s
+  `<Icon>` is `<svg><use href={sprite + "#" + name} /></svg>`.
+- **One request, cached forever** — icon components would be JS parsed on every load, rendered or not.
+- **Adding an icon is dropping a file in `svg/`** — `IconName` gains a member and a typo is a compile
+  error.
 
-**One HTTP request, cached forever.** Icon components mean every icon is JavaScript in the bundle,
-parsed on every page load, whether the page renders it or not.
-
-**Adding an icon is dropping a file in `svg/`.** The registry regenerates, `IconName` gains a member,
-and a typo at a call site becomes a compile error.
-
-The reasoning behind the two build-time checks — and the exact Biome formatting the generator has to
-match — is in [`docs/reference/sprite.md`](reference/sprite.md).
+The two build-time checks and the Biome formatting the generator matches: [sprite](reference/sprite.md).
 
 ## The image manifest
 
@@ -82,65 +71,46 @@ const IMAGES = {
 } as const satisfies Record<string, ImageAsset>;
 ```
 
-**The bundler fingerprints each import**, so `src` is a content-hashed URL that can be cached forever
-and invalidates itself when the file changes. The Tauri bundle ships the same files and serves them
-offline ([30](../../../docs/setup/30-desktop-app.md)).
-
-**`ImageKey` is a closed union.** A content record naming a missing image is a compile error today,
-and a validation error once content comes from a CMS.
-
-**Dimensions live in the manifest** because layout shift is a real cost and `width`/`height` on an
-`<img>` is the fix. Storing them beside the file is what stops them drifting from it.
-
-`isKnown` uses `Object.hasOwn`, not `in` — `in` walks the prototype chain, so `"toString"` would pass
-the guard and `get()` would hand back a function. The same bug the permission catalog had, and the
-spec pins it.
+- **The bundler fingerprints each import** — `src` is a content-hashed, cache-forever URL; the Tauri
+  bundle serves the same files offline.
+- **`ImageKey` is a closed union** — a missing image is a compile error now, a validation error from a
+  CMS later.
+- **Dimensions live in the manifest** — `width`/`height` on `<img>` prevents layout shift, and beside
+  the file they do not drift.
+- **`isKnown` uses `Object.hasOwn`, not `in`** — `"toString"` would otherwise pass and `get()` return a
+  function (the permission catalog's bug; the spec pins it).
 
 ## Fonts
 
-**Variable fonts, one file per family.** A static family needs six files for six weights; the
-variable version is one file covering the whole range and is usually smaller than three statics.
+- **Variable fonts, one file per family** — one file for the whole weight range, usually smaller than
+  three statics.
+- **`font-display: swap`** — fallback text immediately; a brief flash beats a blank page (and is what
+  the metric measures).
+- **Self-hosted, never Google Fonts** — a third-party CDN is a privacy and GDPR exposure and an outage in
+  your critical path, no faster under HTTP/2.
 
-**`font-display: swap`** renders fallback text immediately rather than showing nothing while the font
-loads. The brief flash of unstyled text is better than a blank page, and it is what the metric you
-are eventually asked about measures.
-
-**Self-hosted, never Google Fonts.** A third-party font CDN is a privacy exposure, a GDPR question, a
-third-party outage in your critical path, and no faster than your own CDN under HTTP/2.
-
-`font.css` is imported exactly once, by `packages/ui/src/style/token.css`
-([22](../../../docs/setup/22-ui-package.md)).
+`font.css` is imported once, by `packages/ui/src/style/token.css`.
 
 > [!IMPORTANT]
-> **No binary ships, and so no `@font-face` is declared.** `font.css` carries the block to add,
-> commented, and nothing else; the build reports `fonts: 0 declared, 0 present`. The stacks in
-> `typography.css` still name `Inter` and `JetBrains Mono` first, so dropping
-> `inter-variable.woff2` into `src/font/` and uncommenting one block is the whole of adding a face —
-> and the same stack already resolves to the family when the reader's system has it.
+> **No binary ships, so no `@font-face` is declared** — `font.css` holds the block to add, commented;
+> the build reports `fonts: 0 declared, 0 present`. `typography.css` stacks still name `Inter` and
+> `JetBrains Mono` first, so adding a face is dropping `inter-variable.woff2` into `src/font/` and
+> uncommenting one block (and the stack already uses a system-installed copy). Declaring faces for
+> uncommitted files once cost a 404 per face per cold load.
 >
-> It declared both faces against files that were never committed, which is not neutral: the browser
-> requests each one, takes a 404, and falls back — a request per face per cold load, buying nothing.
->
-> The check reports rather than fails, unlike the icon checks, and the difference is the failure
-> mode. A missing font is visibly degraded to anyone who looks at the page. A hardcoded icon colour
-> is invisible *only in dark mode*, which is how it survives for weeks. It strips CSS comments
-> before it looks, so the example block above is not read as a declaration.
+> This check reports rather than fails, unlike the icon checks: a missing font is visibly degraded,
+> whereas a hardcoded icon colour hides *in dark mode only* for weeks. It strips CSS comments first.
 
 ## What changes when assets move to a CDN
 
-Nothing above this package. `ContentSource.media(key)` reads `ImageManifest` today; a
-`CdnMediaResolver` returns a CDN URL for the same key tomorrow. Content records hold `"brand.logo"`,
-never a path — so the swap is one resolver, and it incidentally makes the logo swappable per tenant,
-which is worth more than it sounds for anything running client-branded portals.
+Nothing above this package: `ContentSource.media(key)` reads `ImageManifest` today, a
+`CdnMediaResolver` would return a CDN URL for the same key. Records hold `"brand.logo"`, never a path —
+which also makes the logo swappable per tenant, valuable for client-branded portals.
 
 > [!NOTE]
-> **User uploads are not assets.** Receipts, avatars, resource-library files — those are domain data
-> with permissions attached, and they go through `StorageGateway` to S3
-> ([`infrastructure`](../../infrastructure/docs/index.md)). This package holds only what the product
-> ships with.
+> **User uploads are not assets** — receipts, avatars, library files are permissioned domain data via
+> `StorageGateway` to S3 ([`infrastructure`](../../infrastructure/docs/index.md)). This package holds only
+> what the product ships.
 
-## One thing this package does not have yet
-
-**`home.hero`.** Docs 19 and 28 show a `home/hero.webp` beside the logo, and the `.d.ts` already
-declares `.webp` and `.png`. Adding it is dropping the file in `image/file/home/` and one line in the
-manifest — the shape is proven by `brand.logo`, which is a real SVG rather than a placeholder.
+**Adding a raster image** (e.g. a `home/hero.webp`): `asset.d.ts` already declares `.webp` and `.png`, so
+it is a file in `image/file/<subject>/` and one manifest line, the shape `brand.logo` proves.

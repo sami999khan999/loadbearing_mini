@@ -1,12 +1,12 @@
 ---
-title: The four content shapes
+title: The three content shapes
 description: Why media and nav are separate shapes rather than one — and the rule that keeps a content edit from becoming a privilege escalation.
 ---
 
 # Media and collections
 
-`ContentSource` declares three shapes because they have three different edit models, three different
-validation stories, and four different answers to "what happens when this moves to a CMS".
+`ContentSource` declares three shapes because each has a different edit model, validation story and
+answer to "what happens on a CMS".
 
 | Shape | Folder | Who edits it | Validated by |
 | --- | --- | --- | --- |
@@ -23,12 +23,9 @@ validation stories, and four different answers to "what happens when this moves 
 `module: "rbac"`, **not** `permission: "rbac.role.read"`. `ModuleRegistry` in
 [`permissions`](../../../permissions/docs/index.md) maps that key to its gate and its route.
 
-An editor can reorder the menu, rename items, and change icons. An editor **cannot** change what
-gates a module or point a label at a different route. If the permission were a content field, a CMS
-edit would be a privilege escalation — and that is exactly the kind of vulnerability that gets found
-by accident, years later, by somebody looking at something else.
-
-Three things enforce it, in increasing order of how early they catch you:
+An editor can reorder, rename and re-icon the menu but **cannot** change what gates a module or where a
+label points — a permission content field would make a CMS edit a privilege escalation, found by
+accident years later. Three enforcements, latest-catching last:
 
 1. **ESLint** bans the two symbols that would let this package name a permission, in
    `tooling/eslint-config/src/index.js`. The ban is scoped to `packages/content/src/**`, and
@@ -40,10 +37,8 @@ Three things enforce it, in increasing order of how early they catch you:
    database and the compiler stops helping.
 
 > [!NOTE]
-> The gate in [20](../../../../docs/setup/20-content-package.md) greps this tree for the banned
-> symbol names, so a **comment** mentioning one fails it. Doc 20's own suggested comment on
-> `nav.schema.ts` does exactly that; the version on disk is reworded to say the same thing without
-> the literal.
+> The content gate greps this tree for the banned names, so even a **comment** naming one fails it —
+> `nav.schema.ts`'s comment is worded to avoid the literal.
 
 ## Two types for one record, and why
 
@@ -55,19 +50,13 @@ const ITEMS = [...] as const satisfies readonly NavRecord[];
 export const navItems: readonly NavItem[] = NavContract.collection.parse(ITEMS);
 ```
 
-Both checks run, and they are checking different things.
+- **`satisfies NavRecord` is the authoring check** — while the data is a literal, a bad module key,
+  missing icon or uncopied label fails the build.
+- **`NavContract.collection.parse` is the boundary check** — still true when rows come from a database.
+  The schema stays wide; narrowed to the unions it could not parse the untrusted input it exists for.
 
-**`satisfies NavRecord` is the authoring check.** While the data is a literal in this repository,
-a bad module key, an icon that is not in the sprite, or a label with no copy behind it should be a
-build failure — not something a test finds later.
-
-**`NavContract.collection.parse` is the boundary check.** It is what will still be true when these
-records arrive as rows from a database, where TypeScript knows nothing. Keeping the schema wide is
-the point: narrowing it to the unions would make the schema unable to parse the untrusted input it
-exists to parse.
-
-That is also why the two types are not merged. `NavItem` describes *any* nav record, including one a
-CMS just produced. `NavRecord` describes the ones this repository authors.
+So the types stay separate: `NavItem` is *any* record, including a CMS's; `NavRecord` is what this repo
+authors.
 
 ## Media is async in the seam and synchronous in the implementation
 
@@ -75,27 +64,15 @@ CMS just produced. `NavRecord` describes the ones this repository authors.
 public abstract media(key: ImageKey): Promise<ResolvedMedia>;
 ```
 
-`StaticMediaResolver` answers from a manifest that is already in the bundle, so `StaticContentSource`
-returns `Promise.resolve(...)` from a plain method rather than being `async` with nothing to await —
-`require-await` rejects the second, and it would claim an asynchrony the method does not have.
-
-The seam stays async because a CMS resolves this over the network. A signature that changed for the
-CMS would change every call site, which is the cost this abstraction exists to avoid.
-
-`ImageKey` is imported **type-only**, so `content` gets `asset`'s vocabulary without pulling its
-binaries into the worker's bundle. `ImageManifest` is a value import and reaches only
-`StaticMediaResolver`.
+`StaticMediaResolver` answers from the bundled manifest, so `StaticContentSource` returns
+`Promise.resolve(...)` (`require-await` rejects an await-free `async`); the seam stays async for a
+network CMS. `ImageKey` is **type-only**, so the worker's bundle gets no binaries; only
+`StaticMediaResolver` value-imports `ImageManifest`.
 
 ## There is no `document()` shape, and there was
 
-Long-form editorial was declared as a fourth shape: `document(slug)` on the source, a
-`DocumentContract` and a `DocumentEntity` to parse a row that no adapter ever returned. Nothing
-called it, `StaticContentSource` answered `null` for every slug, and the argument for keeping it —
-"this is precisely the shape that exists to come from a database" — is an argument for building it
-*with* that database rather than before one.
-
-It was deleted. Re-adding it is one abstract method, one implementation and one contract, which is
-the same cost it was carrying while doing nothing. What the deletion buys is that every method on
-`ContentSource` now has a caller, so a reader can tell the declared shapes from the aspirational
-ones without reading the adapter.
+A fourth shape — `document(slug)`, a `DocumentContract` and `DocumentEntity` for rows no adapter
+returned — had no caller and answered `null` for every slug; "it exists to come from a database" argues
+for building it *with* the database. It was deleted: re-adding it costs what it cost idle (one method,
+one implementation, one contract), and now every `ContentSource` method has a caller.
 

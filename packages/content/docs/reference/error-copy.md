@@ -44,58 +44,42 @@ ErrorCopy.fields(t, envelope);    // one sentence per field violation, in order
 ErrorCopy.field(t, violation);    // a single violation, for an inline field error
 ```
 
-`envelope` is whatever came off the wire, or `ErrorNormalizer.normalize(thrown).toJSON()` on the
-server. Nothing else is needed: `ErrorCopy` reads only `code`, `context` and `fields`.
+`envelope` is the wire value, or `ErrorNormalizer.normalize(thrown).toJSON()` on the server;
+`ErrorCopy` reads only `code`, `context` and `fields`.
 
 ---
 
 ## `ERROR_COPY` is total, by construction
 
-`Record<ErrorCode, ShellMessageKey>` means a new error code **fails to compile** here until it has
-copy. That is the point of putting the map in this package rather than a `switch` in a component: the
-failure mode it prevents is a raw `SERVER_ONLY` rendered to a customer, which nobody notices in
-review and everybody notices in production.
-
-A test asserts the same property at runtime as well. Belt and braces is justified because the
-compile-time guarantee weakens the moment someone widens the value type.
-
-**Several codes share one message on purpose.** `BAD_REQUEST`, `UNAVAILABLE` and `INTERNAL` all read
-"Something went wrong. Please try again." The distinction between them matters enormously to an
-operator reading logs and not at all to the person looking at the screen. Mapping is not duplicating.
+`Record<ErrorCode, ShellMessageKey>` makes a new code **fail to compile** until it has copy — the point
+of a map here rather than a component `switch`, preventing a raw `SERVER_ONLY` on a customer's screen. A
+runtime test asserts it too, since widening the value type weakens the compile check. **Codes share
+messages on purpose:** `BAD_REQUEST`, `UNAVAILABLE` and `INTERNAL` all read "Something went wrong.
+Please try again." — a distinction for operators' logs, not users.
 
 ---
 
 ## The value type is `ShellMessageKey`, and that is load-bearing
 
-`common` and `error` are the two namespaces every `ContentSource` guarantees in every snapshot
-([`ContentSource`](content-source.md)). Everything else — `nav`, `auth`, `email` — is lazy, loaded
-because a route asked for it.
-
-A `MessageKey` pointing into a lazy namespace renders as **the key itself** when that namespace was
-not loaded. That behaviour is deliberate and correct ([`Translator`](translator.md#a-missing-key-renders-as-the-key)),
-and it is catastrophic in exactly one place: an error page, which is the screen a user reaches when
+`common` and `error` are the namespaces every `ContentSource` snapshot guarantees
+([`ContentSource`](content-source.md)); `nav`, `auth`, `email` and the rest load when a route asks. A key
+into an unloaded namespace renders as **the key itself** — correct
+([`Translator`](translator.md#a-missing-key-renders-as-the-key)), except on an error page, reached when
 something has already gone wrong.
 
 > [!WARNING]
-> An earlier revision of this map had `TWO_FACTOR_REQUIRED: "auth.twoFactorRequired"`. `auth` is a
-> lazy namespace, so the sign-in error would have rendered as the literal string
-> `auth.twoFactorRequired` on any route that had not declared it. Narrowing the value type to
-> `ShellMessageKey` makes that unrepresentable instead of remembered — and it is why
-> `error.twoFactorRequired` lives in the `error` namespace even though the copy is about
-> authentication.
+> An earlier `TWO_FACTOR_REQUIRED: "auth.twoFactorRequired"` would have rendered literally on any route
+> not loading `auth`. `ShellMessageKey` makes that unrepresentable — why `error.twoFactorRequired` lives
+> in `error` though it is about authentication.
 
 ---
 
 ## `FIELD_RULE_COPY` cannot be total, and says so
 
-A rule name is whatever a schema produced. `ValidationError` maps Zod issue codes to five rules
-today — `required`, `tooShort`, `tooLong`, `invalidFormat`, and the catch-all `invalid` for an issue
-code it does not recognise — but Zod's issue codes are an open set that changes between majors, so
-this map stays open too.
-
-An unknown rule falls back to `error.unexpected`. The test that matters drives the assertion from
-`ValidationError.fromIssues` rather than a hand-written list, so a new issue mapping in `errors`
-cannot silently arrive without copy:
+`ValidationError` maps Zod issues to five rules — `required`, `tooShort`, `tooLong`, `invalidFormat`,
+and catch-all `invalid` — but Zod's codes are open and change between majors, so this map stays open; an
+unknown rule falls back to `error.unexpected`. The test drives from `ValidationError.fromIssues`, so a
+new mapping in `errors` cannot arrive without copy:
 
 ```ts
 for (const violation of ValidationError.fromIssues(issues).fields ?? []) {
@@ -107,29 +91,24 @@ for (const violation of ValidationError.fromIssues(issues).fields ?? []) {
 
 ## Why `ErrorCopy` is a class and not two call sites
 
-The rendering was once documented as two lines to copy wherever they were needed:
+It was once two lines to copy around:
 
 ```ts
 t(ERROR_COPY[error.code], error.context);
 t(FIELD_RULE_COPY[violation.rule] ?? "error.unexpected", violation.params);
 ```
 
-Both are wrong in ways that only surface on screen, which is the whole argument for writing them
-once:
+Both fail only on screen:
 
-- **The second drops the field name.** `violation.params` is `{ min: 10 }`; the name is
-  `violation.field`, a sibling property. Pass params alone and the user reads
-  `"{field} must be at least 10 characters."` `ErrorCopy.field` merges the name in.
-- **The first does not typecheck if `t()` is narrow.** `ErrorContext` allows `boolean`. That is why
-  `Translator.t` takes [`MessageParams`](namespace.md#messageparams) — the same shape as
-  `ErrorContext` — rather than `Record<string, string | number>`. Narrowing it makes the most
-  important call site in the package fail, and the fix people reach for is a cast.
-- **The `?? "error.unexpected"` fallback gets forgotten** at the one call site where the rule turns
-  out to be open-ended.
+- **The second drops the field name** — `violation.params` is `{ min: 10 }`, the name is the sibling
+  `violation.field`, so users read `"{field} must be at least 10 characters."` `ErrorCopy.field` merges it.
+- **The first does not typecheck with a narrow `t()`** — `ErrorContext` allows `boolean`, so
+  `Translator.t` takes [`MessageParams`](namespace.md#messageparams) (the same shape), not
+  `Record<string, string | number>`; narrowing invites a cast.
+- **The `?? "error.unexpected"` fallback gets forgotten** where the rule set is open.
 
-`ErrorCopy` is also where the seam is testable from this side. `errors` asserts that `ServerOnlyError`
-names its context key `package`; this package asserts the rendered sentence comes out whole. Neither
-package can see the other's half, so both halves are pinned.
+It is also where the seam is tested from this side: `errors` asserts `ServerOnlyError` names its context
+key `package`; this package asserts the rendered sentence is whole.
 
 ---
 
@@ -144,37 +123,21 @@ ErrorCopy.message(t, error.toJSON());
 //  problem — it means database or credential code is reachable from the browser."
 ```
 
-That sentence used to live inside `ServerOnly.assert` as a template literal, and it was the single
-error in the repository permitted to carry a message — a developer-facing string, at module load,
-that never crossed a wire.
-
-It is copy now. `{package}` interpolates from the error's context, the words are identical, and a
-developer reading Bengali could have them in Bengali. **The rule holds with no exceptions**, which is
-worth more than the one sentence it cost — see
-[core's `ServerOnly`](../../../core/docs/reference/server-only.md#why-the-hardest-case-for-prose-still-loses)
-for the argument in full.
-
-It is deliberately untranslated in `bn/error.ts`: a console reader wants the string they can search
-for.
+That sentence was once a template literal in `ServerOnly.assert` — the one error allowed a message. It
+is copy now, `{package}` from context, so **the rule holds with no exceptions**
+([core's `ServerOnly`](../../../core/docs/reference/server-only.md#why-the-hardest-case-for-prose-still-loses)).
+It stays untranslated in `bn/error.ts`: a console reader wants a searchable string.
 
 ---
 
 ## Who calls this
 
-`feature`'s `useErrorMessage` and nothing else, which is deliberate: it normalises whatever a query
-or mutation threw, renders the code through `ERROR_COPY` and the violations through
-`FIELD_RULE_COPY`, and hands back one object. Nine components used to render
-`shell.t("state.error")` — "Something went wrong" — against a server that had already said *which*
-thing. A `FORBIDDEN` and a `CONFLICT` are different things to be told, and the envelope carried the
-difference all the way to the component before it was thrown away.
-
-`apps/web`'s root route uses the same hook for its `errorComponent`, so an uncaught throw anywhere in
-the tree gets the catalog's sentence rather than a stack trace.
-
-**Two call sites still branch before falling back**, and both are right to: an invitation that is
-`NOT_FOUND` and an invite that is `CONFLICT` have copy of their own in their slice's namespace, which
-is more specific than the shared one. They fall through to `ErrorCopy` for everything else, so the
-branch adds a sentence rather than replacing the mechanism.
+Only `feature`'s `useErrorMessage`: it normalises what a query or mutation threw and renders the code
+and violations into one object. Nine components once showed a generic "Something went wrong" though the
+server had said *which* thing — `FORBIDDEN` and `CONFLICT` deserve different words. `apps/web`'s root
+`errorComponent` uses the same hook, so an uncaught throw gets the catalog sentence, not a stack trace.
+**Two call sites branch first, rightly** — a `NOT_FOUND` invitation and a `CONFLICT` invite have more
+specific slice copy — then fall through to `ErrorCopy`.
 
 ---
 

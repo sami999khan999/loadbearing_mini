@@ -5,14 +5,13 @@ description: The three thin presets — library, node-esm, react — what each c
 
 # Presets
 
-Each extends [`base.json`](base.md) and changes only what genuinely differs: module
-resolution, whether `tsc` emits, and whether the DOM exists.
+Each extends [`base.json`](base.md), changing only module resolution, whether `tsc` emits, and DOM.
 
 ---
 
 ## `library.json`
 
-For all fourteen `packages/*`.
+For every non-React `packages/*`.
 
 ```json
 {
@@ -25,21 +24,16 @@ For all fourteen `packages/*`.
 }
 ```
 
-**`noEmit: true`** because tsup does the emitting. `tsc` runs in a package only as
-`typecheck`, never as a build. That separation is what lets `pnpm typecheck` run across the
-whole workspace without producing a single artefact.
-
-**`moduleResolution: "Bundler"`** because every consumer of these packages is a bundler —
-Vite for the web app, tsup for the package builds, tsx for the worker's dev loop. Bundler
-resolution understands `exports` maps including the `development` condition, which is what
-lets Vite resolve `@loadbearing/core` straight to `src/index.ts` in dev and hot-reload
-package edits with no rebuild.
+- **`noEmit: true`** — tsup emits; `tsc` only typechecks, so `pnpm typecheck` produces no artefacts.
+- **`moduleResolution: "Bundler"`** — every consumer is a bundler (Vite, tsup, tsx). It understands
+  `exports` including the `development` condition, so Vite resolves `@loadbearing/core` to
+  `src/index.ts` and hot-reloads package edits without a rebuild.
 
 ---
 
 ## `node-esm.json`
 
-For `apps/worker`, and any script run directly by Node.
+For `apps/worker`, `apps/realtime`, and scripts run directly by Node.
 
 ```json
 {
@@ -52,45 +46,36 @@ For `apps/worker`, and any script run directly by Node.
 }
 ```
 
-**`NodeNext` is Node's own ESM resolver**, which means relative imports need the `.js`
-extension even though the file on disk is `.ts`:
+**`NodeNext` is Node's ESM resolver**, so relative imports need `.js` though the file is `.ts`:
 
 ```ts
 import { Container } from "./container.js";
 ```
 
 > [!IMPORTANT]
-> Write the `.js` extension **everywhere**, including in `packages/*` where `Bundler`
-> resolution does not require it. Consistency costs nothing and it means a file can move
-> between a package and the worker without an edit. Every code sample in this repository
-> follows that rule.
+> Write `.js` **everywhere**, including `packages/*` where `Bundler` does not need it, so files move
+> between a package and a Node app without an edit.
 
-**`types: ["node"]`** brings in `@types/node`. Note the pairing constraint: `@types/node`
-must track the same major as the runtime in `.nvmrc`. Types from a different major produce
-APIs that typecheck and then throw.
-
-**No `noEmit` here** — this is the one place `tsc` is the build. `apps/worker` has no bundler
-at all; its `build` script is `tsc -p tsconfig.json` emitting plain ESM, and its own
-`tsconfig.json` adds `outDir` and `rootDir`.
+- **`types: ["node"]`** — `@types/node` must track the `.nvmrc` runtime major, or APIs typecheck and
+  then throw.
+- **No `noEmit`** — here `tsc` is the build (`tsc -p tsconfig.json`, plain ESM); the app's tsconfig adds
+  `outDir` and `rootDir`.
 
 > [!NOTE]
-> There is no `node-cjs.json`. Nothing in this stack is CommonJS — oRPC is ESM-only, TanStack
-> Start is ESM, and every package sets `type: "module"`. That removes an entire class of
-> dual-package-hazard problem.
+> No `node-cjs.json`: nothing is CommonJS (oRPC and TanStack Start are ESM, every package is
+> `type: "module"`), avoiding the dual-package hazard.
 
 ### Why the worker uses `tsx` and not Node's native TypeScript support
 
-Node 24 runs `.ts` files by **stripping** types, which erases syntax but rejects any
-TypeScript construct that emits runtime code — enums, namespaces, decorators, and,
-decisively, constructor parameter properties:
+Node 24 **strips** types and rejects constructs emitting runtime code — enums, namespaces, decorators,
+and decisively constructor parameter properties:
 
 ```ts
 constructor(private readonly clock: Clock) {}
 ```
 
-That form is not merely used here, it is *mandated* by the `parameter-properties` rule in
-[eslint-config rules](../../../eslint-config/docs/reference/rules.md). Native stripping would reject the
-first file it read. `tsx` transpiles rather than strips, so it handles all of it.
+— *mandated* by [`parameter-properties`](../../../eslint-config/docs/reference/rules.md), so stripping
+would reject the first file. `tsx` transpiles.
 
 ---
 
@@ -112,18 +97,14 @@ For `apps/web`, `packages/ui`, `packages/feature`, and `packages/query`.
 }
 ```
 
-**`lib` adds DOM back.** This is the only preset that does, and it is the mechanism described
-in the [overview](../index.md#the-one-decision-that-shapes-everything-else): browser globals are
-a compile error everywhere else.
-
-**`jsx: "react-jsx"`** is the automatic runtime — no `import React` at the top of every file.
-
-**`types: ["vite/client"]`** provides `import.meta.env` and asset-import types.
+- **`lib` adds DOM back** — the only preset that does, so browser globals are a compile error elsewhere
+  ([overview](../index.md#the-one-decision-that-shapes-everything-else)).
+- **`jsx: "react-jsx"`** — the automatic runtime, no `import React`.
+- **`types: ["vite/client"]`** — `import.meta.env` and asset-import types.
 
 > [!TIP]
-> `packages/asset` needs its own `asset.d.ts` declaring `*.svg`, `*.webp`, and `*.png`
-> modules, because it uses `library.json` rather than `react.json` — it is deliberately
-> React-free so that `content` and `apps/worker` can import it.
+> `packages/asset` uses `library.json` (React-free, so `content` and `apps/worker` can import it) and so
+> declares `*.svg`, `*.webp`, `*.png` in its own `asset.d.ts`.
 
 ---
 
@@ -135,10 +116,9 @@ a compile error everywhere else.
 | is a `packages/*` library, no React | `library` | tsup emits, bundler resolves |
 | is a Node process with no bundler | `node-esm` | `tsc` emits, Node resolves |
 
-The one that catches people out: **`packages/query` uses `react`**, not `library`, because it
-exports a provider component and hooks. `packages/api-client` sits right next to it and uses
-`library`, because it is deliberately React-free — and for the same reason `api-client` is in
-the OOP glob in the ESLint config while `query` is not.
+The surprise: **`packages/query` uses `react`** (a provider and hooks), while neighbouring `api-client`
+uses `library`, being React-free — which is also why `api-client` is in the ESLint OOP glob and `query`
+is not.
 
 ---
 

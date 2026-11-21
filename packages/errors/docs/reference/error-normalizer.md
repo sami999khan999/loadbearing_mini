@@ -11,8 +11,8 @@ export class ErrorNormalizer {
 }
 ```
 
-Every thrown value crosses this before it is transported, logged, or rendered. After it, the shape is
-known — which is what lets the oRPC interceptor be three lines with no fall-through branch to get wrong.
+Every thrown value crosses this before transport, logging or rendering, so the oRPC interceptor is three
+lines with no fall-through.
 
 ```ts
 ErrorNormalizer.normalize(new ForbiddenError("x"));      // itself
@@ -22,9 +22,7 @@ ErrorNormalizer.normalize("boom");                       // InternalError
 ErrorNormalizer.normalize(undefined);                    // InternalError
 ```
 
-`normalize` is **total**. `throw "boom"` and a promise rejected with `undefined` are both real things
-that happen, and a normaliser that only handles `Error` subclasses is the reason production stack traces
-sometimes say `undefined`.
+`normalize` is **total** — `throw "boom"` and rejections with `undefined` really happen.
 
 ---
 
@@ -43,15 +41,10 @@ private static isAppError(value: unknown): value is AppError {
 }
 ```
 
-Two copies of this package in one process — a hoisting quirk, a bundled dependency, an SSR/client
-boundary — produce two distinct class identities, and `instanceof` silently answers `false` for an error
-that is obviously ours. It then gets collapsed to `INTERNAL`, the client sees "Something went wrong"
-instead of "You do not have permission", and nothing anywhere logs a warning.
-
-This is the same reasoning [12](../../../../docs/setup/12-application-package.md) gives for switching on
-a closed `code` vocabulary rather than a class check, applied one level down. A known `code` plus a
-callable `toJSON` survives duplicate identities. There is a test for exactly this — an object literal
-shaped like one of ours normalises to its own code, and one carrying an unknown code does not.
+Two copies of this package in a process (hoisting, a bundled dependency, the SSR/client boundary) make
+two class identities, so `instanceof` silently says `false` and a `FORBIDDEN` collapses to `INTERNAL`
+with no warning. A known `code` plus a callable `toJSON` survives duplicates — the same reason callers
+switch on `code`. A test pins it: a look-alike literal keeps its code; an unknown code does not.
 
 ---
 
@@ -61,15 +54,11 @@ shaped like one of ours normalises to its own code, and one carrying an unknown 
 private static isSchemaError(value: unknown): value is { issues: readonly SchemaIssue[] };
 ```
 
-This package has zero dependencies, and importing `zod` to narrow one branch would end that. So a
-Zod-shaped error is anything with an `issues` array whose entries have a `path` array and a string
-`code` — which is Zod's contract in practice, and which also means any other validator with the same
-shape normalises for free.
-
-`SchemaIssue` declares only the four fields used: `path`, `code`, `minimum`, `maximum`. **Both
-bounds travel when an issue carries both** — a `min(8).max(64)` string produces `{ min, max }`, and a
-template that names only one simply ignores the other. Returning at the first bound found lost `max`
-on every such issue, and `error.field.tooLong` renders an unmatched `{max}` literally.
+Importing `zod` would end the zero-dependency rule, so a schema error is anything with an `issues` array
+of entries with a `path` array and string `code` — Zod's contract, and any look-alike validator's.
+`SchemaIssue` declares only `path`, `code`, `minimum`, `maximum`. **Both bounds travel** —
+`min(8).max(64)` gives `{ min, max }`; returning at the first bound once left `error.field.tooLong`
+rendering a literal `{max}`.
 
 ---
 
@@ -91,12 +80,9 @@ export class InternalError extends AppError {
 }
 ```
 
-**Non-enumerable is the load-bearing word.** A log adapter can read `error.cause` and record the real
-failure; `JSON.stringify` skips it, and `toJSON()` never names it. That is what keeps a Postgres error
-string — which cheerfully contains your table names — from travelling to a client, and it closes the
-hole at the normaliser rather than relying on every adapter to remember.
-
-Asserted directly rather than assumed:
+**Non-enumerable is the point:** a logger reads `error.cause`; `JSON.stringify` skips it and `toJSON()`
+never names it, so a Postgres message full of table names never reaches a client — closed here, not in
+every adapter. Asserted:
 
 ```ts
 const secret = 'connection to db-prod-01 refused: relation "user_api_keys" does not exist';
@@ -107,15 +93,14 @@ expect(JSON.stringify(normalized)).not.toContain("db-prod-01");
 expect(normalized.cause).toBeInstanceOf(Error);   // still there for the logger
 ```
 
-`override` is required on `cause` because `Error.cause` exists in the ES2022 lib —
-`noImplicitOverride` catches its absence.
+`override` is required: `Error.cause` is in the ES2022 lib and `noImplicitOverride` checks it.
 
 ---
 
 ## Rule names, never library tokens
 
-Zod issue codes are an open set and change between majors, so an unrecognised one becomes `"invalid"`
-rather than leaking `some_future_zod_code` into an envelope that `content` then has no copy for:
+Zod's codes are open and change between majors, so an unknown one becomes `"invalid"` rather than an
+uncopied library token:
 
 | Zod issue code | `rule` |
 | --- | --- |
@@ -125,8 +110,8 @@ rather than leaking `some_future_zod_code` into an envelope that `content` then 
 | `invalid_format`, `invalid_string` | `invalidFormat` |
 | anything else | `invalid` |
 
-`FIELD_RULE_COPY` in `content` is therefore deliberately *not* total, unlike `ERROR_COPY` — an unknown
-rule falls back to `error.unexpected`.
+So `content`'s `FIELD_RULE_COPY` is deliberately not total; an unknown rule falls back to
+`error.unexpected`.
 
 ---
 
@@ -134,4 +119,3 @@ rule falls back to `error.unexpected`.
 
 - [`@loadbearing/errors`](../index.md)
 - [AppError](app-error.md) — the shape this produces
-- [24 · `apps/web`](../../../../docs/setup/24-web-app.md) — the interceptor that consumes it

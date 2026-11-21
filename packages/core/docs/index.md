@@ -1,15 +1,14 @@
 ---
 title: "@loadbearing/core"
-description: Four primitives every other package may need and no feature owns — Clock, Result, Uuid, ServerOnly. One dependency, and it is a leaf.
+description: Five primitives every other package may need and no feature owns — Clock, Result, Uuid, Token, ServerOnly. One dependency, and it is a leaf.
 ---
 
 # `@loadbearing/core`
 
-One edge above the bottom of the dependency graph. Everything else may import it; it imports exactly
-one thing, [`@loadbearing/errors`](../../errors/docs/index.md), because
-[`ServerOnly.assert`](reference/server-only.md) throws and nothing in this repository throws a bare
-`Error`. `errors` is itself a zero-dependency leaf, so the property that matters survives: `core` is
-the one place where a dependency cannot be faked, and the bar for adding to it is deliberately high.
+One edge above the bottom of the graph. Everything may import it; it imports only
+[`@loadbearing/errors`](../../errors/docs/index.md) (a zero-dependency leaf), because
+[`ServerOnly.assert`](reference/server-only.md) throws and nothing throws a bare `Error`. Nothing in
+`core` can be faked, so the bar for adding to it is high.
 
 | | |
 | --- | --- |
@@ -47,14 +46,12 @@ packages/core/
 
 Two conditions, both required:
 
-1. **Every other package might need it.** Not "two packages need it" — that is a case for putting
-   it in whichever package owns the concept.
-2. **No feature owns it.** A `Deadline` type belongs to the domain, not here, however generic it
-   looks.
+1. **Every other package might need it** — "two packages need it" means it belongs to whichever owns
+   the concept.
+2. **No feature owns it** — a `Deadline` belongs to the domain, however generic it looks.
 
-Everything that clears both bars is something that can never be substituted with a fake, because
-there is no seam below `core` to insert one. That is the real cost of an addition, and it is why
-the package has five exports rather than forty.
+Anything here can never be faked (there is no seam below `core`), which is why there are five exports,
+not forty.
 
 ---
 
@@ -68,7 +65,7 @@ export abstract class Clock {
 }
 ```
 
-`SystemClock` in production, `FixedClock` in tests. The rule it exists to enforce:
+`SystemClock` in production, `FixedClock` in tests, enforcing:
 
 > [!IMPORTANT]
 > **No code anywhere in `packages/` calls `Date.now()` or `new Date()` for a decision.**
@@ -88,11 +85,9 @@ if (parsed.kind === "err") {
 }
 ```
 
-A discriminated union — `Ok<T, E> | Err<T, E>` — rather than an abstract class, because that is
-the only shape that narrows in the `else` branch, after an early return, and in an exhaustive
-`switch`. Deliberately the *minority* pattern: `Result` is for failures the caller branches on;
-invariant violations throw a domain error instead. The table in [result](reference/result.md) is
-the whole decision.
+A discriminated union (`Ok<T, E> | Err<T, E>`), the only shape that narrows in an `else`, after an
+early return and in an exhaustive `switch`. The *minority* pattern: `Result` is for failures the caller
+branches on; invariant violations throw a domain error ([result](reference/result.md) has the table).
 
 ### [`Uuid`](reference/uuid.md) — time-ordered primary keys
 
@@ -101,8 +96,7 @@ Uuid.v7();               // "0194a5c3-8f21-7b4e-9a02-3c8d1f6e0a7b"
 Uuid.isValid(someInput); // boolean
 ```
 
-v7 rather than v4 so inserts land at the tail of the B-tree instead of scattering across it. The
-tradeoff — IDs leak creation time — is documented rather than hidden.
+v7, not v4, so inserts land at the B-tree's tail; the trade-off (ids leak creation time) is documented.
 
 ### [`Token`](reference/token.md) — an opaque random string, and the digest of one
 
@@ -113,9 +107,9 @@ export class Token {
 }
 ```
 
-`random()` goes to the recipient; `hash()` goes to the table. It is here rather than beside
-`ApiKeyHasher` in `auth` because both `application` (hashing an invitation before saving it) and
-`infrastructure` (hashing before looking one up) need it, and neither can reach `auth`.
+`random()` goes to the recipient, `hash()` to the table. It is here, not beside `ApiKeyHasher` in
+`auth`, because `application` (hashing an invitation to save) and `infrastructure` (hashing to look up)
+both need it and neither can reach `auth`.
 
 ### [`ServerOnly`](reference/server-only.md) — a runtime bundle-leak tripwire
 
@@ -125,16 +119,15 @@ import { ServerOnly } from "@loadbearing/core";
 ServerOnly.assert("@loadbearing/infrastructure");
 ```
 
-Called on the first line of four barrels: `application`, `infrastructure`, `auth`, `composition`. It is the
-second of three independent defences against server code reaching the browser.
+First in four barrels — `application`, `infrastructure`, `auth`, `composition` — the second of three
+defences against server code reaching the browser.
 
 ---
 
 ## Two things that do not compile the obvious way
 
-Both come from `library.json` setting `lib: ["ES2024"]` with **no DOM**, which is what makes this
-package honestly isomorphic. Both are load-bearing enough to have their own note in the reference
-pages, and both were found by running the build rather than by reading it.
+Both from `library.json`'s `lib: ["ES2024"]` with **no DOM** (what keeps the package honestly
+isomorphic), and both found by running the build:
 
 | Written the obvious way | What happens | What the code does instead |
 | --- | --- | --- |
@@ -142,22 +135,17 @@ pages, and both were found by running the build rather than by reading it.
 | `crypto.getRandomValues(…)` | compiles **only** because a spec file imports vitest, which drags `@types/node` into the program | a four-line `WebCrypto` type read off `globalThis` |
 
 > [!CAUTION]
-> The second one is the nastier of the two: it is green today and would break the moment `core`'s
-> tests moved or were deleted, in a package fourteen others depend on. See
-> [uuid](reference/uuid.md#why-crypto-is-not-a-global-here).
+> The second is nastier: green today, broken the moment `core`'s tests move, in a package fourteen
+> depend on ([uuid](reference/uuid.md#why-crypto-is-not-a-global-here)).
 
 ---
 
 ## One folder, two barrels
 
-Everything this package exports lives in `primitive/`: a value type or a small class with no layer
-role, which is exactly what that folder name means everywhere it appears — `content` uses it for
-`Locale`. `src/` itself holds only `index.ts` and `import.ts`
-([Opinions · Folders](../../../docs/opinions/folders.md)).
-
-`primitive/index.ts` names the five exports; the root `index.ts` re-exports that one barrel. The
-indirection costs a line and buys the thing barrels exist for: moving `clock.ts` into a future
-`time/` folder changes two files and nothing downstream.
+Everything lives in `primitive/` (value types and small classes with no layer role, as everywhere —
+`content` uses it for `Locale`); `src/` holds only `index.ts` and `import.ts`
+([Folders](../../../docs/opinions/folders.md)). The root barrel re-exports `primitive/index.ts`, so moving
+`clock.ts` to a future `time/` touches two files.
 
 **If `core` ever needs a second folder, it has grown past its job.**
 
@@ -165,15 +153,9 @@ indirection costs a line and buys the thing barrels exist for: moving `clock.ts`
 
 ## Testing
 
-Tests live in this package's **`tests/`** directory, named `<subject>.spec.ts` and mirroring the
-`src/` tree — `src/primitive/clock.ts` is covered by `tests/primitive/clock.spec.ts`. Not colocated in `src/`, not in
-`__tests__/`, and not in one repo-wide `test/` folder. Keeping specs out of `src/` keeps `src/`
-equal to the shipped surface, since `tsup` builds from `src/index.ts` and the `development` export
-condition resolves into `src/`; the mirrored path is what replaces adjacency.
-
-`vitest.config.ts` narrows `include` to `tests/**/*.spec.ts` so the runner never picks up compiled
-output from `dist/`. `tsconfig.json` includes `tests/**` alongside `src/**`, which is what keeps
-`pnpm typecheck` covering the specs.
+Specs mirror `src/` under `tests/` (`src/primitive/clock.ts` → `tests/primitive/clock.spec.ts`).
+`vitest.config.ts` narrows `include` to `tests/**/*.spec.ts` so `dist/` output is never picked up, and
+`tsconfig.json` includes `tests/**` so `pnpm typecheck` covers specs.
 
 ```bash
 pnpm --filter @loadbearing/core test
@@ -184,5 +166,4 @@ pnpm --filter @loadbearing/core test
 ## See also
 
 - [Clock](reference/clock.md) · [Result](reference/result.md) · [Uuid](reference/uuid.md) · [Token](reference/token.md) · [ServerOnly](reference/server-only.md)
-- [Build order · 07 · core](../../../docs/setup/07-core-package.md)
 - [`@loadbearing/tsconfig` · base](../../../tooling/tsconfig/docs/reference/base.md) — where `lib: ["ES2024"]` and `noUncheckedIndexedAccess` come from

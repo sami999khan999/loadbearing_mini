@@ -48,8 +48,8 @@ caps.can("rbac.role.manage");                  // false — rules 2 and 4
 caps.can("rbac.role.read");                    // true
 ```
 
-A goal-level deny is checked before the org-level grant that would otherwise cover it, so a
-principal can hold a permission org-wide and be denied it in exactly one goal.
+A goal-level deny is checked before the org grant covering it, so a permission can be held org-wide
+and denied in one goal.
 
 ### Why the `core` module is exempt
 
@@ -57,42 +57,35 @@ principal can hold a permission org-wide and be denied it in exactly one goal.
 CapabilitySet.empty().can("core.activity.write");   // true — rule 5
 ```
 
-`core.activity.write` describes acting at all: every principal that reaches a use-case writes an
-audit row, so the question "may this principal write one?" has no answer other than yes. Granting it
-through a role makes that a decision somebody can get wrong, and somebody did — only `owner`'s
-wildcard carried it, `IndexDocumentUseCase` asserted it and the member use-cases deliberately did
-not, so whether an audit row could be written depended on which use-case you were in.
+`core.activity.write` describes acting at all — every principal reaching a use-case writes an audit
+row — so the only answer is yes. Granted through roles it was gotten wrong: only `owner`'s wildcard
+carried it, `IndexDocumentUseCase` asserted it and member use-cases did not, so audit depended on which
+use-case you were in.
 
-The exemption is a lookup against `PermissionMeta.module`, never a string prefix: a key named
-`core.something` in another module is not exempt, and a `core` key renamed stays exempt. It is
-checked **after** denies and beside the wildcard, so an operator can still suspend it the same way
-they suspend anything else — and `intersect()` needs no special case, because the rule lives in
-`can()` rather than in the DTO the narrowing operates on.
-
-The alternative — `PgCapabilityRepository.resolveFor` adding the keys to every row it returns —
-puts the rule in the store rather than in the resolver, where the SSR payload and the Redis cache
-would each have to carry it too.
+The exemption looks up `PermissionMeta.module`, never a string prefix (a `core.something` key in
+another module is not exempt; a renamed `core` key stays exempt). Checked **after** denies, so an
+operator can still suspend it, and `intersect()` needs no special case because the rule lives in
+`can()`, not the DTO. Adding the keys in `PgCapabilityRepository.resolveFor` instead would put the rule
+in the store, forcing the SSR payload and Redis cache to carry it too.
 
 ---
 
 ## `toJSON()` / `from()` is why one class serves four runtimes
 
-The DTO is plain JSON. The server resolves a set from the database, serialises it into the SSR
-payload, and the browser reconstructs the identical class. The `<Can>` component and the oRPC
-handler then run the *same* `can()` — not two implementations that agree today. The worker and the
-desktop app do the same.
+The DTO is plain JSON: the server resolves a set, serialises it into the SSR payload, and the browser
+rebuilds the identical class, so `<Can>` and the oRPC handler run the *same* `can()` — as do the
+worker and desktop app.
 
 ```ts
 const revived = CapabilitySet.from(JSON.parse(payload) as CapabilitySetDto);
 ```
 
 > [!IMPORTANT]
-> The round-trip test in `capability-set.spec.ts` is the one that protects the architecture. If it
-> ever fails, the server and the browser have stopped agreeing about permissions.
+> The round-trip test in `capability-set.spec.ts` protects the architecture: if it fails, server and
+> browser disagree about permissions.
 
-The `as CapabilitySetDto` is required, not decorative: `JSON.parse` returns `any`, and
-`@typescript-eslint/no-unsafe-argument` — on via `recommendedTypeChecked` — rejects passing it
-straight into `from()`.
+`as CapabilitySetDto` is required: `JSON.parse` returns `any`, which
+`@typescript-eslint/no-unsafe-argument` (via `recommendedTypeChecked`) rejects.
 
 ---
 
@@ -102,25 +95,18 @@ straight into `from()`.
 caps.goalsWith("task.update", candidateGoalIds); // readonly string[]
 ```
 
-Escalation that resolves targets *by permission rather than by role* is this method. "A manager sees
-capacity only within their own goals" is this method. Per-recipient digest filtering is this method.
-Writing it once, on the class that owns the data, is what makes "no hardcoded role checks" true
-rather than aspirational — the alternative is `WHERE role = 'manager'` in three query files that
-drift apart.
+Escalation targeting *by permission, not role*, "a manager sees capacity only in their goals", and
+per-recipient digest filtering are all this method. Written once on the class owning the data, it keeps
+"no hardcoded role checks" true — instead of `WHERE role = 'manager'` drifting across three query
+files.
 
 ### Why the candidate set is a parameter
 
-This object cannot produce it. It knows only the goals its own DTO names, and two principal shapes
-hold a goal-scoped permission in goals that never appear there — a wildcard holder, and anyone
-granted the permission at org level, since an org grant covers every goal.
-
-Filtering its own `goals` keys answered `[]` for both while `can()` answered `true`. That gap fed an
-empty permitted scope into `VectorStore.search()`, where empty means `isNull(goalId)` — org-wide
-chunks only ([14](../../../../docs/setup/14-vector-store.md)). A superuser asking about a project's
-documents got no goal-scoped results and **no error**: fail-closed, and silently wrong.
-
-Taking candidates and filtering them through `can()` makes all four shapes correct for free, because
-`can()` already handles each one:
+The object knows only goals its DTO names, but a wildcard holder and an org-level grantee hold a
+goal-scoped permission in goals never named there. Filtering its own `goals` keys answered `[]` for
+both while `can()` said `true`, feeding an empty scope into `VectorStore.search()` (empty means
+`isNull(goalId)` — org-wide chunks only): a superuser got no goal-scoped results and **no error**.
+Filtering caller-supplied candidates through `can()` makes all four shapes right:
 
 | Principal | Result |
 | --- | --- |
@@ -129,36 +115,28 @@ Taking candidates and filtering them through `can()` makes all four shapes corre
 | per-goal grants | only the granted ones |
 | per-goal deny | excluded, even under wildcard |
 
-It also mirrors `VectorStore.search()` itself, where `goalIds` is required so the permitted scope
-cannot be forgotten ([12](../../../../docs/setup/12-application-package.md)). Duplicates in the input
-are collapsed; order is the caller's.
+It mirrors `VectorStore.search()`, where `goalIds` is required so scope cannot be forgotten.
+Duplicates collapse; order is the caller's.
 
 ---
 
 ## `canTenantWide()` is the question a role assignment asks
 
-A role is never assigned inside one goal, so "may this actor hand out that role" is "does the actor
-hold every key of it **in every goal at once**". `can()` without a goal answers `false` for a
-goal-scoped key by rule 3, which would make every such role unassignable. `canTenantWide()` asks the
-org level instead: a deny wins, then the wildcard and `core`, then an org grant. A grant inside one
-goal does not count, and a platform key is asked exactly as `can()` asks it.
-
-`RoleRules.assertAssignableBy` is the one caller. It is `CR.1`'s fix: `admin` held `member.invite`
-and could invite anyone onto `owner`, because nothing compared what the role grants with what the
-actor holds.
+A role is never assigned inside one goal, so "may this actor hand out that role" means "does the actor
+hold every key **in every goal at once**". `can()` without a goal is `false` for goal-scoped keys (rule
+3), which would make such roles unassignable; `canTenantWide()` asks the org level — deny wins, then
+wildcard and `core`, then an org grant. One-goal grants do not count; platform keys are asked as `can()`
+asks. The one caller is `RoleRules.assertAssignableBy` — `CR.1`'s fix, after `admin` (holding
+`member.invite`) could invite anyone onto `owner`.
 
 ---
 
 ## `intersect()` is a security boundary
 
-An API key is a principal whose capability set cannot exceed its issuer's. Intersecting at creation
-is the obvious half. Re-intersecting **at resolution** is the half that matters: when the issuer's
-permission is revoked, every key they created narrows on the *next request* rather than at the next
-key rotation. That closes the most common way an RBAC model gets quietly defeated.
-
-Which means the method has to be correct in four ways the original listing was not. All four are
-proven by tests in `capability-set.spec.ts` — restore the original body and exactly those tests go
-red.
+An API key cannot exceed its issuer. Intersecting at creation is the obvious half; re-intersecting
+**at resolution** is the one that matters — a revoked issuer permission narrows every key on the *next
+request*, closing the commonest way RBAC is quietly defeated. The original listing was wrong four ways,
+each now pinned by a test in `capability-set.spec.ts`:
 
 ### Denies union, grants intersect
 
@@ -169,8 +147,8 @@ key.intersect(issuer).can("rbac.role.manage");
 // correct:  false
 ```
 
-Keeping only `this`'s denies means `wildcard && wildcard` survives with an empty deny list, and the
-intersection grants strictly more than one of its inputs. A deny on either side has to survive.
+Keeping only `this`'s denies lets `wildcard && wildcard` survive with no denies — more than one input
+grants. A deny on either side must survive.
 
 ### Goal keys union
 
@@ -181,8 +159,7 @@ key.intersect(issuer).can("member.deactivate", GOAL);
 // correct:  false
 ```
 
-Iterating only `this`'s goals silently drops every restriction the other side expressed about a goal
-`this` has never heard of.
+Iterating only `this`'s goals drops the other side's restrictions on goals `this` never saw.
 
 ### Org candidates are tested at org level
 
@@ -193,9 +170,9 @@ caps.intersect(caps).can("member.read", GOAL);
 // correct:  true
 ```
 
-An org-level grant of a *goal*-scoped permission is real — it covers every goal. But `can(p)` with
-no `goalId` is `false` by rule 3, so filtering org grants through `can()` drops it. `intersect` uses
-a private `allowsAtOrg()` instead, which is also the org branch `can()` itself delegates to.
+An org grant of a goal-scoped permission covers every goal, but `can(p)` without `goalId` is `false`
+(rule 3), so filtering through `can()` drops it. `intersect` uses the private `allowsAtOrg()`, the
+same org branch `can()` delegates to.
 
 ### Both sides' grants are candidates
 
@@ -206,22 +183,17 @@ key.intersect(issuer).can("member.read");
 // correct:  true
 ```
 
-A wildcard set grants everything and lists nothing, so filtering only `this`'s grants intersects it
-down to nothing. This is the realistic case, not a contrived one: an issuer who *was* a superuser
-created a wildcard key and has since lost superuser. The key must narrow to the issuer's current
-explicit grants — not to nothing, and certainly not stay wildcard.
-
-Taking the union of both sides' grants as the candidate set and keeping each key only where both
-sides allow it makes the operation a real set intersection, and makes it behave the same whichever
-side is narrowed.
+A wildcard set lists nothing, so filtering only `this`'s grants yields nothing. Realistic: an
+ex-superuser's wildcard key must narrow to their current explicit grants — not to nothing, not stay
+wildcard. Candidates are the union of both sides' grants, kept where both allow — a true, symmetric
+intersection.
 
 ---
 
 ## `from()` is where the vocabulary boundary holds
 
-A DTO arrives here from three places — the database, a Redis cache entry, and an SSR payload — and
-only the first has already been filtered through `isKnown()`. So `from()` re-filters every set, which
-is what makes that boundary true on all three paths instead of one:
+A DTO arrives from the database, a Redis entry or an SSR payload, and only the first is pre-filtered
+by `isKnown()`, so `from()` re-filters every set:
 
 ```ts
 CapabilitySet.from({
@@ -231,24 +203,18 @@ CapabilitySet.from({
 }).toJSON().org.grants;                      // ["member.read"] — the unknown key is gone
 ```
 
-Two details matter. The **sanitised** DTO is what gets stored, not the caller's — `toJSON()` returns it
-by reference, so keeping the original would write the dropped keys straight back out to the cache on
-the next fill. And a goal key survives even when every permission inside it was dropped, because an
-empty goal entry is still meaningful to `intersect()`, which unions goal keys across both sides.
-
-`intersect()` builds through `from()` too, on sets that are already clean. That redundant filter is a
-few keys' worth of work, and worth it to keep one entry point rather than a trusted back door.
+The **sanitised** DTO is stored (`toJSON()` returns it by reference, so keeping the original would
+write dropped keys back to the cache). A goal key survives even with every permission dropped, since
+`intersect()` unions goal keys. `intersect()` also builds through `from()` — a few keys of redundant
+work for one entry point instead of a trusted back door.
 
 ---
 
 ## `ScopedSet` is internal on purpose
 
-`grants` and `denies` are `ReadonlySet`s built once in the constructor, so `can()` is two hash
-lookups rather than two array scans. The class is not exported — the DTO is the contract, and
-`ScopedSet` is free to change shape.
-
-Note `public constructor(dto: ScopedSetDto)`: Biome's `useConsistentMemberAccessibility` is set to
-`explicit`, so a bare `constructor(` is a lint error throughout this codebase.
+`grants` and `denies` are `ReadonlySet`s built once, so `can()` is two hash lookups. Unexported — the
+DTO is the contract. Its `public constructor(` is required: Biome's explicit accessibility makes a bare
+`constructor(` a lint error.
 
 ---
 
@@ -257,4 +223,3 @@ Note `public constructor(dto: ScopedSetDto)`: Biome's `useConsistentMemberAccess
 - [`@loadbearing/permissions`](../index.md)
 - [PermissionRegistry](permission-registry.md) — where `scopeOf()` comes from
 - [ModuleRegistry](module-registry.md) — the only other consumer of `can()` inside this package
-- [16 · auth](../../../../docs/setup/16-auth-package.md) — the API-key resolution path that calls `intersect()`

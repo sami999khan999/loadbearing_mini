@@ -5,8 +5,8 @@ description: Result, Ok, Err and Results — a discriminated union that narrows 
 
 # `Result<T, E>`
 
-A two-case discriminated union. `Ok` and `Err` are classes so they can carry behaviour; `Result`
-itself is the union of the two, which is what makes it narrow.
+A two-case discriminated union: `Ok` and `Err` are classes (to carry behaviour), and `Result` is their
+union, which is what narrows.
 
 ```ts
 export type Result<T, E> = Ok<T, E> | Err<T, E>;
@@ -25,26 +25,22 @@ Both classes implement `unwrapOr`, `mapOk` and `mapErr`, declared on an unexport
 
 ## Use it, or throw?
 
-This is the part worth getting right. Getting it wrong produces either an exception-driven
-codebase or one where every call site spends three lines unwrapping something that could not
-have failed.
+Wrong one way gives exception-driven flow; wrong the other, three lines of unwrapping at every call
+site for things that cannot fail.
 
 | Situation | Use |
 | --- | --- |
 | The operation fails as part of the normal business flow — validation, a lookup that legitimately misses, a parse of untrusted input | **`Result`** |
-| An invariant is violated — the caller lacks permission, a referenced row must exist and doesn't, a config value is absent | **throw** a domain error from `application/error/` |
+| An invariant is violated — the caller lacks permission, a referenced row must exist and doesn't, a config value is absent | **throw** an `AppError` subclass from `@loadbearing/errors` |
 
-`ForbiddenError` throws. `NotFoundError` throws. A repository's `findByIdOrFail` throws. In all
-three the caller has no meaningful recovery, and the right thing is for the transport adapter to
-map the error to a status code once, at the edge.
-
-`Result` is for the cases where the caller genuinely *does* branch.
+`ForbiddenError`, `NotFoundError` and `findByIdOrFail` throw — the caller cannot recover, and the
+transport maps the error to a status once, at the edge. `Result` is for when the caller genuinely
+*branches*.
 
 > [!NOTE]
-> **`Result` should be the minority pattern here.** `strict` and `noUncheckedIndexedAccess` already
-> force most of the branches that matter. If `Result` starts appearing on every method, the
-> codebase is drifting toward exception-free purism and away from readable use-cases — which is a
-> worse trade than the occasional `throw`.
+> **`Result` should be the minority pattern** — `strict` and `noUncheckedIndexedAccess` already force
+> most branches; `Result` on every method is drift toward exception-free purism over readable
+> use-cases.
 
 ---
 
@@ -73,19 +69,15 @@ Results.err<string, number>("nope")
   .unwrapOr(0);          // 0
 ```
 
-`unwrapOr` is the only way out that cannot throw. There is deliberately no bare `unwrap()` — it
-would be the shortest path to writing `Result` everywhere and then defeating it at every call
-site.
+`unwrapOr` is the only exit and cannot throw; there is deliberately no `unwrap()`, the shortcut to
+using `Result` everywhere and defeating it at every call site.
 
 ---
 
 ## Why a union rather than an abstract class
 
-Every other port in this codebase is an abstract class, so `Result` being a `type` is the
-exception and worth justifying. It is the only shape that narrows.
-
-The first draft was an abstract `Result` base with `isOk` / `isErr` boolean getters. Twenty-two
-lines across three classes, and they bought nothing:
+Every port here is an abstract class, so `Result` as a `type` needs justifying: it is the only shape
+that narrows. A first draft — an abstract base with `isOk`/`isErr` getters — bought nothing:
 
 ```ts
 if (parsed.isOk) {
@@ -93,8 +85,7 @@ if (parsed.isOk) {
 }
 ```
 
-Promoting them to type predicates (`isOk(): this is Ok<T, E>`) fixes the positive branch and
-nothing else. Measured against this repo's exact compiler flags:
+Type predicates (`isOk(): this is Ok<T, E>`) fix only the positive branch. Against this repo's flags:
 
 | Position | abstract class | union |
 | --- | --- | --- |
@@ -105,46 +96,33 @@ nothing else. Measured against this repo's exact compiler flags:
 | `switch (r.kind)` with no `default` | ❌ not exhaustive | ✅ exhaustive |
 
 > [!IMPORTANT]
-> The cause is structural, not a missing annotation: **TypeScript can subtract a member from a
-> union, but not from a class.** A value declared `Result<T, E>` where `Result` is a class has no
-> "everything except `Ok`" type to narrow to in the negative branch. As `Ok<T, E> | Err<T, E>`, it
-> does.
+> Structural, not a missing annotation: **TypeScript can subtract a member from a union, not a class**,
+> so a class `Result` has no "everything except `Ok`" to narrow to.
 
-So the accessors are gone entirely. `r.kind === "ok"` is the branch, it narrows both ways, and it
-makes a `switch` exhaustive without a `default` arm — which means adding a third case later would
-be a compile error at every site rather than a silent fall-through.
+`r.kind === "ok"` narrows both ways and makes a `switch` exhaustive without `default`, so a third case
+would be a compile error everywhere, not a silent fall-through.
 
 ### What it costs
 
-A type alias cannot carry statics, so the factories moved to their own class:
+A type alias carries no statics, so factories live on their own class:
 
 ```ts
 Results.ok(value);   // not Result.ok(value)
 Results.err(error);
 ```
 
-That is the entire price. The factories exist rather than bare `new Ok(1)` because `E` is not
-mentioned in the constructor and would infer as `unknown`; `Results.ok<T, E = never>` defaults it,
-and `Results.err<E, T = never>` flips the order for the same reason. Constructing `Ok` and `Err`
-directly still works and is not banned.
-
-`ResultBase` is not exported. `tsup` emits it as a local `declare abstract class` that no public
-signature mentions.
+That is the whole price. Factories beat `new Ok(1)` because `E` would infer as `unknown`;
+`Results.ok<T, E = never>` defaults it and `Results.err<E, T = never>` flips the order. Direct
+construction still works. `ResultBase` is unexported, emitted as a local `declare abstract class`.
 
 ---
 
 ## Tests
 
-`tests/result.spec.ts` covers the factories and the two `map` methods the ordinary way, then pins
-every row of the narrowing table above.
-
-> [!TIP]
-> Those are **compile-time assertions wearing a test's clothes**. `tests/` is inside the package's
-> tsconfig `include`, so a regression to a non-narrowing shape fails `pnpm typecheck` on this file
-> before any test executes.
->
-> The `widen` helper in that block is load-bearing: without it `Results.ok(7)` infers as
-> `Ok<number, string>` rather than the union, which narrows trivially and would prove nothing.
+`tests/primitive/result.spec.ts` covers factories and `map`s, then pins every row of the narrowing
+table — **compile-time assertions in a test's clothes**: `tests/` is in the tsconfig `include`, so a
+non-narrowing regression fails `pnpm typecheck` first. Its `widen` helper matters: without it
+`Results.ok(7)` infers as `Ok<number, string>`, which narrows trivially and proves nothing.
 
 ---
 

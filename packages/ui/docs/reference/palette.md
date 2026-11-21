@@ -5,8 +5,8 @@ description: The twelve colour names every theme declares, why they are oklch, t
 
 # Palettes
 
-A theme is **one file in `src/style/color/`** declaring twelve names, twice — once for light and
-once for dark. It names no component and it declares nothing structural. That is the whole contract.
+A theme is **one file in `src/style/color/`** declaring twelve names, once per mode — no components,
+nothing structural.
 
 ## The twelve
 
@@ -23,31 +23,22 @@ once for dark. It names no component and it declares nothing structural. That is
 | `--success` · `--warning` · `--danger` | status |
 | `--ring` | the focus ring |
 
-**Every theme declares all twelve.** The set is the contract, not a starting point: a theme that
-omits one does not fall back to a sensible default, it inherits whatever `slate`'s `:root` seed left
-behind — a colour from a different theme, in the right slot, silently. `check-contrast.mjs` fails on
-a missing name for exactly that reason.
+**Every theme declares all twelve.** An omitted one does not default — it silently inherits `slate`'s
+`:root` seed, another theme's colour in the right slot — so `check-contrast.mjs` fails on a missing name.
 
 ## Why `oklch()`
 
-Because it makes "the same palette in another hue" a real operation rather than a redesign. Lightness
-in OKLCH tracks perceived lightness, so holding `L` and moving `H` gives a theme that reads as the
-same weight — which is why `ocean`, `forest` and `plum` are `slate`'s ladder at another hue and
-inherit its contrast almost unchanged.
-
-It also makes state derivation honest. There is no `--primary-hover` token because
-`color-mix(in oklab, var(--primary) 88%, var(--fg))` darkens by a perceptually even step in every
-theme. The tokens are written in OKLCH; the mix happens in OKLab — the same space, in rectangular
-rather than polar coordinates, and the next section is why that matters. Twelve names is a set
-somebody can hold in their head; twelve plus a hover and an active for each is not.
+OKLCH lightness tracks perceived lightness, so holding `L` and moving `H` gives a theme of the same
+weight — `ocean`, `forest` and `plum` are `slate`'s ladder at another hue, inheriting its contrast. It
+also makes derived states honest: no `--primary-hover`, since
+`color-mix(in oklab, var(--primary) 88%, var(--fg))` darkens by an even step everywhere (tokens in
+OKLCH, mixes in OKLab — the same space in rectangular coordinates). Twelve names fit in a head; twelve
+plus hover and active each do not.
 
 ## The gamut trap
 
-**sRGB does not hold the same chroma at every hue, and the browser will not tell you.** It clips
-silently, so the colour on screen is not the colour in the file — and any contrast you calculated
-from the file is wrong.
-
-The spread is not subtle. At `L 0.54`:
+**sRGB does not hold the same chroma at every hue, and the browser clips silently** — the screen
+colour is not the file's, and contrast computed from the file is wrong. At `L 0.54`:
 
 | Hue | | Max chroma in sRGB |
 |---|---|---|
@@ -56,90 +47,61 @@ The spread is not subtle. At `L 0.54`:
 | 155 | green | 0.137 |
 | 210 | azure | **0.094** |
 
-`ocean` carries barely a third of `slate`'s chroma not as a style choice but because that is what the
-hue can hold. Asking for more would have produced a duller colour than asking for less, because the
-clip lands somewhere nobody chose.
-
-`check-contrast.mjs` converts every declared value to linear sRGB **without clamping** and fails if a
-channel leaves `[0, 1]`. That check caught three colours on the first run, including one in the
-original hand-written palette.
+`ocean` has a third of `slate`'s chroma because that is what the hue holds — asking for more clips to
+something duller nobody chose. `check-contrast.mjs` converts every value to linear sRGB **without
+clamping** and fails a channel outside `[0, 1]`; it caught three colours on its first run.
 
 ## Mix in `oklab`, never `oklch`
 
-**Every `color-mix()` in this repository is `in oklab`.** `in oklch` interpolates hue as a number,
-and a near-grey base still has one: a dark `--surface` is `oklch(0.21 0.009 260)`, chroma close to
-nothing but hue 260. A 14% success tint over it takes 86% of that hue and lands at 245 — a blue
-badge for "success". The same happens to `--border`, which carries the theme hue in light mode too:
-a 32% warning border over slate-light came out at hue 316, magenta. `oklab` mixes the `a`/`b`
-components, so a base with almost no chroma barely moves the result. Measured over all six themes
-in both modes, a 14% tint into `--surface` stays within 38 degrees of its own hue (midnight's
-success, the worst case) where `oklch` strays by up to 270.
+**Every `color-mix()` is `in oklab`.** `in oklch` interpolates hue numerically, and a near-grey still
+has one: dark `--surface` is `oklch(0.21 0.009 260)`, so a 14% success tint lands at hue 245 — a blue
+"success" badge; a 32% warning border over slate-light `--border` came out magenta (316). `oklab` mixes
+`a`/`b`, so a near-zero-chroma base barely moves the result: across all six themes and modes a 14% tint
+stays within 38° of its hue (worst: midnight's success), where `oklch` strays up to 270°.
 
-The light `--surface` is `oklch(1 0 none)`, and `none` once mattered: under `in oklch` it told the
-mix there was no hue to blend, where `0` would have pulled a tint toward red. Under `in oklab` a
-zero-chroma colour has no hue to contribute either way, so `none` and `0` mix identically. Write a
-grey as `none` all the same — it is the honest value, and `check-contrast.mjs` reads it as `0`,
-which is correct for contrast because chroma is zero.
-
-A mix into `transparent` is written `in oklab` too, though there it makes no difference:
-`transparent` has no hue and no alpha, so the result is the colour at reduced opacity in either
-space. One spelling everywhere means nobody has to know which mixes are safe in `oklch`.
+Light `--surface` is `oklch(1 0 none)`. `none` mattered under `oklch` (`0` would pull tints toward red);
+under `oklab` both mix identically, but write greys as `none` — honest, and read as `0` by
+`check-contrast.mjs`, correct since chroma is zero. Mixes into `transparent` (no hue, no alpha) are
+`in oklab` too, so one spelling needs no judgement.
 
 ## Contrast is checked, not reviewed
 
-`pnpm check:contrast` runs in CI after `check:architecture` and asserts WCAG AA over every pairing
-the components actually produce — 154 of them across six themes. Two consequences worth knowing
-before authoring a theme:
+`pnpm check:contrast` runs in CI after `check:architecture`, asserting WCAG AA over the 154 pairings
+components produce across six themes. Before authoring one:
 
-- **`--fg-muted` is bounded by `--muted`, not by `--bg`.** A placeholder sits inside an input. That
-  pairing is the tightest in the system, and it is what fixes light `--fg-muted` at `L 0.535`.
-- **`--success` and `--warning` are not text-safe on `--bg`.** At these lightnesses they land at
-  3.5:1 and 2.6:1. They are fills, and `StatusBadge` tints them into `--surface` rather than
-  filling with them, which puts `--fg` on a near-surface background instead. Only `--danger` clears
-  AA as text, which is why the field error is the one place a status colour is a foreground.
+- **`--fg-muted` is bounded by `--muted`, not `--bg`** — a placeholder sits in an input, the tightest
+  pairing, which fixes light `--fg-muted` at `L 0.535`.
+- **`--success` and `--warning` are not text-safe on `--bg`** (3.5:1, 2.6:1). They are fills;
+  `StatusBadge` tints them into `--surface` with `--fg` text. Only `--danger` passes AA as text — hence
+  the field error is the one status-coloured foreground.
 
 ## Adding a theme
 
-Four steps, and none of them touch a component.
+Four steps, no component touched:
 
-1. **`src/style/color/<name>.css`** — one block per mode, each declaring all twelve. Copy `slate.css`
-   and rotate the hue; the lightness ladder is the part that should not move.
-2. **`src/style/index.css`** — one `@import` line, with the other colour files, above every rule. Vite inlines
-   them, so the added file costs no extra request.
-3. **`src/theme/theme-registry.ts`** — one entry in `THEMES` with a `label` and the `modes` you
-   actually wrote blocks for. Declaring a mode you did not write is how a page ends up with all
-   twelve names undefined; `resolveMode` trusts this list.
-4. **`tests/theme/theme-registry.spec.ts`** — the `all()` assertion names every key, so it fails
-   until you add yours. That is the one place the CSS and the registry are checked against each
-   other.
+1. **`src/style/color/<name>.css`** — one block per mode, all twelve. Copy `slate.css` and rotate the
+   hue; keep the lightness ladder.
+2. **`src/style/index.css`** — one `@import` with the other colour files, above every rule (Vite
+   inlines it).
+3. **`src/theme/theme-registry.ts`** — a `THEMES` entry with a `label` and only the `modes` you wrote;
+   `resolveMode` trusts this list, and a phantom mode leaves all twelve undefined.
+4. **`tests/theme/theme-registry.spec.ts`** — its `all()` assertion names every key and fails until
+   yours is added: the one check of CSS against registry.
 
 Then run `pnpm check:contrast`, and open `/kitchen-sink` in `apps/web` to look at it.
 
 ## Cost
 
-Six themes, eleven mode blocks, 132 colours: **5.0 KB raw, 0.7 KB gzipped** once comments are stripped, one stylesheet, one
-request. It is compiled into the app's one Tailwind stylesheet with the class layer and the
-utilities, so it costs no request of its own.
-
-Every theme ships to every user rather than being fetched on demand, because a lazily loaded theme
-costs a round trip and a visible flash at the exact moment somebody is looking at the colours. The
-browser applies only the block that matches; the rest cost parse time, not resolution time. Worth
-revisiting somewhere past forty themes, and not before.
+Six themes, eleven mode blocks, 132 colours: **5.0 KB raw, 0.7 KB gzipped**, compiled into the app's
+one Tailwind stylesheet, so no request of its own. Every theme ships to every user — lazy loading costs a
+round trip and a flash exactly when someone is looking at colours; unmatched blocks cost parse time
+only. Revisit past forty themes.
 
 ## Mail is outside the palette, and has to be
 
-`packages/composition/src/mail/mail-layout.ts` writes literal sRGB hexes rather than any of the
-twelve. That is the second exemption in [the colour rule](../../../../docs/ai/rules/color.md), and
-the reason is the medium: **a mail client resolves no CSS custom property**, so `var(--primary)`
-reaching an inbox renders as nothing at all — and most clients strip or ignore a `<style>` block,
-which is why every value there is inline on the element.
-
-The values are slate-light converted to sRGB, so a message looks like the product it came from. They
-are deliberately *not* derived from `style/color/slate.css` at build time: a message is composed on
-the server for a recipient who has no theme and no mode, so there is nothing to read a preference
-from, and a pipeline that tried would have to pick one anyway.
-
-`check:contrast` does not see them — it reads `packages/ui/src/style/color/*.css` and nothing else.
-The pairings that matter there are white-on-primary for the button and `--fg` on `--surface` for the
-body, both of which clear AA at the values listed, and both of which are a review item rather than a
-gate.
+`packages/composition/src/mail/mail-layout.ts` writes literal sRGB hexes — the second exemption in
+[the colour rule](../../../../docs/ai/rules/color.md) — because **mail clients resolve no custom
+property** (`var(--primary)` renders nothing) and most strip `<style>`, so values are inline. They are
+slate-light in sRGB, not derived from `slate.css` at build time: a recipient has no theme or mode to
+read. `check:contrast` reads only `packages/ui/src/style/color/*.css`, so mail's pairings (white on
+primary, `--fg` on `--surface`, both AA) are a review item, not a gate.

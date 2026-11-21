@@ -5,16 +5,12 @@ description: The design system — structural tokens, themes as custom propertie
 
 # `@loadbearing/ui`
 
-Two rules define this package, and both are mechanical.
+Two mechanical rules:
 
-**A domain noun in an export name means the component is in the wrong package.** `StatusBadge` is
-here; its domain-named wrapper is `feature`. `DataTable` is here; a table that knows what it is
-listing is `feature`. The moment a component knows the domain, it cannot be restyled without
-understanding the domain and cannot be tested without domain fixtures.
-
-**If a component needs the router, it belongs in `apps/web`.** Navigation arrives as an `onNavigate`
-prop or an `href` string. That is what lets the Tauri webview mount these components under a
-different routing shell.
+- **A domain noun in an export name means the wrong package.** `StatusBadge` and `DataTable` are here;
+  wrappers that know the domain are `feature` — else restyling needs the domain and tests need fixtures.
+- **A component needing the router belongs in `apps/web`.** Navigation arrives as `onNavigate` or `href`,
+  so a Tauri shell can mount these under its own router.
 
 | | |
 | --- | --- |
@@ -25,11 +21,7 @@ different routing shell.
 | **Peers** | `react`, `react-dom` |
 | **Used by** | `feature`, `apps/web` |
 
-```bash
-grep -rn "@tanstack\|@loadbearing/query\|@loadbearing/contracts" packages/ui/src
-```
-
-Returns nothing.
+`grep -rn "@tanstack\|@loadbearing/query\|@loadbearing/contracts" packages/ui/src` returns nothing.
 
 ```
 packages/ui/
@@ -57,16 +49,13 @@ packages/ui/
     └── format/                → DateFormat, ByteFormat
 ```
 
-**Four groups, each answering one question.** `component/` is what a caller renders, one folder per
-exported component. `theme/` is how a theme is chosen and scoped. `style/` is what the page looks
-like where no component's utilities reach. `class-name/` and `format/` are the two helpers every
-component may use. `ui` is the third folder shape in the repository, neither role-organised nor
-subject-organised ([Folders](../../../docs/opinions/folders.md)).
+**Four groups:** `component/` (what callers render), `theme/` (choosing and scoping a theme), `style/`
+(what no utility reaches), and the helpers `class-name/` and `format/` — the repo's third folder shape
+([Folders](../../../docs/opinions/folders.md)).
 
 ## The stylesheets, and what each may reference
 
-Components style themselves with Tailwind utilities, so `style/` holds only what a utility cannot
-express. The rule reads in one direction:
+Components use Tailwind utilities; `style/` holds only what a utility cannot express, referencing one way:
 
 | File | Holds | May reference |
 |---|---|---|
@@ -75,24 +64,17 @@ express. The rule reads in one direction:
 | `tailwind.css` | the twelve as Tailwind colours, and `dark:` | `color/`, only as `var()` |
 | `base.css`, `markdown/*.css` | the page, and HTML the Markdown renderer writes | the rest, only as `var()` |
 
-`token.css` names no colour — **a dark theme is not a different spacing system**. A colour file
-names no component. `base.css` and `markdown/` declare no literal value of their own: a hex there is
-a token that was never added, and `check-architecture` §32 fails on it. `markdown/` exists because
-stored doc HTML carries `ui-callout`, `ui-card` and `ui-prose`, and React never renders it, so no
-utility can reach it.
-
-`style/index.css` is Tailwind source, never linked alone. The app's entry,
-[`apps/web/src/style/app.css`](../../../apps/web/src/style/app.css), imports it as
-`@loadbearing/ui/style.css` and compiles it with the utilities into one stylesheet. `base.css` and
-`markdown/` sit in the `components` layer, so a utility passed in `className` beats them.
+`token.css` names no colour (**a dark theme is not a different spacing system**); colour files name no
+component; `base.css` and `markdown/` declare no literals (§32). `markdown/` styles stored doc HTML
+(`ui-callout`, `ui-card`, `ui-prose`) that React never renders. `style/index.css` is Tailwind source,
+compiled through [`apps/web/src/style/app.css`](../../../apps/web/src/style/app.css) as
+`@loadbearing/ui/style.css`; `base.css` and `markdown/` sit in the `components` layer, so a `className`
+utility beats them.
 
 ## A theme and a mode are two axes
 
-`<html data-theme="ocean" data-mode="dark">`. The palette is one attribute and light-or-dark is
-another, so a mode toggle keeps the palette and a palette that ships only one mode declares only one
-block. `ThemeMeta.modes` says which, and `ThemeRegistry.resolveMode` is what stops a dark-only
-palette being asked for a light block it does not have — a pair that matches no selector is a page
-with every colour undefined.
+`<html data-theme="ocean" data-mode="dark">` — a mode toggle keeps the palette, and a one-mode palette
+declares one block (`ThemeMeta.modes`).
 
 ## Twelve names, and every theme declares all twelve
 
@@ -101,18 +83,12 @@ with every colour undefined.
 --primary  --primary-fg  --success  --warning  --danger  --ring
 ```
 
-The set is the contract rather than a starting point: a theme that omits one inherits whatever the
-`:root` seed left behind, which is a colour from a different theme. Every value is `oklch()`, which
-makes a hue rotation a real operation — the other themes are slate's lightness ladder at another
-hue, with chroma capped to what sRGB can hold there.
+The set is the contract — an omitted name inherits another theme's colour from the `:root` seed. All
+`oklch()`, so the other themes are slate's lightness ladder at another hue, chroma capped to sRGB
+([Palette](reference/palette.md)). A theme is one CSS block and one registry entry, and `currentColor`
+icons ([`asset`](../../asset/docs/index.md)) recolour with it.
 
-See [Palette](reference/palette.md) for the twelve, the gamut trap, and how to add a theme.
-
-Adding a theme is one CSS block and one registry entry — no re-render, no provider, no class-name
-churn. And because every icon uses `currentColor` ([`asset`](../../asset/docs/index.md)), a theme
-recolours the entire icon set with no per-theme variants.
-
-**Applying a preference is two calls, and the second is the one people forget:**
+**Applying a preference is two calls; the second is the one people forget:**
 
 ```ts
 root.dataset.theme = key;   // ThemeRegistry.apply
@@ -120,24 +96,12 @@ root.dataset.mode = mode;   // ModeRegistry.apply, which also sets
 root.style.colorScheme = mode;
 ```
 
-Each registry moves only its own axis, so switching palette never disturbs the mode. `colorScheme`
-belongs to `ModeRegistry` because it is a property of light-or-dark rather than of the palette, and
-it is what makes native scrollbars, form controls and date pickers match — without it a dark theme
-has light scrollbars. Call both before hydration, from a tiny inline script in `<head>` reading the
-stored preference, or a dark-mode reader gets a white flash on every load.
-
-**A palette need not ship both modes, which is why `resolveMode` exists.** `midnight` declares
-`modes: ["dark"]`; asked to render light it would match no selector at all, so
-`ThemeRegistry.resolveMode(key, wanted)` is what stops that pair reaching the DOM.
-
-`FontRegistry` is the same shape one level down: it overrides the `--font-sans` custom property
-rather than restyling anything, so one line changes the whole system. Reading font choice as a token
-override rather than a theme is what keeps the two independent — a reader can pick a serif face
-without also picking a colour scheme.
-
-**Both registries guard with `Object.hasOwn`, not `in`.** These are the boundaries an untrusted
-stored preference crosses, so `"toString"` passing the guard would make `meta()` hand back a
-function. The same bug the permission catalog had, and the specs pin it.
+Each registry moves only its axis. `colorScheme` is `ModeRegistry`'s — it themes native scrollbars,
+controls and date pickers. Call both before hydration from an inline `<head>` script, or dark readers get a
+white flash. **`resolveMode` exists because a palette may ship one mode:** `midnight` is `modes: ["dark"]`,
+and an unmatched pair leaves every colour undefined. `FontRegistry` overrides `--font-sans` — a token, not a
+theme, so face and colours stay independent. **Registries guard with `Object.hasOwn`, not `in`** (an
+untrusted `"toString"` would return a function, the permission catalog's bug; specs pin it).
 
 ## `<Can>` is a convenience, never the gate
 
@@ -145,20 +109,10 @@ function. The same bug the permission catalog had, and the specs pin it.
 <Can permission="rbac.role.read" capabilities={caps} fallback={null}>…</Can>
 ```
 
-It calls the same `CapabilitySet.can()` the server calls — **one implementation used by both**, not
-two that agree today. That identity is the entire point of
-[`permissions`](../../permissions/docs/index.md), and a spec asserts the component's answer and a
-direct call are the same answer.
-
-Hiding a button is a UX affordance. The real check is `Authorizer.assert()` in the use-case, and it
-runs whether or not the button was ever rendered.
-
-> [!NOTE]
-> **`goalId` is the one apparent domain noun in this package, and it is not one.** It forwards a
-> permission *scope* id to `CapabilitySet.can(permission, goalId?)` under that method's own parameter
-> name. "Goal" is a tier in the authorization model here, not an entity `<Can>` knows about — and
-> renaming the prop would hide the pass-through behind a word nobody can grep for. Doc 22's
-> domain-noun gate excludes `src/can/can.tsx` for exactly this, and nothing else.
+It calls the server's own `CapabilitySet.can()` — **one implementation**, the point of
+[`permissions`](../../permissions/docs/index.md); a spec asserts it. Hiding is UX; `Authorizer.assert()`
+is the check. **`goalId` is not a domain noun** — it forwards a permission scope id under `can()`'s own
+parameter name; renaming it would hide the pass-through.
 
 ## Five rules for every component here
 
@@ -166,23 +120,17 @@ runs whether or not the button was ever rendered.
 2. **Every string is a prop.** No literals anywhere — copy lives in
    [`content`](../../content/docs/index.md) and reaches these components through `feature`, which is
    what keeps the design system translatable and testable with props alone.
-3. **Keyboard and focus, always.** `DataTable`'s clickable row carries `tabIndex`, `role="button"`
-   and an `Enter`/`Space` handler, and those three move together or not at all — a row that responds
-   to a mouse and not to a keyboard is the most common accessibility bug in a data table.
-4. **Headless primitives for anything with hard interaction semantics.** Which is why there is no
-   `Dialog` — see below.
-5. **A control is associated with the words written about it.** `Field` computes a `-hint` and an
-   `-error` id, puts them on the paragraphs **and clones its child** with `aria-describedby` and
-   `aria-invalid`. Computing the ids and pointing nothing at them is markup that reads as accessible
-   in a diff and announces nothing — every form in `feature` inherited exactly that. The child's own
-   `aria-describedby` is joined rather than replaced, because the attribute is a list.
+3. **Keyboard and focus, always.** `DataTable`'s clickable row has `tabIndex`, `role="button"` and an
+   `Enter`/`Space` handler — together or not at all.
+4. **Headless primitives for hard interaction semantics** — Base UI, below.
+5. **A control is tied to its words.** `Field` puts `-hint`/`-error` ids on the paragraphs **and clones
+   its child** with `aria-describedby` (joined, since it is a list) and `aria-invalid` — ids pointing at
+   nothing announce nothing, which every `feature` form once inherited.
 
 ## Behaviour comes from Base UI
 
-Rule 4 says to use a headless library for anything with hard interaction semantics, and that
-library is [Base UI](https://base-ui.com) (`@base-ui/react`), one line in the React-scoped group
-of the catalog. It owns focus traps, inert backgrounds, restored focus, `Escape`, dismissal,
-roving focus and ARIA. This package owns the markup's styling and the props.
+[Base UI](https://base-ui.com) (`@base-ui/react`) owns focus traps, inert backgrounds, focus return,
+`Escape`, dismissal, roving focus and ARIA; this package owns styling and props.
 
 | Component | Base UI part | What it took over |
 | --- | --- | --- |
@@ -194,44 +142,25 @@ roving focus and ARIA. This package owns the markup's styling and the props.
 | `Dialog`, `AlertDialog` | `Dialog`, `AlertDialog` | as above; an alert dialog starts on Cancel and ignores the backdrop |
 | `Tooltip` | `Tooltip` | hover and focus delays, Escape, the description link |
 
-Two stayed hand-written, each for a stated reason:
-- **`Field`** has no interaction to take over. Base UI's `Field` would also require its own
-  control inside, which every native control would then have to become.
-- **`CommandDialog`'s result list** follows the caller's router link on Enter, which is not
-  a select.
+Hand-written: **`Field`** (nothing to take over; Base UI's would force its own control) and
+**`CommandDialog`'s result list** (Enter follows the caller's router link — not a select).
 
-**A portal leaves a nested theme.** A panel opened inside the doc reader would paint in the page's
-theme, so [`ThemeScope`](../src/theme/theme-scope.tsx) renders the scoped `data-theme` and
-hands its element to every portal inside it. See [Popover](reference/popover.md).
+**A portal leaves a nested theme**, so [`ThemeScope`](../src/theme/theme-scope.tsx) hands its scoped
+element to every portal inside ([Popover](reference/popover.md)). **One scrollbar component**,
+`PageScrollbar`, at the root ([Scrollbar](reference/scrollbar.md)).
 
-**Every scrollbar is one component.** `PageScrollbar`, mounted once at the root, replaces the
-page's bar with a glass overlay and themes every inner scroller to match, from the twelve tokens.
-See [Scrollbar](reference/scrollbar.md).
-
-**No Storybook, and no `*.stories.tsx`.** Doc 22 offers Storybook or a `/kitchen-sink` route in
-`apps/web` and says to pick one deliberately. The route is what was picked —
-`apps/web/src/route/(dev)/kitchen-sink.tsx` renders every component against every theme and every
-mode, with no second build, no second dependency tree and no story files to keep in step with the
-components. `Can` is the exception and has nothing to show: it renders no element of its own.
-The component tests under `tests/`, on `jsdom` and `@testing-library/react`, are the other half: they
-assert *behaviour* where the route shows *appearance*.
+**No Storybook.** `apps/web/src/route/(dev)/kitchen-sink.tsx` renders every component in every theme and
+mode — no second build or story files (`Can` renders nothing to show). Component tests (`jsdom`,
+`@testing-library/react`) assert *behaviour*; the route shows *appearance*.
 
 > [!IMPORTANT]
-> **`(dev)` is a route group, not a build condition.** It organises files and contributes nothing to
-> the URL, so nothing about the directory name kept this page out of a production bundle — it was a
-> public route that any visitor could open. The route's loader now throws `notFound()` unless
-> `import.meta.env.DEV`, and `apps/web/tests/route/kitchen-sink.spec.ts` pins both directions.
->
-> Its labels are English literals and stay that way. A page that cannot render in production has no
-> users, so there is no user-visible copy for [`content`](../../content/docs/index.md) to own —
-> adding a `dev` namespace to `ClientNamespace`, `NamespaceShape` and two catalog cells would be
-> structure built for nobody to read.
+> **`(dev)` is a route group, not a build condition** — it was once public. The loader throws
+> `notFound()` unless `import.meta.env.DEV` (`apps/web/tests/route/kitchen-sink.spec.ts`). Its English
+> literal labels stay: a page with no production users needs no `content` namespace.
 
-**No third-party design system; Tailwind for styling, Base UI for behaviour.** Every component
-carries a `ui-*` class, and those class names are the contract that specs and callers select on.
-Each component writes its Tailwind utilities itself, through
-[`cn`](../src/class-name/class-name.ts), with its `ui-*` hook first and carrying no styles. A caller's
-`className` wins a conflict, because `cn` merges and drops the losing utility.
+**Tailwind for styling, Base UI for behaviour, no third-party design system.** Every component carries
+a style-less `ui-*` hook (the contract specs and callers select on) first, then its utilities through
+[`cn`](../src/class-name/class-name.ts), which merges so a caller's `className` wins.
 
 ## Testing
 
@@ -239,8 +168,6 @@ Each component writes its Tailwind utilities itself, through
 pnpm --filter @loadbearing/ui test
 ```
 
-This is the first package in the repository that needs a DOM. `vitest.config.ts` sets
-`environment: "jsdom"`, and `vitest.setup.ts` runs `afterEach(cleanup)` — **not optional with
-`globals: false`.** `@testing-library/react` registers that hook itself only when vitest runs with
-globals; without it a second `render` in the same file leaves the first mounted, and the symptom is
-`getByText` failing with "found multiple elements" in a test that reads correctly.
+`environment: "jsdom"`, and `vitest.setup.ts` runs `afterEach(cleanup)` — **required with
+`globals: false`**, else a second `render` leaves the first mounted and `getByText` finds "multiple
+elements".
