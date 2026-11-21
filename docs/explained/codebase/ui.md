@@ -24,81 +24,81 @@ Every colour is one of twelve named tokens, and six themes (slate, forest, graph
 
 | File | What it does |
 |---|---|
-| `package.json` | The package manifest: its name, its build, test and type-check scripts, and its dependencies. Versions come from the workspace catalog. |
-| `tsconfig.json` | TypeScript settings. Extends a shared preset from `tooling/tsconfig` and type-checks the tests too. |
-| `tsup.config.ts` | Build settings: bundles `src/` into `dist/` as ES modules with type declarations. |
+| `package.json` | Package manifest. |
+| `tsconfig.json` | TypeScript settings. |
+| `tsup.config.ts` | Build settings. |
 | `ui.d.ts` | Tells TypeScript that importing the icon sprite gives a URL string. |
-| `vitest.config.ts` | Test runner settings. Resolves sibling packages to their source, so tests never run against a stale build. |
+| `vitest.config.ts` | Test settings. |
 | `vitest.setup.ts` | Runs before the tests: cleans up rendered components between tests. |
 
 ### `packages/ui/src/`
 
 | File | What it does |
 |---|---|
-| `import.ts` | Every import from outside this package, written once and re-exported, so the rest of `src/` imports from one place. |
-| `index.ts` | The package's public entry point. Re-exports what other packages may use, and contains no logic. |
+| `import.ts` | Outside-import surface. |
+| `index.ts` | Public entry point. |
 
 ### `packages/ui/src/class-name/`
 
 | File | What it does |
 |---|---|
 | `class-name.ts` | `cn`: joins CSS class names and lets a caller's Tailwind class override the component's default when they conflict. |
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 
 ### `packages/ui/src/component/`
 
 | File | What it does |
 |---|---|
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 
 ### `packages/ui/src/component/button/`
 
 | File | What it does |
 |---|---|
 | `button.tsx` | `Button` and `buttonClassName`: the button in its variants (primary, secondary, ghost, danger). Defaults to `type="button"` so it never submits a form by accident. |
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 
 ### `packages/ui/src/component/callout/`
 
 | File | What it does |
 |---|---|
 | `callout.tsx` | `Callout`: a coloured message box (info, success, warning, danger), announced politely to screen readers. |
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 
 ### `packages/ui/src/component/can/`
 
 | File | What it does |
 |---|---|
 | `can.tsx` | `Can`: shows its children only if the person holds a permission. A convenience for hiding buttons, never the real security check (the server checks again). |
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 
 ### `packages/ui/src/component/card/`
 
 | File | What it does |
 |---|---|
 | `card.tsx` | `Card` and `CardGrid`: a clickable card with icon, title and text, and a grid of them. Same markup the Markdown `:::cards` block produces. |
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 
 ### `packages/ui/src/component/code-block/`
 
 | File | What it does |
 |---|---|
 | `code-block.tsx` | `CodeBlock`: a code block with a title and copy button, for code shown from React rather than from a doc page. |
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 
 ### `packages/ui/src/component/code-list/`
 
 | File | What it does |
 |---|---|
 | `code-list.tsx` | `CodeList`: a grid of short codes in monospace, used for two-factor backup codes. |
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 
 ### `packages/ui/src/component/command-dialog/`
 
 | File | What it does |
 |---|---|
 | `command-dialog.tsx` | `CommandDialog`: the search palette (Ctrl/Cmd+K): a dialog with a search field and grouped results you can move through with the keyboard. |
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `search-trigger.tsx` | `SearchTrigger`: a button that looks like a search field and shows the keyboard shortcut; clicking it opens the palette. |
 | `use-hotkey.ts` | `useHotkey`: listens for Ctrl+K (Cmd+K on Mac) or another shortcut. |
 
@@ -107,146 +107,146 @@ Every colour is one of twelve named tokens, and six themes (slate, forest, graph
 | File | What it does |
 |---|---|
 | `data-table.tsx` | `DataTable`: a table with columns, clickable rows (by mouse or keyboard) and a loading skeleton. |
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 
 ### `packages/ui/src/component/dialog/`
 
 | File | What it does |
 |---|---|
 | `dialog.tsx` | `Dialog` and `AlertDialog`: a modal window, and a confirmation version for destructive actions that never confirms on Enter. |
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 
 ### `packages/ui/src/component/empty-state/`
 
 | File | What it does |
 |---|---|
 | `empty-state.tsx` | `EmptyState`: what a list shows when it has nothing in it, with an action to take. |
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 
 ### `packages/ui/src/component/field/`
 
 | File | What it does |
 |---|---|
 | `field.tsx` | `Field`: wraps a form control with its label, hint and error message, wired up so screen readers announce them. |
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 
 ### `packages/ui/src/component/icon/`
 
 | File | What it does |
 |---|---|
 | `icon.tsx` | `Icon`: draws an icon from the sprite in the current text colour. Hidden from screen readers unless given a label. |
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 
 ### `packages/ui/src/component/input/`
 
 | File | What it does |
 |---|---|
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `input.tsx` | `Input`: the text input, styled to match the theme, showing an error state from its `Field`. |
 
 ### `packages/ui/src/component/menu/`
 
 | File | What it does |
 |---|---|
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `menu.tsx` | `Menu`: a dropdown of options with icons and a second line, for switchers in a sidebar. |
 
 ### `packages/ui/src/component/nav-tree/`
 
 | File | What it does |
 |---|---|
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `nav-tree.tsx` | `NavTree`: the docs sidebar tree: section headings, pages and outside links, with collapsible sections remembered for the session and the current page highlighted. |
 
 ### `packages/ui/src/component/page-scrollbar/`
 
 | File | What it does |
 |---|---|
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `page-scrollbar.tsx` | `PageScrollbar`: replaces the page's scrollbar with a themed glass overlay, and gives every inner scroller the same thin themed bar. |
 
 ### `packages/ui/src/component/popover/`
 
 | File | What it does |
 |---|---|
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `popover.tsx` | `Popover`: a button that opens a floating panel (for example the notification bell). The panel's content only mounts while open. |
 
 ### `packages/ui/src/component/prose/`
 
 | File | What it does |
 |---|---|
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `prose.tsx` | `Prose`: shows a published doc page's HTML styled as an article, and after it loads adds copy buttons to code blocks, turns tab blocks into working tabs and fills in card icons. |
 
 ### `packages/ui/src/component/qr-code/`
 
 | File | What it does |
 |---|---|
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `qr-code.tsx` | `QrCode`: draws a QR code as SVG, used to set up two-factor in an authenticator app. |
 
 ### `packages/ui/src/component/reader-layout/`
 
 | File | What it does |
 |---|---|
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `reader-layout.tsx` | `ReaderLayout`: the three-column docs layout: sidebar, article, and "On this page", collapsing on narrow screens. |
 
 ### `packages/ui/src/component/scroll-area/`
 
 | File | What it does |
 |---|---|
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `scroll-area.tsx` | `ScrollArea`: a scrollable region with the themed thin scrollbar. |
 
 ### `packages/ui/src/component/select/`
 
 | File | What it does |
 |---|---|
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `select.tsx` | `Select`: a dropdown select that works in forms (a field style and a taller menu style). |
 
 ### `packages/ui/src/component/sidebar/`
 
 | File | What it does |
 |---|---|
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `sidebar.tsx` | `Sidebar`: a side panel that is always shown on wide screens and becomes a modal drawer (Base UI `Dialog`, with a focus trap) on narrow ones. |
 
 ### `packages/ui/src/component/status-badge/`
 
 | File | What it does |
 |---|---|
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `status-badge.tsx` | `StatusBadge`: a small coloured label (success, warning, danger, neutral), tinted so the text stays readable. |
 
 ### `packages/ui/src/component/textarea/`
 
 | File | What it does |
 |---|---|
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `textarea.tsx` | `Textarea`: the multi-line text input. |
 
 ### `packages/ui/src/component/theme-toggle/`
 
 | File | What it does |
 |---|---|
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `theme-toggle.tsx` | `ThemeToggle`: the light/dark switch, disabled for a dark-only theme. |
 
 ### `packages/ui/src/component/toc/`
 
 | File | What it does |
 |---|---|
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `toc.tsx` | `Toc`: the "On this page" list of headings, highlighting the one you are reading. |
 
 ### `packages/ui/src/component/tooltip/`
 
 | File | What it does |
 |---|---|
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `tooltip.tsx` | `Tooltip`: a hint shown on hover and focus. |
 
 ### `packages/ui/src/format/`
@@ -255,7 +255,7 @@ Every colour is one of twelve named tokens, and six themes (slate, forest, graph
 |---|---|
 | `byte-format.ts` | `ByteFormat`: shows a byte count as "1.5 MB". |
 | `date-format.ts` | `DateFormat`: shows a date as `YYYY-MM-DD` in UTC, the same on server and browser. |
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 
 ### `packages/ui/src/style/`
 
@@ -292,7 +292,7 @@ Every colour is one of twelve named tokens, and six themes (slate, forest, graph
 | File | What it does |
 |---|---|
 | `font-registry.ts` | `FontRegistry`: the font choices (sans, serif, mono) a reader can pick. |
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `mode-registry.ts` | `ModeRegistry`: light, dark or "follow the system", and resolving the stored preference safely. |
 | `theme-registry.ts` | `ThemeRegistry`: the six themes and which modes each supports. |
 | `theme-scope.tsx` | `ThemeScope`: applies a different theme to one part of the page (for example a doc space with its own theme), including popups opened inside it. |
@@ -454,14 +454,14 @@ Every colour is one of twelve named tokens, and six themes (slate, forest, graph
 | File | What it does |
 |---|---|
 | `index.md` | The design system — structural tokens, themes as custom properties, and components that take props and nothing else. No domain nouns, no router, no cache. |
-| `meta.json` | Sidebar title, description and page order for this docs folder. |
+| `meta.json` | Sidebar order. |
 
 ### `packages/ui/docs/reference/`
 
 | File | What it does |
 |---|---|
 | `docs-primitives.md` | Sidebar, NavTree, Menu, CommandDialog, Card, Prose, CodeBlock, Toc, ThemeToggle and ReaderLayout — and the exact HTML the Markdown renderer must emit for Prose to style it. |
-| `meta.json` | Sidebar title, description and page order for this docs folder. |
+| `meta.json` | Sidebar order. |
 | `palette.md` | The twelve colour names every theme declares, why they are oklch, why every mix is `in oklab`, the sRGB gamut trap that makes a chroma lie, and the four steps that add a theme. |
 | `popover.md` | A panel anchored to the control that opened it, on Base UI — what it keeps from the hand-rolled version, what it deliberately is not, and the two behaviours that changed. |
 | `scrollbar.md` | PageScrollbar — the glass overlay for the page and the themed thin bar for every inner scroller, coloured only from the twelve tokens, and why it needs themeScope. |

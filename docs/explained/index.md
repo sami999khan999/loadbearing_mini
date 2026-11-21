@@ -18,7 +18,6 @@ someone new to it. They use plain words, and name a file only where it helps you
 The rest of `docs/` is written for people already working on the code:
 
 - [`ai/`](../ai/index.md) states the rules flatly; [`opinions/`](../opinions/index.md) argues for them.
-- [`setup/`](../setup/index.md) is the build order, from an empty folder to the running app.
 - [`infra/`](../infra/index.md) is the running Docker stack and deployment.
 - Each package's own `docs/` folder explains why its exports are shaped the way they are.
 - [`scale/`](../scale/index.md) explains how to bring back each piece the small kit removed.

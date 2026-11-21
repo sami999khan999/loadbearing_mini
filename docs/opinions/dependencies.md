@@ -5,172 +5,123 @@ description: Four tiers by what a dependency can constrain, why framework-agnost
 
 # Dependencies
 
-The kit targets **React, Next.js, and TanStack Start** on the front, and **pure Node, Express,
-NestJS, Fastify, and Hono** on the back. Every dependency decision is measured against that list.
+The kit targets **React, Next.js and TanStack Start** on the front and **pure Node, Express, NestJS,
+Fastify and Hono** on the back; every dependency is measured against that list.
 
-**Every version lives in `pnpm-workspace.yaml`** — every version that exists, which is Tiers 1 through 3. A `package.json` writes `"zod": "catalog:"`, never
-a range. One place to upgrade, and two packages cannot drift onto different majors of the same
-library without somebody noticing.
+**Every version lives in `pnpm-workspace.yaml`** (Tiers 1–3). A `package.json` writes
+`"zod": "catalog:"`, never a range — one place to upgrade, and no silent drift onto two majors.
 
 ---
 
 ## The four tiers
 
-The catalog is grouped by **what a dependency is able to constrain** — not by what it does. Tier 0 is not in the catalog at all, which is the point of it.
+Grouped by **what a dependency can constrain**, not what it does.
 
 ### Tier 0 — never imported
 
-Infrastructure the deployment provides and **no `package.json` names**: Postgres, both Redis
-instances, S3/MinIO, Loki, the Alloy agent that ships stdout to it, and ClickHouse. All of them are in
-`infra/docker-compose.yml` ([11](../setup/11-local-infrastructure.md)); none of them is in any
-`package.json`, which is exactly why they need a tier — otherwise question 2 below answers "it does
-not reach a bundle" and files a log aggregator under build tooling.
+What the deployment provides and **no `package.json` names**: Postgres, both Redis instances,
+S3/MinIO, Loki, the Alloy agent shipping stdout to it, ClickHouse — all in `infra/docker-compose.yml`.
+Without this tier, question 2 below would file a log aggregator under build tooling.
 
-**Some of them are reached from code, and reached over a protocol is not the same as imported.**
-`ClickHouseAnalyticsProjector` and `LokiLogReader` are real adapters behind real ports, and both
-are `fetch` against a documented HTTP API — no `@clickhouse/client`, no Loki SDK, nothing added to a
-manifest. `OpenAiEmbeddingProvider` was the first instance of that pattern; these two are why it is a
-pattern rather than a one-off.
+**Reached over a protocol is not imported.** `ClickHouseAnalyticsProjector` and `LokiLogReader` are
+real adapters behind real ports, both `fetch` against a documented HTTP API — no SDK, no manifest
+line. `OpenAiEmbeddingProvider` set the pattern. **Tier 0 is quarantined behind a protocol** (stdout,
+SQL, S3's API) the code speaks anyway, as Tier 2 is behind a port. `JsonLogger` writes stdout and
+knows nothing of Loki; Alloy ships it. If `@loadbearing/observability` ever imports a Loki client, a
+log-platform swap stops being a config change.
 
-**The rule that makes this tier worth naming: a Tier 0 dependency must not appear in code at all.**
-`JsonLogger` writes structured JSON to stdout and knows nothing about Loki; Alloy tails the container
-and does the shipping. The day `@loadbearing/observability` imports a Loki client, swapping log
-platforms stops being a config change and the argument in
-[Data and scale](data-and-scale.md) for choosing one at all falls apart.
-
-The same discipline as Tier 2, arrived at from the other direction: Tier 2 entries are quarantined
-behind a port; Tier 0 entries are quarantined behind a *protocol* — stdout, SQL, S3's API — that the
-code was going to speak anyway.
-
-**The tier is decided by whether a `package.json` gains an entry, not by whether code talks to the
-thing.** Postgres is Tier 2, because `pg` and `drizzle-orm` are real dependencies. ClickHouse and Loki
-stay Tier 0 even though both have adapters, because reaching them cost a manifest line of exactly
-zero.
-
-That distinction is the one worth carrying. An earlier version of this page predicted that a
-super-admin dashboard querying Loki's HTTP API *"would move Loki from Tier 0 to Tier 2 — a `LogReader`
-port, a `LokiLogReader` adapter, and `LOKI_URL` in `ContainerConfig`,"* and warned that it would end
-"swapping log platforms is a config change."
-
-**All three of those now exist, and the warning did not come true.** The reason is worth being precise
-about, because the prediction was reasonable:
-
-- **The write path never gained a dependency.** `JsonLogger` still writes to stdout and still has
-  never heard of Loki; Alloy still tails it. Swapping the log platform is still a config change,
-  because the thing that would have to be rewritten is one 130-line reader.
-- **The read path added no package.** `fetch` against `query_range` is the protocol the code was
-  going to speak anyway — the same quarantine as SQL or S3's API, which is what Tier 0 has always
-  meant here.
-- **`LOKI_URL` is optional.** A deployment without it builds no reader, and nothing else changes.
-
-The real lesson is that the tier boundary is **the manifest**, not the absence of code. A `LogReader`
-port with an SDK behind it *would* have been the move to Tier 2; a `LogReader` port with `fetch`
-behind it is Tier 0 with a seam. `@loadbearing/observability` importing a Loki client would still be
-the failure — and this arrangement is what makes sure it never has to.
+**The tier is decided by the manifest, not by whether code talks to the thing.** Postgres is Tier 2
+(`pg`, `drizzle-orm`); ClickHouse and Loki stay Tier 0 with adapters. An earlier version of this page
+predicted a `LogReader` port, `LokiLogReader` and `LOKI_URL` would push Loki to Tier 2 and end the
+config-change swap. All three now exist and it did not happen: the write path gained no dependency,
+the read path added no package, and `LOKI_URL` is optional — a swap rewrites one 130-line reader. A
+`LogReader` with an SDK behind it *would* be Tier 2; with `fetch` it is Tier 0 with a seam.
 
 ### Tier 1 — never ships
 
-Build, test, and lint tooling. It cannot constrain a consumer, because it never reaches one.
-`typescript`, `tsup`, `vitest`, `biome`, `eslint`, `drizzle-kit`, `tailwindcss` and
-`@tailwindcss/vite`, every `@types/*`. Tailwind is Tier 1 because it runs at build and ships only
-the CSS it generates; the app owns that build.
+Build, test and lint tooling, which never reaches a consumer: `typescript`, `tsup`, `vitest`,
+`biome`, `eslint`, `drizzle-kit`, `tailwindcss` and `@tailwindcss/vite` (it ships only generated CSS),
+every `@types/*`.
 
-**One exception, and it is the most consequential entry in the file: `tsup` never ships but decides
-what does.** It is what makes every package ESM-only, and what decides whether a `"use client"`
-directive survives into `dist/` ([06 · Package anatomy](../setup/06-package-anatomy.md)). A bundler
-upgrade is a portability change wearing a dev-dependency costume.
+**Exception: `tsup` never ships but decides what does** — every package being ESM-only, and whether
+`"use client"` survives into `dist/`. A bundler upgrade is a portability change.
 
 ### Tier 2 — framework-agnostic runtime
 
-Ships, and works under every framework on the list. Split in two, because **framework-agnostic is
-not runtime-agnostic**:
+Ships and works under every target framework. **Framework-agnostic is not runtime-agnostic:**
 
 | | Runs in | Entries |
 |---|---|---|
 | **isomorphic** | server, browser, worker, webview, edge | `zod`, `@orpc/contract`, `@orpc/client`, `clsx` and `tailwind-merge` behind `cn` in `packages/ui` |
 | **node-only** | a Node process, under any framework | `pg`, `ioredis`, `bullmq`, `drizzle-orm`, `@aws-sdk/*` |
 
-`pg` and `ioredis` want raw TCP, so they are dead on an edge runtime — which is one config line away
-in Next, not a hypothetical. **That is the whole reason each one sits behind an abstract class in
-`packages/application/src/port/`.** A use-case must not learn which runtime it landed on, and the
-port is what stops it finding out.
+`pg` and `ioredis` need raw TCP and die on an edge runtime (one config line away in Next). **That is
+why each sits behind an abstract class in `packages/application/src/port/`** — a use-case must not
+learn which runtime it landed on.
 
 ### Tier 3 — framework-scoped
 
-Each entry names a framework. Each is quarantined to the one layer allowed to name it.
+Each names a framework and is quarantined to one layer.
 
 | Entry | May appear in | Why only there |
 |---|---|---|
-| `@orpc/server` | `packages/api-server`, `apps/*/src/server/` | The transport seam. The **adapters** — `@orpc/server/fetch`, `/node` — stay in the apps: they are what changes when the HTTP framework does. The **router half** — the `authed` chain, the error interceptor, the stream router — is bound to oRPC, not to HTTP, and lives in `api-server` because two apps mount it: `web` for every procedure, `realtime` for the streams. Copying that chain into the second app was the alternative, and it copies the subtlest code in the transport. Recorded 2026-09-26 with `plans/archive/COMMUNICATION-PERFORMANCE-PLAN.md` `CP6.4`. |
-| `@tanstack/react-router` | `apps/` | Routing is app-shaped, not product-shaped. A Next app brings its own and reads paths from `@loadbearing/permissions`. |
-| `@tauri-apps/api` | `apps/desktop` | Desktop shell only, and not installed — the app does not exist ([30](../setup/30-desktop-app.md)). |
-| `@tanstack/react-query`, `@orpc/tanstack-query` | `packages/{query,ui,feature}` | React-scoped, which is inside the target set — all three front-end targets are React. |
-| `@base-ui/react` | `packages/ui` | React-scoped headless primitives: focus traps, dismissal, roving focus and ARIA. Only `ui` names it, through its `import.ts`, so a swap is one package. |
-| `better-auth` | `packages/auth` | Multi-framework by export map: `./node` covers Node, Express, Fastify, Nest; `./next-js` and `./tanstack-start` cover two front-ends; the core web handler covers Hono. |
+| `@orpc/server` | `packages/api-server`, `apps/*/src/server/` | The transport seam. HTTP adapters (`@orpc/server/fetch`, `/node`) stay in the apps — they change with the HTTP framework. The router half (`authed` chain, error interceptor, stream router) is bound to oRPC, not HTTP, and lives in `api-server` because `web` (every procedure) and `realtime` (streams) both mount it; copying it would duplicate the subtlest code in the transport. Recorded 2026-09-26 as `CP6.4`. |
+| `@tanstack/react-router` | `apps/` | Routing is app-shaped. A Next app brings its own and reads paths from `@loadbearing/permissions`. |
+| `@tauri-apps/api` | `apps/desktop` | Desktop shell only, not installed — the app does not exist. |
+| `@tanstack/react-query`, `@orpc/tanstack-query` | `packages/{query,ui,feature}` | React-scoped, inside the target set — every front-end target is React. |
+| `@base-ui/react` | `packages/ui` | Headless primitives (focus traps, dismissal, roving focus, ARIA). Only `ui` names it, via `import.ts`, so a swap is one package. |
+| `better-auth` | `packages/auth` | Multi-framework by export map: `./node` covers Node, Express, Fastify, Nest; `./next-js` and `./tanstack-start` two front-ends; the core handler Hono. |
 
-`check-architecture.mjs` asserts the quarantine ([26](../setup/26-hygiene-and-ci.md)).
+`check-architecture.mjs` asserts the quarantine.
 
 ---
 
 ## Adding a dependency
 
-Four questions, in order. The first "yes" decides the tier.
+The first "yes" decides.
 
-1. **Is it something the deployment runs rather than something the code imports?** Yes → Tier 0.
-   Done.
-2. **Does it reach a consumer's bundle or `dist/`?** No → Tier 1. Done.
-3. **Does it name a framework, a router, or a shell?** Yes → Tier 3, and say in the catalog which
-   layer may import it. A framework-scoped dependency inside `packages/` is a design mistake unless
-   it is React.
-4. **Otherwise → Tier 2**, and answer the second question: isomorphic, or node-only? A node-only
-   addition needs a port in `application/src/port/` before any use-case can reach it.
+1. **Does the deployment run it rather than the code import it?** → Tier 0.
+2. **Does it never reach a consumer's bundle or `dist/`?** → Tier 1.
+3. **Does it name a framework, router or shell?** → Tier 3; say in the catalog which layer may
+   import it. Framework-scoped inside `packages/` is a mistake unless it is React.
+4. **Otherwise Tier 2** — isomorphic or node-only? Node-only needs a port in `application/src/port/`
+   before any use-case reaches it.
 
-**If a dependency would be Tier 3 and you want it in `packages/`, the answer is almost always an
-abstract class instead.** That is what `port/` is for, and it is why `infrastructure` can hold `drizzle-orm`
-while `application` holds a `TaskRepository` that has never heard of SQL.
+**A Tier 3 you want in `packages/` almost always wants an abstract class instead** — which is how
+`infrastructure` holds `drizzle-orm` while `application`'s `TaskRepository` has never heard of SQL.
 
 ---
 
-## Families that pin their siblings exactly
+## Families that pin siblings exactly
 
-Some libraries ship as a set and pin each other with an exact version rather than a caret. The four
-`@orpc/*` packages do:
+The four `@orpc/*` packages pin each other exactly:
 
 ```
 @orpc/contract → "@orpc/shared": "1.15.0"     ← exact, not ^1.15.0
 @orpc/client   → "@orpc/shared": "1.15.0"
 ```
 
-A skew between them therefore puts **two copies of the shared core in the tree**, which is the same
-class of failure that makes `ErrorNormalizer` match structurally instead of with `instanceof`.
-
-**Keep every member of such a family on one version line**, and say so in the catalog at each entry
-— the tiering deliberately splits the `@orpc/*` group across Tier 2 and Tier 3, so adjacency cannot
-be the reminder.
+A skew puts **two copies of the shared core in the tree** — the failure that makes `ErrorNormalizer`
+match structurally rather than with `instanceof`. **Keep the family on one version line**, noted at
+each catalog entry, since the tiers split `@orpc/*` across 2 and 3.
 
 > [!WARNING]
-> **`syncpack lint` does not catch this.** It verifies that *one* dependency carries the same range
-> across every package. It has no concept of a declared group that must move together.
->
-> Not theoretical: this catalog shipped `@orpc/server` at `^1.13.7` beneath a comment reading *"pin
-> all four together"*, and every check in the repository passed. That is why it became the fifth
-> assertion in [26](../setup/26-hygiene-and-ci.md) rather than staying a comment.
+> **`syncpack lint` does not catch this** — it checks one dependency's range across packages, not a
+> group that moves together. This catalog shipped `@orpc/server` at `^1.13.7` under a comment saying
+> *"pin all four together"* with every check green, which is why it became a `check-architecture.mjs`
+> assertion.
 
 ---
 
 ## React is a peer, never a dependency
 
-`react` and `react-dom` are `peerDependencies` in `ui`, `query`, and `feature` — never `dependencies`.
-The consuming app supplies the single copy, so there is no path to two Reacts in one tree and no
-"invalid hook call" whose real cause is a duplicated renderer.
-
-They live in a **named catalog** (`catalog:react`), not the default one. React moves on its own
-cadence, and `catalog:react` in a `package.json` reads as a deliberate statement that this is a
-React package.
+`react` and `react-dom` are `peerDependencies` in `ui`, `query` and `feature`. The app supplies the
+single copy, so there is no duplicated renderer behind an "invalid hook call". They live in the named
+catalog `catalog:react`, which moves on React's cadence and marks a package as a React package.
 
 ---
 
-## What is enforced, and what is not
+## What is enforced
 
 | Rule | Enforced by |
 |---|---|
@@ -179,14 +130,11 @@ React package.
 | One range per dependency across packages | `syncpack lint` |
 | Dependency ordering in `package.json` | `sherif` |
 | No version published in the last 24h | pnpm `minimumReleaseAge` |
-| Tier placement, and the port rule for node-only | Review |
+| Tier placement, and the port rule for node-only | Review — the row to shrink |
 | The server-only packages stay out of a client bundle | `biome` `noRestrictedImports`, `check-architecture.mjs` §8 |
 
-The second-to-last row is the one to shrink.
-
-**The ban list is the layering graph, written where a linter can read it.** `ui`, `feature`,
-`query`, `errors`, `content` and `asset` may not name `application`, `infrastructure`, `auth` or
-`composition`, nor `drizzle-orm`, `pg`, `ioredis`, `bullmq` or `better-auth` — every one of which
-sits to their right in [Layering](../ai/rules/layering.md). `content` and `asset` were missing from
-it for as long as the graph put them to the right of `composition`, which was itself wrong:
-`composition` imports `content` to build the two mailers.
+**The ban list is the layering graph, written for a linter.** `ui`, `feature`, `query`, `errors`,
+`content` and `asset` may not name `application`, `infrastructure`, `auth`, `composition`,
+`drizzle-orm`, `pg`, `ioredis`, `bullmq` or `better-auth` — everything to their right in
+[Layering](../ai/rules/layering.md). `content` and `asset` were missing while the graph wrongly put
+them right of `composition`, which imports `content` for the two mailers.

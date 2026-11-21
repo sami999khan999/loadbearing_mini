@@ -7,9 +7,8 @@ description: Kebab-case everywhere, a dot-suffix for every architectural role, o
 
 ## Everything is kebab-case, including React component files
 
-Case-sensitive CI plus case-insensitive macOS produces Git renames that appear to change nothing.
-Kebab-case sidesteps the entire class of problem, and `forceConsistentCasingInFileNames`
-([04](../setup/04-typescript-configs.md)) catches what slips through.
+Case-sensitive CI plus case-insensitive macOS produces Git renames that change nothing. Kebab-case
+avoids the class of problem; `forceConsistentCasingInFileNames` catches what slips through.
 
 ## A file with an architectural role takes a dot-suffix
 
@@ -68,8 +67,7 @@ Kebab-case sidesteps the entire class of problem, and `forceConsistentCasingInFi
 | `.data.ts` | `nav.data.ts` | a content record |
 | `.spec.ts` | `reactivate-task.use-case.spec.ts` | tests, in the package's `tests/` |
 
-**React and the client packages add their own**, and they name a kind of component or hook rather
-than a layer role:
+**Client packages add their own**, naming a kind of component or hook:
 
 | Role suffix | Example file | Exports |
 |---|---|---|
@@ -88,82 +86,61 @@ than a layer role:
 | `.fn.ts` | `session.fn.ts` | a TanStack server function |
 | `.server.ts` | `container.server.ts` | anything the server-only ban exempts by name |
 
-**The set is closed, and closing it is the point.** A file whose role is not on either table is
-either a plain kebab-case file with no layer role, or a decision to be made here first. The failure
-this prevents is quiet: a role invented per package means `grep -l '\.reader\.ts'` stops answering
-"where are the read seams", which is the question the suffix exists to answer.
+**The set is closed, and that is the point.** A role on neither table is a plain kebab-case file or
+a decision made here first. A role invented per package means `grep -l '\.reader\.ts'` stops
+answering "where are the read seams".
 
-**Files with no layer role stay plain kebab-case**: `permission-registry.ts`, `capability-set.ts`,
-`clock.ts`, `container.ts`. This is why `core` and `permissions` read differently from
-`application` — those classes are not *in* a layer, they are the vocabulary the layers use.
+**Files with no layer role stay plain kebab-case** — `permission-registry.ts`, `capability-set.ts`,
+`clock.ts`, `container.ts` — which is why `core` and `permissions` read differently from
+`application`: they are the vocabulary the layers use, not in a layer.
 
 ## One class per file, and the filename derives from the class
 
-Mechanically: strip the role suffix from the class name, kebab-case the remainder, append
-`.<role>.ts`. `ReactivateTaskUseCase` → `reactivate-task.use-case.ts`.
+Strip the role suffix, kebab-case the rest, append `.<role>.ts`: `ReactivateTaskUseCase` →
+`reactivate-task.use-case.ts`.
 
 ## Two exemptions to the subject-first order
 
-**1. Use-case files lead with the verb.** `reactivate-task.use-case.ts`, not
-`task-reactivate.use-case.ts`. The class is `ReactivateTaskUseCase`, and mirroring the class
-outranks folder-prefix symmetry.
-
-**2. Implementation files lead with the technology.** `pg-vector.store.ts`, `redis-cache.store.ts`,
-`s3-storage.gateway.ts`, `bearer-auth.strategy.ts`. You should be able to see what you would delete
-when a vendor changes.
+1. **Use-cases lead with the verb** — `reactivate-task.use-case.ts`, mirroring
+   `ReactivateTaskUseCase`, which outranks folder-prefix symmetry.
+2. **Implementations lead with the technology** — `pg-vector.store.ts`, `redis-cache.store.ts`,
+   `s3-storage.gateway.ts`, `bearer-auth.strategy.ts` — so you can see what to delete when a vendor
+   changes.
 
 > [!IMPORTANT]
-> **The technology is joined with a hyphen, and only the role takes the dot.** `redis-cache.store.ts`,
-> never `redis.cache-store.ts`. Both read the same aloud and only the first is greppable: the second
-> spells the role `cache-store`, so `*.store.ts` misses it and the closed set above grows a synonym
-> nobody decided on.
->
-> Nineteen files were written the second way — every vendor adapter outside `pg/` and `s3/`, and
-> their fakes in `composition/src/fake/`. That is what an unenforced convention looks like after a
-> few months: the two files somebody checked are right, and the ones written beside them are not.
+> **The technology joins with a hyphen; only the role takes the dot.** `redis-cache.store.ts`, never
+> `redis.cache-store.ts` — the second spells the role `cache-store`, so `*.store.ts` misses it and the
+> closed set grows an undecided synonym. Nineteen files (every vendor adapter outside `pg/` and `s3/`,
+> plus their fakes) were once written the second way: an unenforced convention after a few months.
 
 ## Framework-dictated filenames win
 
-`$goalId.tsx`, `-guard.ts`, `rpc.$.ts`, `vite.config.ts`, `drizzle.config.ts`, `tsup.config.ts`.
-Inside `apps/web/src/route/` especially, TanStack's routing conventions are load-bearing — a `-`
-prefix is what marks a file as *not* a route. Don't fight them.
+`$goalId.tsx`, `-guard.ts`, `rpc.$.ts`, `vite.config.ts`, `drizzle.config.ts`, `tsup.config.ts`. In
+`apps/web/src/route/`, TanStack's conventions are load-bearing — a `-` prefix marks a file as *not* a
+route.
 
 ## Banned filenames
 
-`utils.ts`, `helpers.ts`, `common.ts`, `misc.ts`. They are where unowned code goes to accumulate.
-A barrel may re-export; it may never contain logic.
-
-> [!NOTE]
-> `packages/content/src/message/en/common.ts` is not an exemption. `common` there is a *namespace
-> name* in a closed union — the file holds one locale's copy for that namespace, and the name is
-> load-bearing rather than a shrug.
+`utils.ts`, `helpers.ts`, `common.ts`, `misc.ts` — where unowned code accumulates. A barrel may
+re-export, never contain logic. (`packages/content/src/message/en/common.ts` is not an exemption:
+`common` is a namespace name in a closed union.)
 
 ## Tests mirror `src/`, and never live inside it
 
-`src/error/app.error.ts` is covered by `tests/error/app.error.spec.ts`. That keeps `src/` equal to
-the shipped surface — `tsup` builds from `src/index.ts`, and the `development` export condition
-resolves into `src/` — while the mirrored path preserves the one thing colocation was good at:
-knowing where a subject's test is without looking.
+`src/error/app.error.ts` → `tests/error/app.error.spec.ts`. `src/` stays the shipped surface (`tsup`
+builds from `src/index.ts`; the `development` condition resolves into `src/`), and the mirror keeps
+what colocation was good at — knowing where a test is. `*.stories.tsx` is **not** a test and stays
+in `src/`.
 
-`*.stories.tsx` is **not** a test and stays in `src/`.
+### `infrastructure` organises tests by subject
 
-### The mirror is the default, and `infrastructure` is the one package it does not fit
+Every other `src/` is organised by subject, so the mirror is free. `infrastructure` is organised **by
+vendor** (`pg/`, `redis/`, `s3/`, `smtp/`), and mirroring it piles about twenty-five specs into
+`tests/pg/repository/`. So its `tests/` is by **subject** — `rbac/`, `member/`, `messaging/`,
+`outbox/`, `platform/`, `cold/`, `maintenance/`, `vector/` — keeping vendor folders (`redis/`,
+`smtp/`, `loki/`, `openai/`, `clickhouse/`) where the adapter is the subject.
 
-Every other package's `src/` is organised by subject, so mirroring it produces a `tests/` organised
-by subject too, and the rule costs nothing. `infrastructure` is organised **by vendor** — `pg/`,
-`redis/`, `s3/`, `smtp/` — because that is what makes `rm -r src/clickhouse/` the complete answer
-to a swap. Mirroring that puts roughly twenty-five spec files in one flat `tests/pg/repository/`,
-which is the same pile the vendor split exists to avoid, one directory further down.
-
-So `infrastructure` organises `tests/` by **subject**: `rbac/`, `member/`, `messaging/`, `outbox/`,
-`platform/`, `cold/`, `maintenance/`, `vector/`. It keeps vendor folders — `redis/`, `smtp/`,
-`loki/`, `openai/`, `clickhouse/` — where a vendor's adapter is the subject, which is most of them
-outside `pg/`.
-
-**The deciding case is the spec that has no one file to mirror.** `tests/rbac/tenant-cascade.spec.ts`
-asserts that deleting a tenant reaches every table that references it; `tests/maintenance/tenant-partition.spec.ts`
-covers a seed, a gateway and the allowlist together. Neither is a test *of* a file, so the mirror
-rule has no answer for where they go, and a rule with no answer gets one invented per author.
-
-This is the only package with the exemption, and it is not a licence to reach for: the test is
-whether `src/` is organised by something other than subject. Nothing else here is.
+**The deciding case is a spec with no one file to mirror:** `tests/rbac/tenant-cascade.spec.ts`
+(deleting a tenant reaches every referencing table) and `tests/maintenance/tenant-partition.spec.ts`
+(a seed, a gateway and the allowlist together). A rule with no answer gets one invented per author.
+This is the only exemption; the test is whether `src/` is organised by something other than subject.

@@ -25,8 +25,8 @@ The website and API server, built with TanStack Start (React, rendered on the se
 | File | What it does |
 |---|---|
 | `cluster.mjs` | Starts one web server process per CPU core and replaces any that crash, giving each a window to finish requests on shutdown. Gives up if processes keep dying on start. |
-| `package.json` | The package manifest: its name, its build, test and type-check scripts, and its dependencies. Versions come from the workspace catalog. |
-| `tsconfig.json` | TypeScript settings. Extends a shared preset from `tooling/tsconfig` and type-checks the tests too. |
+| `package.json` | Package manifest. |
+| `tsconfig.json` | TypeScript settings. |
 | `vite.config.ts` | The Vite build settings: TanStack Start, React, Tailwind, the port, sending `/api/realtime` to the realtime app in development, and resolving workspace packages to their source. |
 | `vitest.config.ts` | Test runner settings for the web app, with a complete fake environment so `Env` can load. |
 | `vitest.smoke.config.ts` | Settings for the web smoke tests, run serially against a booted app and Mailpit. |
@@ -296,7 +296,7 @@ The website and API server, built with TanStack Start (React, rendered on the se
 | File | What it does |
 |---|---|
 | `index.md` | The TanStack Start application. Thin, deletable and framework-shaped — every decision it makes is about the seam between a browser and the server graph, and no business logic lives here. |
-| `meta.json` | Sidebar title, description and page order for this docs folder. |
+| `meta.json` | Sidebar order. |
 
 ### `apps/web/docs/reference/`
 
@@ -305,5 +305,5 @@ The website and API server, built with TanStack Start (React, rendered on the se
 | `enforcement-surfaces.md` | The four places a permission is checked, in order of authority — and why the three weaker ones are worth having even though only the first one is the gate. |
 | `env.md` | Why the schema parses eagerly, the two cross-field rules that earn their exception, why Endpoint is a separate file, and why the auth base URL ends in .invalid. |
 | `import-surfaces.md` | Why this app has two import.ts files rather than one, what each may name, and the three imports that are deliberately outside both because a tool demands it. |
-| `meta.json` | Sidebar title, description and page order for this docs folder. |
+| `meta.json` | Sidebar order. |
 | `server-functions.md` | Why a *.fn.ts is half client, what that means for what it may import, and why the four shipped ones resolve state and leave every decision to a use-case. |

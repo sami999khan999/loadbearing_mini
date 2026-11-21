@@ -24,18 +24,18 @@ Its main job is turning any credential (a browser cookie, a desktop bearer token
 
 | File | What it does |
 |---|---|
-| `package.json` | The package manifest: its name, its build, test and type-check scripts, and its dependencies. Versions come from the workspace catalog. |
+| `package.json` | Package manifest. |
 | `tables.ts` | `pnpm auth:tables`: prints the database tables Better Auth expects for the installed version, to compare against the schema after an upgrade. Changes nothing. |
-| `tsconfig.json` | TypeScript settings. Extends a shared preset from `tooling/tsconfig` and type-checks the tests too. |
-| `tsup.config.ts` | Build settings: bundles `src/` into `dist/` as ES modules with type declarations. |
-| `vitest.config.ts` | Test runner settings. Resolves sibling packages to their source, so tests never run against a stale build. |
+| `tsconfig.json` | TypeScript settings. |
+| `tsup.config.ts` | Build settings. |
+| `vitest.config.ts` | Test settings. |
 
 ### `packages/auth/src/`
 
 | File | What it does |
 |---|---|
-| `import.ts` | Every import from outside this package, written once and re-exported, so the rest of `src/` imports from one place. |
-| `index.ts` | The package's public entry point. Re-exports what other packages may use, and contains no logic. |
+| `import.ts` | Outside-import surface. |
+| `index.ts` | Public entry point. |
 
 ### `packages/auth/src/apikey/`
 
@@ -43,7 +43,7 @@ Its main job is turning any credential (a browser cookie, a desktop bearer token
 |---|---|
 | `api-key.hasher.ts` | `ApiKeyHasher`: what authenticating an API key needs: its lookup prefix, its digest, and a constant-time comparison. |
 | `api-key.resolver.ts` | `ApiKeyResolver`: turns an API key in a request header into a principal. On every request, the key's permissions are narrowed to what its issuer can still do, and a deactivated issuer's keys stop working. |
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 
 ### `packages/auth/src/factory/`
 
@@ -52,20 +52,20 @@ Its main job is turning any credential (a browser cookie, a desktop bearer token
 | `auth.config.ts` | `AuthConfig`: every sign-in setting (secret, URLs, trusted origins, session lifetime, enrolment mode, Google keys), passed in from the environment. |
 | `auth-surface.ts` | `AuthSurface`: names the client a session was opened from, the desktop app or the web, from the request's exact origin. |
 | `auth.factory.ts` | `AuthFactory`: the one place Better Auth (the sign-in library) is configured: email and password, email verification, password reset, two-factor, Google sign-in, sessions stored in Postgres and cached in Redis, cookie settings, rate limits, and the hook that attaches an organization to each new session. |
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 
 ### `packages/auth/src/mail/`
 
 | File | What it does |
 |---|---|
 | `auth.mailer.ts` | `AuthMailer`: the interface for the emails sign-in needs (verify email, reset password, change email, two-factor code). The implementation owns the wording. |
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 
 ### `packages/auth/src/plugin/`
 
 | File | What it does |
 |---|---|
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `organization.plugin.ts` | `OrganizationPlugin`: a Better Auth plugin with three endpoints that change which organization a session points at: switch, create, and accept an invitation. A switch is only allowed into an organization the person is an active member of. |
 
 ### `packages/auth/src/principal/`
@@ -73,7 +73,7 @@ Its main job is turning any credential (a browser cookie, a desktop bearer token
 | File | What it does |
 |---|---|
 | `capability.cache.ts` | `CapabilityCache`: caches each person's resolved permissions in Redis for 60 seconds, keyed by organization and user. Platform permissions are cached separately, per user. |
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `principal.builder.ts` | `PrincipalBuilder`: turns a request's headers into a `Principal`. Checks an API key first (so a key can never be upgraded to the full session), then the session cookie or bearer token, then resolves permissions. |
 
 ### `packages/auth/src/session/`
@@ -82,7 +82,7 @@ Its main job is turning any credential (a browser cookie, a desktop bearer token
 |---|---|
 | `better-auth-session.gateway.ts` | `BetterAuthSessionGateway`: ends all of a user's sessions through Better Auth, which also clears the cached copies. |
 | `better-auth-session.resolver.ts` | `BetterAuthSessionResolver`: reads the session from a request through Better Auth. The only file that names Better Auth's session API. |
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `invitation-claiming.enroller.ts` | `InvitationClaimingEnroller`: at sign-in, first turns a pending invitation for the person's email into a membership; only if there is none does it fall back to the configured enrolment mode. |
 | `invitation.claimer.ts` | `InvitationClaimer`: the interface for previewing an invitation link and turning an invitation into a membership. The verified email address is what proves it is yours. |
 | `membership.enroller.ts` | `MembershipEnroller`: the interface for giving a new user their first membership. Returning nothing means the sign-in is refused. |
@@ -137,7 +137,7 @@ Its main job is turning any credential (a browser cookie, a desktop bearer token
 | File | What it does |
 |---|---|
 | `index.md` | Identity, and the wall Better Auth stops at. Four credential types collapse into one Principal here, so a single Authorizer.assert() serves the browser, the desktop shell, an integration's API key, and the worker. |
-| `meta.json` | Sidebar title, description and page order for this docs folder. |
+| `meta.json` | Sidebar order. |
 
 ### `packages/auth/docs/reference/`
 
@@ -147,7 +147,7 @@ Its main job is turning any credential (a browser cookie, a desktop bearer token
 | `auth-factory.md` | The one place Better Auth is configured, option by option — the two storage traps that put credentials on an LRU cache, the session hook that resolves the tenant, the cookie cache window, and the five rate-limit rules that are not the default twenty. |
 | `capability-cache.md` | Sixty seconds, and no longer — the TTL is a revocation window rather than a performance dial. Plus why the key carries the organization, and why it carries it in that position. |
 | `enrolment.md` | Why a session is refused to a user with no membership, the three modes that give them one, the invitation claim that runs before any of them, and why tenancy is a binding in the DI root rather than a policy baked into an adapter. |
-| `meta.json` | Sidebar title, description and page order for this docs folder. |
+| `meta.json` | Sidebar order. |
 | `organization-plugin.md` | Switch, create, accept — the three actions that end in a session pointing at a different tenant, and why each is a Better Auth endpoint rather than an oRPC procedure. |
 | `principal-builder.md` | Four credential types collapse into one Principal here. Why the API key is checked before the cookie, why a rejected key never falls through to the session, and what the builder deliberately does not do. |
 | `social-login.md` | Why the provider is absent rather than half-configured, what makes auto-linking safe here and an account-takeover path elsewhere, and how a server-only flag reaches a button in the browser. |

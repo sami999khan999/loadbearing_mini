@@ -5,9 +5,8 @@ description: What the lite kit cannot do at larger scale, and how each limit is 
 
 # Scaling up
 
-This kit is **loadbearing lite**. It was cut from a larger kit, **loadbearing** ("the big kit"),
-and lives in a separate git repository. This folder is the bridge between the two: every limit the
-lite kit has, and the big-kit piece that fixes it.
+**loadbearing lite** was cut from **loadbearing** ("the big kit"), a separate repository. This folder
+is the bridge: every limit lite has, and the big-kit piece that fixes it.
 
 | | |
 |---|---|
@@ -16,37 +15,29 @@ lite kit has, and the big-kit piece that fixes it.
 | Record of the cut | [`UPSTREAM.md`](../../UPSTREAM.md) |
 
 > [!IMPORTANT]
-> **Always port from the commit above, not from the big kit's latest `main`.** The lite code is that
-> commit's code with pieces removed. Porting from a later commit means reconciling everything the big
-> kit changed since, on top of the port. See [Porting](porting.md).
+> **Always port from the commit above, not the big kit's latest `main`** — lite is that commit with
+> pieces removed, and a later commit adds everything changed since to the port. See [Porting](porting.md).
 
 ## How the two kits relate
 
-**Lite removes stores, never seams.** The big kit is built for scale: several databases, a separate
-analytics store, central logs, archiving. Lite keeps the same code shape and stops *running* those
-extra services.
+**Lite removes stores, never seams** — same code shape, fewer services running:
 
-- **Same packages, same `@loadbearing/*` scope, same file and class names.** A big-kit file copied
-  into lite needs no import changes.
-- **Same database shape.** Every table has `organization_id`, tables are partitioned by
-  organization, and every repository declares whether it is `catalog`, `local` or `routed`. Lite
-  runs all of it on one database.
-- **Same env var names.** `REDIS_CACHE_URL`, `REDIS_QUEUE_URL` and `REDIS_REALTIME_URL` all exist
-  and all point at one Redis. `DATABASE_URL` and `DATABASE_DIRECT_URL` both exist and point at one
-  Postgres.
+- **Same packages, scope, file and class names** — a copied big-kit file needs no import changes.
+- **Same database shape** — `organization_id` everywhere, tenant partitioning, every repository
+  `catalog`, `local` or `routed`, all on one database.
+- **Same env names** — `REDIS_CACHE_URL`, `REDIS_QUEUE_URL`, `REDIS_REALTIME_URL` point at one Redis;
+  `DATABASE_URL` and `DATABASE_DIRECT_URL` at one Postgres.
 
-That is why most fixes below are **config** or **copy files back**, never a rewrite.
+So most fixes below are **config** or **copy files back**, never a rewrite.
 
 ## Paths in this folder
 
-Paths to files in **this** repository are written normally: `docs/ai/rules/data.md`.
-Paths to files in **the big kit** at the commit above are written with an `upstream:` prefix:
-`upstream:packages/infrastructure/src/clickhouse/`. Those files are not here; open them in the big
-kit's repository at that commit.
+Paths in this repository are plain (`docs/ai/rules/data.md`); paths in the big kit at the commit
+above carry `upstream:` (`upstream:packages/infrastructure/src/clickhouse/`) — open them there.
 
 ## The limits, and what fixes each one
 
-In plain terms. The thresholds are the big kit's own planning estimates
+Thresholds are the big kit's planning estimates
 ([`docs/opinions/data-and-scale.md`](../opinions/data-and-scale.md) §3), not measurements.
 
 | Lite limit | When it starts to hurt | Fix | Kind of work | Page |
@@ -59,20 +50,19 @@ In plain terms. The thresholds are the big kit's own planning estimates
 | **Logs only go to the screen** | Running more than one server | Bring back Loki and Alloy | Config plus a small copy | [Logs](logs.md) |
 | **One database machine** holds everything | Around 1B rows a year, or writes past what one machine takes | Add database nodes and move organizations onto them | Copy files back, then operate | [Shard nodes](shard-nodes.md) |
 
-Two product features were also left out of lite. They are not scale limits, but they come back the
-same way: [Widgets and zones](widgets.md). [Messaging](messaging.md) came back on 2026-11-12. So does the big kit's
-platform **Workers** page, built after the cut: [Worker control](worker-control.md).
+Product features left out come back the same way: [Widgets and zones](widgets.md), and the big
+kit's post-cut platform **Workers** page, [Worker control](worker-control.md).
+[Messaging](messaging.md) came back on 2026-11-12.
 
-**Do them in roughly this order.** The config-only moves first; they are cheap and reversible.
-Replica and analytics next. Shard nodes last — they are the only move that needs someone to operate
-several databases.
+**Order:** config-only moves first (cheap, reversible), then replica and analytics, shard nodes last —
+the only move needing someone to operate several databases.
 
 ## What the big kit does not fix
 
-1. **Free-tier hosting limits.** Vercel Hobby is non-commercial only; Neon, mail and embedding free
-   tiers have quotas. Those are fixed by paying, not by code.
-2. **A single server going down.** If the worker and realtime run on one VM, that VM is a single
-   point of failure. Running two, or a managed host, is a deployment decision in either kit.
+1. **Free-tier hosting limits** (Vercel Hobby is non-commercial; Neon, mail and embedding tiers have
+   quotas) — fixed by paying, not code.
+2. **A single server going down** — worker and realtime on one VM is a single point of failure in
+   either kit; running two or a managed host is a deployment decision.
 3. **Moves the big kit has not built either** — see [Beyond the big kit](beyond-the-big-kit.md).
 4. **Features only lite has.** They flow the other way, from lite into the big kit — see
    [Back-ports](back-ports.md).
@@ -83,4 +73,3 @@ several databases.
 - [`docs/ai/rules/data.md`](../ai/rules/data.md) — the rules that keep these fixes config-only.
 - [`docs/opinions/data-and-scale.md`](../opinions/data-and-scale.md) — the big kit's full argument
   for which store owns what, and the order scaling moves happen in.
-- [`docs/plans/archive/LITE-KIT-PLAN.md`](../plans/archive/LITE-KIT-PLAN.md) — the plan that produced this kit.

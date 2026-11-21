@@ -5,21 +5,17 @@ description: One VPS now, managed services later — what changes, what never ch
 
 # Deployment
 
-The same services, on a machine you rent. Then, service by service, on machines somebody else
-operates.
+The same services on a rented machine, then, service by service, on machines somebody else operates.
+**The application code never changes between stages:** every store is behind a port
+([Dependencies](../opinions/dependencies.md)), every credential is an `.env` value, and no package
+reads `process.env` — so each move is a config change, not a migration.
 
-**The application code does not change between any of the stages on this page.** Every store is
-behind a port ([Dependencies](../opinions/dependencies.md)), every credential is a value in
-`.env`, and no package reads `process.env` at all. That is what makes each move below a config change
-rather than a migration — and it is the whole return on the architecture.
-
-> **Nothing on this page has been executed.** The local stack in [index](index.md) is verified
-> against a running system; this is design, and the first real deployment will find things it got
-> wrong. Treat the commands as a starting point rather than a transcript.
+> **Nothing on this page has been executed.** The local stack in [index](index.md) is verified; this
+> is design, and the first real deployment will find what it got wrong.
 
 ---
 
-## Before anything else: the ports are wide open
+## First: the ports are wide open
 
 The compose file publishes every service on **all interfaces**:
 
@@ -30,22 +26,17 @@ mailpit       0.0.0.0:21025->1025/tcp, 0.0.0.0:28025->8025/tcp   ← no auth
 minio         0.0.0.0:29000->9000/tcp, 0.0.0.0:29001->9001/tcp
 ```
 
-On a laptop behind NAT that is convenient and harmless. **On a VPS with a public IP it is a database, an
-unauthenticated Redis holding the job queue, a mail inbox and an object store on the open
-internet.** Scanners find an open Postgres in minutes.
+Harmless behind NAT; **on a public VPS it is a database, an unauthenticated Redis holding the job
+queue, a mail inbox and an object store on the internet**, and scanners find an open Postgres in
+minutes.
 
 > [!CAUTION]
-> **A firewall does not fix this by itself.** Docker writes its own iptables rules into the
-> `DOCKER-USER` chain, which is evaluated *before* UFW's chains. `ufw deny 5432` looks like it
-> worked, reports as active, and the port stays reachable. This surprises people who have done
-> everything right.
+> **A firewall does not fix this.** Docker writes iptables rules into `DOCKER-USER`, evaluated
+> *before* UFW's chains — `ufw deny 5432` reports active and the port stays reachable.
 
-**The fix is to stop publishing, not to filter.** Services that only other containers use need no
-`ports:` entry at all — they are already reachable on the bridge network by service name. The
-production overlay below removes every publish except the reverse proxy's.
-
-Where you genuinely need host access — `psql` from your laptop — bind to loopback and reach it
-through an SSH tunnel:
+**Stop publishing instead of filtering.** Container-only services need no `ports:` (they are
+reachable on the bridge network by name); the overlay below removes every publish but the proxy's.
+For host access (`psql` from a laptop), bind to loopback and tunnel:
 
 ```yaml
 ports: ["127.0.0.1:25432:5432"]
@@ -59,26 +50,21 @@ ssh -L 5432:localhost:25432 you@vps    # then psql against localhost:5432
 
 ## Phase 1 — one VPS
 
-Everything on one box, Compose, no orchestrator. This is the correct shape for a long time, and
-[Data and scale](../opinions/data-and-scale.md) is explicit that most products never outgrow
-it.
-
-### Sizing
+Everything on one box under Compose, no orchestrator — the right shape for a long time; most products
+never outgrow it ([Data and scale](../opinions/data-and-scale.md)).
 
 | | vCPU | RAM | Disk |
 |---|---|---|---|
 | Minimum to run | 2 | 4 GB | 40 GB SSD |
 | Comfortable | 4 | 8 GB | 80 GB SSD |
 
-Postgres wants the memory. Disk is dominated by `pgdata` and MinIO.
-
-There is no log store and no analytics store on this box. Logs go to stdout, and Docker's log
-driver keeps what it keeps.
+Postgres wants the memory; disk is mostly `pgdata` and MinIO. There is no log or analytics store:
+logs go to stdout, and Docker's log driver keeps what it keeps.
 
 ### The production overlay
 
-Keep `docker-compose.yml` as the base and add a second file that only says what differs. Compose
-merges them left to right:
+Keep `docker-compose.yml` as the base and add a file with only the differences; Compose merges left
+to right:
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
@@ -165,27 +151,19 @@ volumes:
   caddydata:
 ```
 
-**`!override []`** replaces the base file's `ports` list rather than merging with it. Without the tag
-Compose appends, and the publish you were trying to remove stays.
+- **`!override []`** replaces the base `ports` list; without it Compose appends and the publish stays.
+- **`${VAR:?required}`** refuses to start on an unset variable — a Redis started with
+  `--requirepass ""` accepts every connection.
+- **The one Redis keeps `noeviction`**: it holds the queue as well as the cache, so the queue's rule
+  wins ([redis](reference/redis.md)). A cache that should evict wants its own instance —
+  [split-redis](../scale/split-redis.md).
+- **`minio-init` still runs in production**: it creates the bucket on a fresh volume and exits.
 
-**`${VAR:?required}`** makes Compose refuse to start when the variable is unset, instead of
-substituting an empty string. A Redis that silently starts with `--requirepass ""` accepts every
-connection.
+### Readiness
 
-**The one Redis keeps `noeviction`.** It holds the queue as well as the cache, so the queue's rule
-wins ([redis](reference/redis.md)). A cache that should evict under a memory ceiling wants its own
-instance — [split-redis](../scale/split-redis.md).
-
-**`minio-init` still runs in production.** It creates the bucket on a fresh volume, then exits.
-
-### Readiness: `depends_on` is the start of the answer, not the whole of it
-
-`depends_on: { postgres: { condition: service_healthy } }` gets the container *started* in the right
-order. It says nothing about whether the app inside it can serve a request — the process still has to
-parse its environment, build a container, and open its own connections.
-
-**`GET /api/health` is that answer**, and it is the endpoint a load balancer, an orchestrator, or a
-`caddy` health check should be pointed at rather than at the port being open:
+`depends_on: … service_healthy` orders container *starts*; it says nothing about whether the app can
+serve. **`GET /api/health` is that answer** — point the load balancer, orchestrator or Caddy at it,
+not at an open port:
 
 ```yaml
   web:
@@ -197,36 +175,26 @@ parse its environment, build a container, and open its own connections.
       start_period: 20s
 ```
 
-**It is a readiness probe, and the distinction decides what happens on a 503.** Readiness means *do
-not send me traffic yet* — a rolling deploy holds the instance out of the pool while Postgres is
-still starting, and puts it back when the answer changes. A liveness probe on the same endpoint kills
-the container instead, which is the wrong response to a dependency that is merely slow, and turns one
-slow database into a restart loop across every instance.
+**Use it as a readiness probe, never liveness.** Readiness holds an instance out of the pool while
+Postgres starts; liveness on the same endpoint kills the container and turns one slow database into a
+restart loop everywhere. The report names `database`, `cache`, `queue`, `realtime` and `analytics`
+(always `null` in lite — neither healthy nor degraded). **No log store is in it, and none would be
+once ported** — logs are lossy by design, so a down collector is no reason to drain a working instance.
 
-The report names `database`, `cache`, `queue`, `realtime` and `analytics`. `analytics` is always
-`null`: lite runs no analytics store, which is neither healthy nor degraded. **No log store is in
-it**, and none would be once ported — logs are lossy by design, so a collector being down is not a
-reason to drain an instance that is serving correctly ([Data and scale](../opinions/data-and-scale.md)).
-
-**The worker has no HTTP surface and therefore no equivalent.** Its liveness signal is the
-`process.started` line it emits with its consumer count, and its readiness is that it consumes —
-([25](../setup/25-worker-app.md)). Watch queue depth instead: a worker that died quietly on a
-Tuesday is not something a probe finds.
+**The worker has no HTTP surface.** Its liveness is the `process.started` line with its consumer
+count; its readiness is that it consumes. Watch queue depth — no probe finds a worker that died
+quietly on a Tuesday.
 
 ### Logs
 
-**The applications are containers here, and they were not locally.** Each writes JSON lines to
-stdout, so `docker compose logs web` reads them. Nothing else collects them.
-
-`APP: web`, `APP: worker` and `APP: realtime` set the `app` field in every line. That is what tells
-the three apart once their output is mixed.
-
-Searching logs across days, or keeping them past a restart, needs a log store. That is
-[logs](../scale/logs.md). The line format does not change when you add one.
+The apps are containers here, not host processes as locally. Each writes JSON lines to stdout, read
+with `docker compose logs web`; nothing else collects them. `APP: web|worker|realtime` sets the `app`
+field in every line, which tells the three apart once mixed. Searching across days or keeping logs
+past a restart needs a log store — [logs](../scale/logs.md); the line format does not change.
 
 ### TLS
 
-**`infra/Caddyfile`** — illustrative; write it on the host, it is not in the repository.
+**`infra/Caddyfile`** — illustrative; write it on the host.
 
 ```
 example.com {
@@ -245,38 +213,29 @@ example.com {
 }
 ```
 
-**Compress the web app's responses at the proxy.** The Node server sends them as they are. A
-large doc page is about 1.1 MB raw and 59 KB gzipped, because the sidebar repeats one set of class
-names per link. Leave the stream path out: an encoder buffers, and a buffered event stream reaches
-the tab late or never. Behind nginx, that is `gzip on` in the web location and not in the stream
-one.
-
-**The stream path goes to its own process.** Every open tab holds one or two streams for as long as it
-is open, and `apps/realtime` holds all of them so the web app's event loop holds none. The browser
-still sees one origin, which is what lets the session cookie ride along. Behind nginx instead, the
-location block wants `proxy_buffering off` and `proxy_read_timeout` above the thirty-minute stream age.
-
-Caddy obtains and renews Let's Encrypt certificates automatically, and `caddydata` persists them —
-without that volume you re-issue on every deploy and hit rate limits. Traefik and nginx both work;
-Caddy is four lines.
-
-Note both targets are **service names on the bridge network**. Caddy is the only container with a
-published port.
+- **Compress web responses at the proxy** — Node sends them raw, and a large doc page is ~1.1 MB raw
+  vs 59 KB gzipped (the sidebar repeats class names per link). **Never the stream path**: a buffered
+  event stream arrives late or never. In nginx: `gzip on` in the web location only.
+- **Streams go to their own process.** Every tab holds one or two streams while open; `apps/realtime`
+  holds all of them so the web event loop holds none. One origin keeps the session cookie riding
+  along. In nginx the stream location needs `proxy_buffering off` and `proxy_read_timeout` above the
+  thirty-minute stream age.
+- Caddy issues and renews Let's Encrypt certificates; `caddydata` persists them (without it every
+  deploy re-issues and hits rate limits). Both targets are bridge-network service names; Caddy is the
+  only published port.
 
 ### Secrets
 
-`.env.production` lives on the VPS and is never committed. `.gitignore` already covers `.env.*` with
-one exception for `.env.example`, so this is enforced rather than remembered.
-
-Generate real values — the local ones are `ratchet` everywhere on purpose, because a scratch database
-behind a secret is a scratch database nobody can debug:
+`.env.production` lives on the VPS, never committed — `.gitignore` covers `.env.*` except
+`.env.example`. Local values are `ratchet` on purpose (a scratch database behind a secret is one
+nobody can debug); generate real ones:
 
 ```bash
 openssl rand -base64 32      # AUTH_SECRET, POSTGRES_PASSWORD, REDIS_PASSWORD, …
 ```
 
-Anything better than a file — Docker secrets, SOPS, a cloud secret manager — is an improvement and
-none of it changes the application, which reads `process.env` in exactly two files.
+Docker secrets, SOPS or a cloud secret manager improve on a file without changing the application,
+which reads `process.env` in exactly two files.
 
 ### Deploying
 
@@ -287,20 +246,14 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm web pnp
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 ```
 
-**Migrations run before the new containers start**, as a one-shot. Running them from a container that
-is already serving traffic means the old code briefly meets the new schema.
+**Migrate as a one-shot before new containers start**, or old code briefly meets the new schema.
+Hence: **every migration must work with the currently running code** — add a column, deploy the
+writer, drop the old column later; a rename is two deploys. Building on the VPS is slow; building in
+CI and pushing to a registry only turns `build:` into `image:`.
 
-That ordering forces a discipline worth naming: **every migration must be compatible with the
-currently-running code**. Add a column before writing to it, deploy the writer, then remove the old
-column in a later release. A rename is two deploys.
+### Backups — the part that matters
 
-Building on the VPS keeps the setup to one machine and costs a slow deploy. Building in CI and
-pushing to a registry is the next step, and changes only where `build:` becomes `image:`.
-
-### Backups — the part that actually matters
-
-The derived-store table in [index](index.md) already says what must be backed up, because it says
-what cannot be rebuilt:
+What cannot be rebuilt must be backed up:
 
 | Volume | Back up? | Why |
 |---|---|---|
@@ -316,19 +269,17 @@ docker compose exec -T postgres pg_dump -U ratchet -Fc ratchet > backup-$(date +
 mc mirror local/ratchet /backup/ratchet   # `mc` on the host; the server image ships none
 ```
 
-> **A backup you have not restored is a hypothesis.** Restore into a scratch database and run the
-> app against it, on a schedule. This is the single most commonly skipped step on a self-hosted VPS
-> and the only one that is unrecoverable.
+> **A backup you have not restored is a hypothesis.** Restore into a scratch database and run the app
+> against it on a schedule — the most skipped step on a self-hosted VPS, and the unrecoverable one.
 
-`pg_dump` is adequate up to a few tens of gigabytes. Past that, continuous archiving — WAL-G or
-pgBackRest to object storage — gives point-in-time recovery, and is the moment managed Postgres
-starts looking cheap.
+`pg_dump` suits a few tens of gigabytes; past that, WAL-G or pgBackRest to object storage gives
+point-in-time recovery — and managed Postgres starts looking cheap.
 
 ---
 
 ## What breaks first
 
-In rough order, and none of them is the database:
+In rough order, and none is the database:
 
 | Symptom | Move to |
 |---|---|
@@ -340,13 +291,11 @@ In rough order, and none of them is the database:
 | A bad deploy loses queued jobs | Managed Redis for the queue, with real persistence |
 | One machine is a single point of failure | Everything below |
 
-**Two web replicas is the highest-value early move**, and the architecture already permits it: the
-web tier is stateless by construction — no request state in `Container`, no module-scope
-`QueryClient`, sessions in Postgres and Redis. The worker is separate and BullMQ's repeatable jobs
-dedupe across replicas, so it scales independently.
+**Two web replicas is the best early move** — the web tier is stateless (no request state in
+`Container`, no module-scope `QueryClient`, sessions in Postgres and Redis), and the worker scales
+separately since BullMQ repeatable jobs dedupe across replicas.
 
-**One queue can scale alone.** `WORKER_QUEUES` picks which queues a worker service serves, so a
-backlog in one queue is a second service, not more copies of everything:
+**One queue can scale alone:** `WORKER_QUEUES` picks the queues a worker service serves.
 
 ```yaml
   worker:
@@ -358,15 +307,15 @@ backlog in one queue is a second service, not more copies of everything:
     deploy: { replicas: 3 }
 ```
 
-Every queue must be served by at least one service — a queue nobody serves fills silently. See
+Every queue needs at least one service — an unserved queue fills silently. See
 [the supervisor](../../apps/worker/docs/reference/supervisor.md).
 
 ---
 
 ## Phase 2 — managed services, in risk order
 
-Move things **in increasing order of how much it hurts to get wrong**, not in order of cost. Each row
-is one or two lines in `.env.production` and a restart.
+Move in **increasing order of how much a mistake hurts**, not cost. Each row is a line or two in
+`.env.production` and a restart.
 
 | # | Service | Becomes | Config change | Risk |
 |---|---|---|---|---|
@@ -374,33 +323,30 @@ is one or two lines in `.env.production` and a restart.
 | 2 | Redis | managed Redis with `noeviction` and persistence | `REDIS_CACHE_URL`, `REDIS_QUEUE_URL` | medium — drain first |
 | 3 | Postgres | RDS / Cloud SQL / Neon | `DATABASE_URL`, `DATABASE_DIRECT_URL` | high — the real migration |
 
-Mail is not a row. Mailpit was never a production service: point `SMTP_URL` at a real provider
-before the first real user ([mailpit](reference/mailpit.md)).
-
-**Stores lite does not run are not rows either.** Every row above is *the same capability,
-operated by somebody else*. A log store, an analytics store, a pooler, a replica or a second shard
-node is a **new capability**, and it has its own page — see [below](#adding-what-lite-cut).
+**Mail is not a row** — Mailpit was never a production service; point `SMTP_URL` at a real provider
+before the first real user ([mailpit](reference/mailpit.md)). **Stores lite does not run are not rows
+either**: a log store, analytics store, pooler, replica or second shard node is a new capability —
+see [below](#adding-what-lite-cut).
 
 ### 1. Object storage
 
-Uploaded objects are immutable and addressed by key, so this is a copy and a flip rather than a
-migration:
+Objects are immutable and keyed, so it is a copy and a flip:
 
 ```bash
 mc mirror --watch local/ratchet s3/your-bucket    # runs until you stop it
 ```
 
-Then change five values and restart. `S3_FORCE_PATH_STYLE=false` is the one that is easy to miss and
-produces DNS errors that name a bucket-prefixed host.
+Then change five values and restart. `S3_FORCE_PATH_STYLE=false` is the easy one to miss; it shows as
+DNS errors naming a bucket-prefixed host. **Copy the whole bucket, prefixes included** — `cold/` holds
+deleted tenants' archives; `export/` can stay behind (objects expire in a week), and the nightly
+`retention` job writes its lifecycle rule onto the new bucket on first run.
 
 #### The bucket's CORS rule
 
-The browser uploads a doc image straight to the bucket, so the bucket must allow the app's origin.
-MinIO answers every origin by default; S3 and R2 answer none, and an upload then fails in the
-browser with a CORS error that appears in no server log. Allow `POST`: the upload is a presigned
-`POST` whose policy binds the size and type, so the bucket refuses anything larger than the limit.
-`GET` and `HEAD` are not needed: `/api/doc-image/…` answers with a redirect to
-a signed URL that an `<img>` follows, and no script fetches the bytes.
+Browsers upload doc images straight to the bucket; MinIO answers
+every origin, S3 and R2 none, and the failure is a browser CORS error in no server log. Allow only
+`POST` — the upload is a presigned `POST` whose policy binds size and type. `GET`/`HEAD` are
+unnecessary: `/api/doc-image/…` redirects an `<img>` to a signed URL.
 
 ```json
 {
@@ -421,76 +367,59 @@ aws s3api put-bucket-cors --bucket your-bucket --cors-configuration file://cors.
 aws s3api get-bucket-cors --bucket your-bucket     # read it back
 ```
 
-`AllowedOrigins` is the app's public origin (`APP_BASE_URL`) with no trailing slash, one entry per
-origin; add the staging one to the same rule. R2 takes the same JSON in the dashboard under the
-bucket's settings, in its own `AllowedOrigins` / `AllowedMethods` shape.
-
-The local stack cannot be given this rule: its MinIO has no bucket CORS API (`mc cors set` is
-refused as "not implemented"), so `minio-init` leaves it alone. See
+`AllowedOrigins` is `APP_BASE_URL` with no trailing slash, one entry per origin (add staging to the
+same rule). R2 takes the same JSON in the bucket settings. Local MinIO has no bucket CORS API
+(`mc cors set` is "not implemented"), so `minio-init` leaves it alone — see
 [the compose reference](reference/compose.md).
-
-**Copy the whole bucket, prefixes included.** `cold/` holds deleted tenants' archives. `export/`
-can be left behind — its objects expire in a week. The nightly `retention` job writes the `export/`
-lifecycle rule onto the new bucket on its first run.
 
 ### 2. Redis — treat it as the queue
 
-Lite's one Redis holds the cache and the queue. The cache would be trivial to move on its own. The
-queue is not, and it sets the procedure. A queued job exists nowhere else, so:
+Lite's one Redis holds the cache and the queue. The cache alone would be trivial; the queue holds
+jobs that exist nowhere else and sets the procedure:
 
-1. Stop the worker consuming with `pnpm queue:pause all`; let publishers keep enqueueing to the old
-   instance.
-2. Wait for depth to reach zero.
+1. Stop consumption with `pnpm queue:pause all`; publishers keep enqueueing to the old instance.
+2. Wait for depth zero.
 3. Flip `REDIS_CACHE_URL` and `REDIS_QUEUE_URL`, restart everything.
 4. Confirm the old instance is empty before deleting it.
 
-**This is a good moment to split.** The code already reads two URLs. Point `REDIS_CACHE_URL` at an
-instance that evicts and `REDIS_QUEUE_URL` at one that does not — [split-redis](../scale/split-redis.md).
-The cache half then needs no drain: it refills from Postgres.
-
-Managed Redis providers differ on `noeviction` support and persistence guarantees — check both before
-choosing, because a queue on an instance that evicts is a queue that loses work silently.
+**A good moment to split:** the code already reads two URLs, so point `REDIS_CACHE_URL` at an
+evicting instance and `REDIS_QUEUE_URL` at a non-evicting one ([split-redis](../scale/split-redis.md));
+the cache half then needs no drain. Check each provider's `noeviction` support and persistence — a
+queue on an evicting instance loses work silently.
 
 ### 3. Postgres last
 
-Highest value, highest risk, and the one where the managed option is most worth paying for —
-backups, point-in-time recovery, and failover stop being your problem.
+Highest value, highest risk, and most worth paying for — backups, point-in-time recovery and failover
+stop being your problem.
 
-Two routes:
+- **Dump and restore:** simple, with a maintenance window sized by your data.
 
-**Dump and restore.** Simple, needs a maintenance window sized by your data.
+  ```bash
+  pg_dump -Fc $OLD | pg_restore -d $NEW
+  ```
 
-```bash
-pg_dump -Fc $OLD | pg_restore -d $NEW
-```
+- **Logical replication:** near-zero downtime, more moving parts — replicate, let it catch up, pause
+  briefly to switch `DATABASE_URL` and `DATABASE_DIRECT_URL`. Most providers document or tool it.
 
-**Logical replication.** Near-zero downtime, more moving parts: replicate into the managed instance,
-let it catch up, then a brief pause to switch `DATABASE_URL` and `DATABASE_DIRECT_URL`. Most managed providers document this
-path and some tool it.
-
-Whichever you choose, **verify the extensions exist on the target first**. `pgvector` is not available
-everywhere, and finding out after the dump is a bad afternoon:
+**Check extensions on the target first** — `pgvector` is not everywhere:
 
 ```sql
 SELECT * FROM pg_available_extensions WHERE name IN ('vector', 'pg_trgm', 'uuid-ossp');
 ```
 
-Also confirm the partitioned tables arrived as partitioned rather than as one flat table — a
-`pg_dump`/`restore` preserves partitioning, but a naive `COPY`-based migration does not, and
-`activity_log` silently becomes a table that will need the painful conversion later
-([13](../setup/13-infrastructure-postgres.md)).
+**Confirm partitioned tables arrived partitioned.** `pg_dump`/`restore` preserves it; a naive
+`COPY`-based migration flattens `activity_log` into a table needing the painful conversion later.
 
-**Both URLs move together.** In lite they name the same server. If the managed provider puts a
-pooler in front, `DATABASE_URL` gets the pooled address and `DATABASE_DIRECT_URL` the direct one —
-[pgbouncer](../scale/pgbouncer.md). The code already runs behind a transaction pooler unchanged.
+**Both URLs move together** — in lite they name the same server. If the provider fronts it with a
+pooler, `DATABASE_URL` gets the pooled address and `DATABASE_DIRECT_URL` the direct one
+([pgbouncer](../scale/pgbouncer.md)); the code already runs unchanged behind a transaction pooler.
 
 ---
 
 ## Adding what lite cut
 
-Everything in Phase 2 is *the same capability, operated by somebody else*. This is not that. Each
-piece below is a **new store or a new process**, and it happens on its own timeline. The code keeps
-the seam for each, so each is a port back rather than a rewrite.
+Not the same capability run by someone else: each is a **new store or process** on its own timeline.
+The code keeps every seam, so each is a port back, not a rewrite.
 
 | Piece | When | Guide |
 |---|---|---|
@@ -502,24 +431,21 @@ the seam for each, so each is a port back rather than a rewrite.
 | An analytics store | snapshot tables stop covering the questions | [analytics](../scale/analytics.md) |
 | Calendar retention and a cold tier | old months cost more than they are worth | [retention](../scale/retention.md) |
 
-**Do not start here.** [Data and scale](../opinions/data-and-scale.md) is explicit that one
-Postgres covers every question this kit will ask for years.
+**Do not start here:** one Postgres covers this kit's questions for years
+([Data and scale](../opinions/data-and-scale.md)).
 
 ---
 
 ## What never changes
 
-Worth stating plainly, because it is most of the system.
-
-- **`packages/application`** — sharding and hosting are repository concerns; use-cases never learn.
-- **`packages/permissions`** — pure computation, identical answer in every runtime.
+- **`packages/application`** — sharding and hosting are repository concerns.
+- **`packages/permissions`** — pure computation, identical in every runtime.
 - **`packages/contracts`** — unchanged.
-- **The event catalog and the four log labels** — stdout today, a log store later; the vocabulary
-  does not move.
-- **Every port** — `CacheStore`, `QueuePublisher`, `StorageGateway`, `VectorStore`, `EmailSender`.
-  A managed service is a different constructor argument in `Container`, one line each.
-- **`.env` as the only config surface** — enforced by `check-architecture.mjs` §3, which is why
-  "move a service" is never a code search.
+- **The event catalog and four log labels** — stdout today, a log store later; the vocabulary stays.
+- **Every port** — `CacheStore`, `QueuePublisher`, `StorageGateway`, `VectorStore`, `EmailSender`;
+  a managed service is one different constructor argument in `Container`.
+- **`.env` as the only config surface** — `check-architecture.mjs` §3, so moving a service is never a
+  code search.
 
-The compose file, the overlay, and `.env.production` are the entire deployment surface. That is the
-claim the architecture makes, and this page is where it either holds or does not.
+The compose file, the overlay and `.env.production` are the whole deployment surface — the
+architecture's claim, and this page is where it holds or does not.

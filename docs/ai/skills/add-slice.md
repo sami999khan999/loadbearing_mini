@@ -13,9 +13,7 @@ first and the contract third, and by the time you reach the React component the 
 autocompletes and a typo in it is a compile error. If a feature needs a step outside this list,
 logic has landed in the wrong layer. Stop and look again.
 
-[27 · Verification and your first feature](../../setup/27-verification-and-first-feature.md) §27.4 states
-the same twelve steps and explains *why* each one sits where it does. This page is the run book:
-what to write, what to check, what to commit.
+This page is the run book: what to write, what to check, what to commit.
 
 ---
 
@@ -198,8 +196,7 @@ apps/web/src/route/(app)/_authenticated/<subject>/    compose the components
 packages/composition/src/container/container.ts  expose the new use-cases
 ```
 
-The route needs `staticData.messages` and its loader's `ensure(["<subject>"])` — see
-[24 · Web app](../../setup/24-web-app.md) §24.10. A route that forgets them renders raw keys rather than
+The route needs `staticData.messages` and its loader's `ensure(["<subject>"])`. A route that forgets them renders raw keys rather than
 throwing, which is what makes the omission visible in review instead of at 3am.
 
 **Under `(app)/_authenticated/` the session check is already done** — the pathless layout runs

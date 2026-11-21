@@ -11,8 +11,8 @@ description: The written rules, the arguments behind them, the build order, the 
 
 - `ai/` holds the rules, stated flatly and short enough for an AI agent to load whole.
 - `opinions/` holds the argument behind each rule: the failure it prevents.
-- `setup/` is the build order, from an empty folder to the running app, in thirty-one steps.
 - `infra/` explains the running Docker stack.
+- `explained/` is this plain-language guide.
 - `plans/` holds the small kit's plans and handoff note.
 - `scale/` explains, piece by piece, how to bring back each part the small kit removed.
 
@@ -26,8 +26,7 @@ This page covers 102 files.
 
 | File | What it does |
 |---|---|
-| `data-flow.md` | One request followed from arrival to months later — which store it touches, in what order, and why each store exists. The narrative companion to the data ownership rules. |
-| `index.md` | The four documentation trees and what each is for — the rules an agent loads, the argument behind them, the build order, and the running stack. |
+| `index.md` | The documentation trees and what each is for — the rules an agent loads, the argument behind them, the running stack, this guide and the plans. |
 
 ### `docs/ai/`
 
@@ -69,7 +68,7 @@ This page covers 102 files.
 |---|---|
 | `deployment.md` | One VPS now, managed services later — what changes, what never changes, and the order to move things in when it stops fitting on one box. |
 | `index.md` | The local stack — every file, every service, and how they reach each other. Five containers, no profiles, one bridge network. |
-| `meta.json` | Sidebar title, description and page order for this docs folder. |
+| `meta.json` | Sidebar order. |
 
 ### `docs/infra/reference/`
 
@@ -77,7 +76,7 @@ This page covers 102 files.
 |---|---|
 | `compose.md` | Five services, no profiles, three volumes and one network — what every block does and which parts are load-bearing. |
 | `mailpit.md` | The SMTP sink — every outbound mail is caught and displayed, none is delivered. One env var separates it from a real provider. |
-| `meta.json` | Sidebar title, description and page order for this docs folder. |
+| `meta.json` | Sidebar order. |
 | `minio.md` | The S3 stand-in, the one bucket and its three prefixes, and the one-shot container that creates it. |
 | `postgres.md` | The source of truth — the pgvector image, the three extensions, and why the init script runs exactly once. |
 | `redis.md` | One instance for the cache, the queue and realtime — durable, never evicts — every flag explained, and why the cache and the queue keep separate URLs. |
@@ -94,7 +93,7 @@ This page covers 102 files.
 | `folders.md` | src/ holds index.ts, import.ts, and folders. Role folders by default, subject folders where contents repeat per feature. |
 | `imports.md` | index.ts is what a package gives, import.ts is what it takes. Barrels name every export; export * is banned. |
 | `index.md` | The positions this repository takes, stated flatly. Naming, folders, imports, classes, vocabulary, data ownership, visibility, simplicity, comments. |
-| `meta.json` | Sidebar title, description and page order for this docs folder. |
+| `meta.json` | Sidebar order. |
 | `simplicity.md` | The least structure that achieves the goal — and performance is part of the goal, not the thing traded away to reach it. |
 | `visibility.md` | Four independent reasons something is missing from a screen — a flag, an entitlement, a permission, a widget preference — the order they resolve in, and the one answer to "why is it gone". |
 | `vocabulary.md` | Permissions, procedures, events, queues, contract members, database objects, env vars, React. |
@@ -105,22 +104,8 @@ This page covers 102 files.
 |---|---|
 | `BACKLOG.md` | The only open ledger for the lite kit: every item not done, each waiting on a key, a quiet machine, a public URL or a flag. |
 | `HANDOFF.md` | Where the lite kit's build stopped, what is verified, and exactly how to pick it up on any machine or in a fresh session. |
-| `index.md` | Contents page for the plans: the two live files, and that everything finished is in `archive/`. |
-| `meta.json` | Sidebar title, description and page order for this docs folder. |
-
-### `docs/plans/archive/`
-
-| File | What it does |
-|---|---|
-| `AI-CHAT-PLAN.md` | The finished plan for the AI Assistant, ported from the big kit. |
-| `DOCS-SYSTEM-PLAN.md` | The finished plan for the docs system: access links to modules, permissions, flags and plans; whole-docs search; and the reader features. |
-| `DONE.md` | Every closed backlog entry, by its original section and ID, with the proof it closed on. |
-| `LITE-KIT-PLAN.md` | The plan that cut this small kit from the big kit, and how it can grow back. |
-| `TESTS.md` | The test runs the build owed, by plan item, and the standard pass used to check a change. |
-| `UI-KIT-PLAN.md` | The finished plan that moved the UI to Tailwind v4, Base UI and `cn`. |
-| `WORKER-SCALING-PLAN.md` | The finished plan that lets a worker choose its queues by config, with the queue pause CLI. |
-| `index.md` | Contents page for the archived plans. |
-| `meta.json` | Sidebar title, description and page order for this docs folder. |
+| `index.md` | Contents page for the plans: the two live files. |
+| `meta.json` | Sidebar order. |
 
 ### `docs/scale/`
 
@@ -132,7 +117,7 @@ This page covers 102 files.
 | `index.md` | What the lite kit cannot do at larger scale, and how each limit is fixed by bringing back a piece of the big kit — written to be read without access to the big kit's repository history. |
 | `logs.md` | Bringing back Loki and Alloy, so logs from every server land in one searchable place — mostly infrastructure, because the app already writes the right format. |
 | `messaging.md` | How direct and group messages were brought back into lite on 2026-11-12, kept for the next port. |
-| `meta.json` | Sidebar title, description and page order for this docs folder. |
+| `meta.json` | Sidebar order. |
 | `pgbouncer.md` | Putting a connection pooler in front of Postgres — config only, because lite's code is already written as if one were there. |
 | `porting.md` | The general procedure for bringing a piece of the big kit back into the lite kit — getting the source, the copy order, migrations, wiring, and the checks that prove it worked. |
 | `read-replica.md` | Adding a read-only copy of the database so heavy reads stop competing with writes — config first, and possibly one admin panel to port. |
@@ -141,40 +126,3 @@ This page covers 102 files.
 | `split-redis.md` | Moving from one Redis to separate cache and queue instances — a config-only change, because the code already reads two URLs. |
 | `widgets.md` | Bringing back the fourth visibility mechanism — dashboard cards a user or org admin can hide — which lite left out. |
 
-### `docs/setup/`
-
-| File | What it does |
-|---|---|
-| `00-README.md` | How the build-order documents work and the order to read them in. |
-| `01-prerequisites.md` | Build step 1: what to install first (Node, pnpm, Docker) and why each version. |
-| `02-repo-skeleton.md` | Build step 2: the empty repository: folders, git, editor settings. |
-| `03-workspace-and-catalogs.md` | Build step 3: the pnpm workspace and the catalog that holds every dependency version, grouped by what a dependency can constrain. |
-| `04-typescript-configs.md` | Build step 4: the shared TypeScript settings and presets. |
-| `05-lint-and-format.md` | Build step 5: Biome and ESLint, and the import boundaries they enforce. |
-| `06-package-anatomy.md` | Build step 6: the shape every package shares (`src/`, `tests/`, `docs/`, the entry point, the build). |
-| `07-core-package.md` | Build step 7: the `core` package. |
-| `08-permissions-package.md` | Build step 8: the `permissions` package. |
-| `09-errors-package.md` | Build step 9: the `errors` package. |
-| `09b-observability-package.md` | Build step 9b: the `observability` package. |
-| `10-contracts-package.md` | Build step 10: the `contracts` package. |
-| `11-local-infrastructure.md` | Build step 11: the local Docker stack. |
-| `12-application-package.md` | Build step 12: the `application` package: principal, authorizer and ports. |
-| `13-infrastructure-postgres.md` | Build step 13: the Postgres side of `infrastructure`: schema, migrations, repositories, transactions. |
-| `14-vector-store.md` | Build step 14: vector storage with pgvector. |
-| `15-infrastructure-package.md` | Build step 15: the rest of `infrastructure`: Redis, S3, queues, mail. |
-| `16-auth-package.md` | Build step 16: the `auth` package. |
-| `17-composition-container.md` | Build step 17: the `composition` package and its container. |
-| `18-api-client-package.md` | Build step 18: the `api-client` package. |
-| `19-asset-package.md` | Build step 19: the `asset` package. |
-| `20-content-package.md` | Build step 20: the `content` package. |
-| `21-query-package.md` | Build step 21: the `query` package. |
-| `22-ui-package.md` | Build step 22: the `ui` package. |
-| `23-feature-package.md` | Build step 23: the `feature` package. |
-| `24-web-app.md` | Build step 24: the web app, with TanStack Start and oRPC. |
-| `25-worker-app.md` | Build step 25: the worker app and its background jobs. |
-| `26-hygiene-and-ci.md` | Build step 26: CI, git hooks and every check in `check-architecture`, with the failure that put each one there. |
-| `27-verification-and-first-feature.md` | Build step 27: checking the whole thing works, and adding your first feature. |
-| `28-folder-structure.md` | Reference: the folder structure of the whole repository. |
-| `29-naming-and-boundaries.md` | Reference: naming rules and the boundaries between packages. |
-| `30-desktop-app.md` | An optional extra: how a Tauri desktop app would be added. The desktop app is described here but not in the repository. |
-| `index.md` | The thirty-one documents that build the kit from an empty directory to a running app, in the order they must be worked. |

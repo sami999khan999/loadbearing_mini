@@ -527,8 +527,6 @@ Search without an AI key and Gemini embeddings have not. `docs/scale/back-ports.
 ## Where to look next
 
 - [The codebase guide](codebase/index.md): every package and every file, in plain words.
-- [How data flows](../data-flow.md): one request followed from arrival to years later.
 - [The rules](../ai/rules/index.md) and [the arguments behind them](../opinions/index.md).
-- [The build order](../setup/index.md), from an empty folder to the running app.
 - [The running stack](../infra/index.md) and [deployment](../infra/deployment.md).
 - [Bringing back what the small kit removed](../scale/index.md).

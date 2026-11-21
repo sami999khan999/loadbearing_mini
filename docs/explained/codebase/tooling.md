@@ -29,14 +29,14 @@ This page covers 81 files.
 | File | What it does |
 |---|---|
 | `index.md` | The Biome configuration — formatting, import organisation, and the fast lint rules. One base file the root extends, replacing Prettier entirely. |
-| `meta.json` | Sidebar title, description and page order for this docs folder. |
+| `meta.json` | Sidebar order. |
 
 ### `tooling/biome-config/docs/reference/`
 
 | File | What it does |
 |---|---|
 | `boundary.md` | The server-only import boundary — the three overrides blocks that keep database code out of the browser, and the two ways this config can fail silently. |
-| `meta.json` | Sidebar title, description and page order for this docs folder. |
+| `meta.json` | Sidebar order. |
 
 ### `tooling/biome-config/src/`
 
@@ -55,13 +55,13 @@ This page covers 81 files.
 | File | What it does |
 |---|---|
 | `index.md` | One flat config holding the rules Biome cannot express — the AST-shape assertions that are the architecture, plus the typed rules that need a whole TypeScript program. |
-| `meta.json` | Sidebar title, description and page order for this docs folder. |
+| `meta.json` | Sidebar order. |
 
 ### `tooling/eslint-config/docs/reference/`
 
 | File | What it does |
 |---|---|
-| `meta.json` | Sidebar title, description and page order for this docs folder. |
+| `meta.json` | Sidebar order. |
 | `rules.md` | The blocks in the config — ignores, typed rules, the OOP shape assertions, the two bans that need type-import nuance, and the lazy() ban. |
 
 ### `tooling/eslint-config/src/`
@@ -165,14 +165,14 @@ This page covers 81 files.
 | File | What it does |
 |---|---|
 | `index.md` | One strict base and three presets, published as a workspace package so every tsconfig.json in the repository is four lines long. |
-| `meta.json` | Sidebar title, description and page order for this docs folder. |
+| `meta.json` | Sidebar order. |
 
 ### `tooling/tsconfig/docs/reference/`
 
 | File | What it does |
 |---|---|
 | `base.md` | Every compiler option in the shared base, grouped by what it does — and the five that carry real architectural weight. |
-| `meta.json` | Sidebar title, description and page order for this docs folder. |
+| `meta.json` | Sidebar order. |
 | `presets.md` | The three thin presets — library, node-esm, react — what each changes and which packages pick it. |
 
 ### `tooling/tsconfig/src/`

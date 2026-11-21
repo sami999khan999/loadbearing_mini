@@ -24,17 +24,17 @@ It also ships `TestContainer` and the in-memory fakes (`fake/`), so use-case tes
 
 | File | What it does |
 |---|---|
-| `package.json` | The package manifest: its name, its build, test and type-check scripts, and its dependencies. Versions come from the workspace catalog. |
-| `tsconfig.json` | TypeScript settings. Extends a shared preset from `tooling/tsconfig` and type-checks the tests too. |
-| `tsup.config.ts` | Build settings: bundles `src/` into `dist/` as ES modules with type declarations. |
-| `vitest.config.ts` | Test runner settings. Resolves sibling packages to their source, so tests never run against a stale build. |
+| `package.json` | Package manifest. |
+| `tsconfig.json` | TypeScript settings. |
+| `tsup.config.ts` | Build settings. |
+| `vitest.config.ts` | Test settings. |
 
 ### `packages/composition/src/`
 
 | File | What it does |
 |---|---|
-| `import.ts` | Every import from outside this package, written once and re-exported, so the rest of `src/` imports from one place. |
-| `index.ts` | The package's public entry point. Re-exports what other packages may use, and contains no logic. |
+| `import.ts` | Outside-import surface. |
+| `index.ts` | Public entry point. |
 
 ### `packages/composition/src/container/`
 
@@ -43,7 +43,7 @@ It also ships `TestContainer` and the in-memory fakes (`fake/`), so use-case tes
 | `container-health.reader.ts` | `ContainerHealthReader`: the health readings the platform status page shows (database nodes, caches, queues, analytics, replica), read from the container. |
 | `container.config.ts` | `ContainerConfig`: every setting the system needs, in one object: database URLs, Redis URLs, S3, mail, AI provider, sign-in, and optional extras. The apps read the environment and pass this in; the container never reads the environment itself. |
 | `container.ts` | `Container`: the one place everything is wired together. It creates the real database clusters, Redis clients, S3 gateways, mail sender, AI provider and every repository and use-case, and hands them to the apps. Swapping a vendor means editing this file. The web app, worker and realtime app each build one. |
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `test-container.ts` | `TestContainer`: builds the same graph from in-memory fakes, so use-case tests run without Postgres, Redis or S3. |
 
 ### `packages/composition/src/fake/`
@@ -65,7 +65,7 @@ It also ships `TestContainer` and the in-memory fakes (`fake/`), so use-case tes
 | `in-memory-tenant-membership.reader.ts` | Test fake membership check: everyone is a member unless told otherwise. |
 | `in-memory-user.reader.ts` | Test fake name lookup. |
 | `in-memory-vector.store.ts` | Test fake vector store that computes real similarity scores. |
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `recording-activity.logger.ts` | Test fake audit logger that records every row, so a test can check an action was audited. |
 | `recording-capability.invalidator.ts` | Test fake that records every permission cache flush. |
 | `recording-domain-event.publisher.ts` | Test fake that records every published domain event. |
@@ -87,7 +87,7 @@ It also ships `TestContainer` and the in-memory fakes (`fake/`), so use-case tes
 | File | What it does |
 |---|---|
 | `content-mail.renderer.ts` | `ContentMailRenderer`: renders an email: takes the words from the `email` text catalog in the recipient's language and puts them into the mail layout, as text and HTML. |
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `mail-layout.ts` | `MailLayout`: the HTML and plain-text frame every email uses: heading, paragraphs and a button. The one place allowed literal colours, because email clients ignore CSS variables. |
 | `queued-auth.mailer.ts` | `QueuedAuthMailer`: sends Better Auth's emails (verify, reset, two-factor code, change email) by queueing them at high priority. |
 | `queued-invitation.mailer.ts` | `QueuedInvitationMailer`: sends invitation emails by queueing them, with the absolute link to the invitation page. |
@@ -97,7 +97,7 @@ It also ships `TestContainer` and the in-memory fakes (`fake/`), so use-case tes
 
 | File | What it does |
 |---|---|
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `organization.strategy.ts` | `OrganizationShardingStrategy`: decides which database node a request uses: the organization's. Change this file to shard by something else. |
 
 ### `packages/composition/tests/container/`
@@ -132,7 +132,7 @@ It also ships `TestContainer` and the in-memory fakes (`fake/`), so use-case tes
 | File | What it does |
 |---|---|
 | `index.md` | The hand-written DI root that replaces a framework container. One class, no decorators, no reflection, no module graph — and the only place a vendor swap happens. |
-| `meta.json` | Sidebar title, description and page order for this docs folder. |
+| `meta.json` | Sidebar order. |
 
 ### `packages/composition/docs/reference/`
 
@@ -140,5 +140,5 @@ It also ships `TestContainer` and the in-memory fakes (`fake/`), so use-case tes
 |---|---|
 | `container.md` | The four rules that govern the DI root — abstract types on the public surface, no request state, no process.env, reverse-order disposal — plus where use-cases go and why lazy instantiation is banned. |
 | `mail-pipeline.md` | Why every message is a queue job, why auth mail goes through it too, why there is no delivery table, and where the delivery record actually lives. |
-| `meta.json` | Sidebar title, description and page order for this docs folder. |
+| `meta.json` | Sidebar order. |
 | `test-container.md` | The twenty-two fakes and the harness that wires them — why it returns abstract types, why it lives in src/ rather than tests/, and why query counts belong in the integration tier instead. |

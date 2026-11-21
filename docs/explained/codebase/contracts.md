@@ -24,17 +24,17 @@ The server implements these contracts and the browser client is generated from t
 
 | File | What it does |
 |---|---|
-| `package.json` | The package manifest: its name, its build, test and type-check scripts, and its dependencies. Versions come from the workspace catalog. |
-| `tsconfig.json` | TypeScript settings. Extends a shared preset from `tooling/tsconfig` and type-checks the tests too. |
-| `tsup.config.ts` | Build settings: bundles `src/` into `dist/` as ES modules with type declarations. |
-| `vitest.config.ts` | Test runner settings. Resolves sibling packages to their source, so tests never run against a stale build. |
+| `package.json` | Package manifest. |
+| `tsconfig.json` | TypeScript settings. |
+| `tsup.config.ts` | Build settings. |
+| `vitest.config.ts` | Test settings. |
 
 ### `packages/contracts/src/`
 
 | File | What it does |
 |---|---|
-| `import.ts` | Every import from outside this package, written once and re-exported, so the rest of `src/` imports from one place. |
-| `index.ts` | The package's public entry point. Re-exports what other packages may use, and contains no logic. |
+| `import.ts` | Outside-import surface. |
+| `index.ts` | Public entry point. |
 
 ### `packages/contracts/src/apikey/`
 
@@ -43,7 +43,7 @@ The server implements these contracts and the browser client is generated from t
 | `api-key.contract.ts` | The shapes for API keys: a key as listed (name, prefix, permissions, expiry; never the secret), the create input, and the one response that carries the secret once. |
 | `api-key.entity.ts` | `ApiKeyEntity`: small pure answers about one key row, such as "is it expired" and "is it still usable", so every list shows them the same way. |
 | `api-key.procedures.ts` | The API key endpoints: list, create, revoke. Revoking keeps the row for the audit trail. |
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 
 ### `packages/contracts/src/catalog/`
 
@@ -83,7 +83,7 @@ The server implements these contracts and the browser client is generated from t
 | `doc-page.procedures.ts` | The doc page endpoints: read a page as a reader, the editor's tree, create, save a draft, publish, move, delete, preview, list and restore revisions, search, and get an image upload address. |
 | `doc-space.contract.ts` | The shapes for doc spaces: the audience (members, public, granted, owner), slug, title, icon, theme, GitHub link, access link, the space as listed, and its sidebar. |
 | `doc-space.procedures.ts` | The doc space endpoints: list, read, read the sidebar, create, update, delete. |
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 
 ### `packages/contracts/src/document/`
 
@@ -91,20 +91,20 @@ The server implements these contracts and the browser client is generated from t
 |---|---|
 | `document.contract.ts` | The shapes for AI document search: a document to index, the "queued" answer, a search query, and one hit (a matching chunk with its similarity score). |
 | `document.procedures.ts` | The document endpoints: index a document (the work is queued for the worker) and search. |
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 
 ### `packages/contracts/src/mail/`
 
 | File | What it does |
 |---|---|
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `mail-template.manifest.ts` | `MailTemplates`: every email the system can send (verify email, reset password, invitation, two-factor code, digest and more) and the exact parameters each needs. The worker checks a queued mail job against it before rendering. |
 
 ### `packages/contracts/src/member/`
 
 | File | What it does |
 |---|---|
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `member.contract.ts` | The shapes for members and invitations: a member as listed (name, email, role, active, suspended), an invitation, and the inputs to invite, resend, revoke, change role and deactivate. |
 | `member.entity.ts` | `MemberEntity`: small pure answers about a member row, such as "is this the owner" and "is the account suspended by the platform". |
 | `member.procedures.ts` | The member endpoints: list members and invitations, invite, resend, revoke, change role, deactivate and reactivate. |
@@ -113,7 +113,7 @@ The server implements these contracts and the browser client is generated from t
 
 | File | What it does |
 |---|---|
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `notification.contract.ts` | The shapes for notifications: one notification, its kind and category, the archived-month query, and per-user preferences (per category and channel: instant, digest or off). |
 | `notification.entity.ts` | `NotificationEntity`: which text to show for a notification and where clicking it should go. |
 | `notification.procedures.ts` | The notification endpoints: list, unread count for the bell, mark one or all read, archived months, and preferences. |
@@ -122,7 +122,7 @@ The server implements these contracts and the browser client is generated from t
 
 | File | What it does |
 |---|---|
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `override.contract.ts` | The shapes for per-person overrides: one exception to a person's role (an extra permission or a removed one), with a reason and an expiry of at most 90 days. |
 | `override.procedures.ts` | The override endpoints: list, grant, deny, clear. |
 
@@ -130,7 +130,7 @@ The server implements these contracts and the browser client is generated from t
 
 | File | What it does |
 |---|---|
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `platform.contract.ts` | Every shape for the super admin screens: system health and status, plans and entitlements, accounts and suspension, module switches, feature flags and their targets, tenant export and delete, plus (in the big kit) retention, cold storage, the analytics projection, the read replica and the shard map. |
 | `platform.procedures.ts` | Every super admin endpoint, each tied to its `platform.*` permission. |
 
@@ -140,7 +140,7 @@ The server implements these contracts and the browser client is generated from t
 |---|---|
 | `envelope.ts` | `Envelope`: the one list shape every list endpoint returns (items plus paging), so every screen handles empty lists the same way. |
 | `identifiers.ts` | `Identifiers` and the branded ID types (`OrganizationId`, `UserId`, `DocPageId` and so on). Each ID has its own type, so passing a user ID where an organization ID belongs fails to compile. |
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `keyset.ts` | `Keyset`: cursor-based paging for big lists. The client sends back the opaque `nextCursor` it was given instead of a page number, which stays fast on huge tables. |
 | `pagination.ts` | `Pagination`: page-number paging for small lists, capped at 100 per page. |
 | `password.ts` | `Password`: the minimum and maximum password length, named once so every form agrees with the server. |
@@ -155,7 +155,7 @@ The server implements these contracts and the browser client is generated from t
 
 | File | What it does |
 |---|---|
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `realtime.contract.ts` | The live-stream message shapes: the closed list of event names the browser can receive and the small payload each carries (IDs to refresh, never data to show). |
 | `realtime.procedures.ts` | The live-stream endpoint: one stream every signed-in tab opens. |
 
@@ -165,14 +165,14 @@ The server implements these contracts and the browser client is generated from t
 |---|---|
 | `activity-actions.ts` | `ActivityActions`: looks up an audit action's details. The audit logger only accepts names from this list. |
 | `domain-events.ts` | `DomainEvents`: looks up and validates domain events. Defines what a use-case hands the publisher and what a subscriber receives, typed so checking the event name also types its payload. |
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `procedure-permissions.ts` | `ProcedurePermissions`: looks up which permission an endpoint path requires, safely (unknown paths are refused). |
 
 ### `packages/contracts/src/role/`
 
 | File | What it does |
 |---|---|
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `role.contract.ts` | The shapes for roles: a role, its permissions, the effective-permission explanation for one person, and the inputs to create, rename, delete and grant or revoke a permission. |
 | `role.entity.ts` | `RoleEntity`: small pure answers about a role, such as "is it a system role that is re-seeded on every deploy" and "is it the owner role". |
 | `role.procedures.ts` | The role endpoints: list, create, update, delete, grant, revoke, inspect someone's effective permissions, and read the organization's plan ceiling. |
@@ -223,7 +223,7 @@ The server implements these contracts and the browser client is generated from t
 | File | What it does |
 |---|---|
 | `index.md` | Branded identifiers, the one list envelope, the merged oRPC contract, and the procedure→permission map — the shapes every runtime agrees on. |
-| `meta.json` | Sidebar title, description and page order for this docs folder. |
+| `meta.json` | Sidebar order. |
 
 ### `packages/contracts/docs/reference/`
 
@@ -232,5 +232,5 @@ The server implements these contracts and the browser client is generated from t
 | `envelope.md` | One list shape for the whole product, and why the pagination cap lives in the schema. |
 | `identifiers.md` | Why every UUID is branded, what branding costs, and where the parse boundary belongs. |
 | `keyset.md` | Why the newer lists page by cursor rather than offset, why the page carries no total, and what the cursor actually encodes. |
-| `meta.json` | Sidebar title, description and page order for this docs folder. |
+| `meta.json` | Sidebar order. |
 | `procedure-permissions.md` | The map that guarantees no procedure ships ungated, the test that enforces it, and why the walker uses oRPC's own predicate. |

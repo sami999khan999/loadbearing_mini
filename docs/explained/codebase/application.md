@@ -26,17 +26,17 @@ Folders by subject: `ai`, `apikey`, `doc`, `flag`, `mail`, `member`, `notificati
 
 | File | What it does |
 |---|---|
-| `package.json` | The package manifest: its name, its build, test and type-check scripts, and its dependencies. Versions come from the workspace catalog. |
-| `tsconfig.json` | TypeScript settings. Extends a shared preset from `tooling/tsconfig` and type-checks the tests too. |
-| `tsup.config.ts` | Build settings: bundles `src/` into `dist/` as ES modules with type declarations. |
-| `vitest.config.ts` | Test runner settings. Resolves sibling packages to their source, so tests never run against a stale build. |
+| `package.json` | Package manifest. |
+| `tsconfig.json` | TypeScript settings. |
+| `tsup.config.ts` | Build settings. |
+| `vitest.config.ts` | Test settings. |
 
 ### `packages/application/src/`
 
 | File | What it does |
 |---|---|
-| `import.ts` | Every import from outside this package, written once and re-exported, so the rest of `src/` imports from one place. |
-| `index.ts` | The package's public entry point. Re-exports what other packages may use, and contains no logic. |
+| `import.ts` | Outside-import surface. |
+| `index.ts` | Public entry point. |
 
 ### `packages/application/src/ai/`
 
@@ -46,7 +46,7 @@ Folders by subject: `ai`, `apikey`, `doc`, `flag`, `mail`, `member`, `notificati
 | `chunk-source.ts` | `ChunkSource`: the document types whose chunks carry their own read rule, today Docs pages, so the shared document search never returns them. |
 | `document-index.publisher.ts` | `DocumentIndexPublisher`: the one way onto the embedding queue. Stores the text in the bucket and queues the job, for a person's request and for a Docs publish alike. |
 | `index-document.use-case.ts` | Indexes one document for AI search: splits the text into chunks, asks the embedding provider for vectors in batches, and replaces the document's old chunks in one transaction. Run by the worker. |
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `queue-document-index.use-case.ts` | The request-side half of indexing: checks the permission, refuses the reserved Docs type, then puts an "index this document" job on the queue and returns at once, because embedding takes a network round trip. |
 | `reembed-chunks.use-case.ts` | After the AI provider or model changes, re-embeds every chunk the current model did not write, a batch at a time. The text and chunk boundaries stay as they are. Run by `pnpm ai:reindex`. |
 | `search-documents.use-case.ts` | Searches indexed documents. Turns the question into a vector (or uses full-text search when no provider is set) and only searches documents the person may read, leaving out Docs chunks, before ranking anything. |
@@ -58,7 +58,7 @@ Folders by subject: `ai`, `apikey`, `doc`, `flag`, `mail`, `member`, `notificati
 | `api-key.repository.ts` | `ApiKeyRepository`: the interface for storing API keys. Separate shapes for authentication (carries the digest) and for the settings list (never does). |
 | `api-key.rules.ts` | `ApiKeyRules`: mints a new key (a recognisable prefix plus a random secret) and its digest. The format lives here because both this package and `auth` depend on it. |
 | `create-api-key.use-case.ts` | Creates an API key. The person must be signed in (a key cannot mint a key), may only give the key permissions they hold, and sees the secret exactly once. |
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `list-api-keys.use-case.ts` | Lists the organization's API keys. The organization always comes from the signed-in person, never from the input. |
 | `revoke-api-key.use-case.ts` | Revokes an API key by stamping a time on it. The row stays for the audit trail, and revoking twice keeps the first time. |
 
@@ -88,7 +88,7 @@ Folders by subject: `ai`, `apikey`, `doc`, `flag`, `mail`, `member`, `notificati
 | `get-doc-page.use-case.ts` | Gets a page's draft for the editor. |
 | `get-doc-revision.use-case.ts` | Gets one old published version of a page, for the history view. |
 | `get-doc-space.use-case.ts` | Gets one space's settings for the editor. |
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `list-doc-access-options.use-case.ts` | Lists the modules, permissions, flags and plans a writer may tie a doc to, for the pickers. |
 | `list-doc-grants.use-case.ts` | Lists who a granted space is open to, expired grants included. |
 | `list-doc-pages.use-case.ts` | Lists every page in a space for the editor's tree, drafts included, without page bodies. |
@@ -120,13 +120,13 @@ Folders by subject: `ai`, `apikey`, `doc`, `flag`, `mail`, `member`, `notificati
 |---|---|
 | `flag.cache.ts` | `FlagCache`: answers "is this flag on for this organization?" from one cached copy of every flag, refreshed at least every minute. |
 | `flag.repository.ts` | `FlagRepository`: the interface for storing flag switches and which organizations each flag is turned on for. |
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 
 ### `packages/application/src/mail/`
 
 | File | What it does |
 |---|---|
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `send-mail.use-case.ts` | Sends one email from a queued job: checks the template and its parameters, renders it, and hands it to the email sender. A failure is thrown so the queue retries. |
 
 ### `packages/application/src/member/`
@@ -134,7 +134,7 @@ Folders by subject: `ai`, `apikey`, `doc`, `flag`, `mail`, `member`, `notificati
 | File | What it does |
 |---|---|
 | `change-member-role.use-case.ts` | Moves a member to another role. Refuses to leave the organization without an active owner, and refuses to give out a role that outranks the person doing it. |
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `invitation.mailer.ts` | `InvitationMailer`: the interface for sending an invitation email. The wording and links belong to the implementation. |
 | `invitation.repository.ts` | `InvitationRepository`: the interface for storing invitations. Only the token's digest is stored. |
 | `invite-member.use-case.ts` | Invites someone by email into a role. Checks permissions and rank, saves the invitation with the audit row and event in one transaction, then sends the mail after the commit. |
@@ -154,7 +154,7 @@ Folders by subject: `ai`, `apikey`, `doc`, `flag`, `mail`, `member`, `notificati
 | `count-unread-notifications.use-case.ts` | Counts unread notifications for the bell, capped at 99 and cached for a minute. |
 | `deliver-notification.use-case.ts` | Turns one domain event into notifications: works out who should hear about it, respects each person's preferences, writes the in-app rows, queues emails and pushes live updates. A replayed event writes nothing twice. |
 | `get-notification-preferences.use-case.ts` | Returns a person's complete preferences grid (every category and channel), filling in defaults for rows never saved. |
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `list-notifications.use-case.ts` | Lists the person's own notification inbox. |
 | `mark-all-notifications-read.use-case.ts` | Marks every notification read. |
 | `mark-notification-read.use-case.ts` | Marks one of the person's own notifications read. |
@@ -185,7 +185,7 @@ Folders by subject: `ai`, `apikey`, `doc`, `flag`, `mail`, `member`, `notificati
 | `export-organization.use-case.ts` | Queues an export of all of one organization's data to storage. At most one per organization per day. |
 | `find-account.use-case.ts` | Looks a person up by email: their memberships, suspension and platform denies in every organization. |
 | `get-organization-entitlement.use-case.ts` | Shows one organization's plan, its adjustments, and how much of each role the plan lets through. |
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `inspect-platform-status.use-case.ts` | The platform status page: database, caches, queues and (if present) analytics store and replica health. |
 | `list-flags.use-case.ts` | Lists every feature flag with its owner, expiry, switch and targets, plus rows for flags the code no longer declares. |
 | `list-module-switches.use-case.ts` | Lists every module the emergency kill switch can turn off, and whether it is on. |
@@ -218,7 +218,7 @@ Folders by subject: `ai`, `apikey`, `doc`, `flag`, `mail`, `member`, `notificati
 | `domain-event.publisher.ts` | `DomainEventPublisher`: the interface for announcing a domain event. Called inside the transaction, so the event is only sent if the change commits. |
 | `email.sender.ts` | `EmailSender`: the interface for actually sending one email (text and HTML parts). |
 | `embedding.provider.ts` | `EmbeddingProvider`: the interface for turning text into vectors, always in batches. |
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `mail.publisher.ts` | `MailPublisher`: the interface for asking for an email to be sent. It puts a job on the mail queue; the worker sends it. |
 | `mail.renderer.ts` | `MailRenderer`: the interface for turning a template and its parameters into a subject, text and HTML in the recipient's language. |
 | `maintenance.gateway.ts` | `MaintenanceGateway`: the interface for housekeeping: sweeping expired sessions, tokens and invitations, creating future partitions, and counting leftovers. |
@@ -248,7 +248,7 @@ Folders by subject: `ai`, `apikey`, `doc`, `flag`, `mail`, `member`, `notificati
 |---|---|
 | `authorizer.ts` | `Authorizer`: the real permission gate. Every use-case calls `assert()` first, so the check runs no matter how the call arrived (web request, server render or worker). |
 | `cancellation.ts` | `CancellationSignal`: a minimal "stop now" signal the domain can accept without depending on browser or Node types. |
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `job-key.ts` | `JobKey`: builds safe job IDs for the queue (no `:`), hashing long or untrusted parts. |
 | `partitioned-table.ts` | `PartitionedTable`: the list of tables split by organization and, for those that grow with activity, by month, with how many months each is kept. The worker and the migrations both read it. |
 | `principal.ts` | `Principal`: who is acting, in one shape, however they arrived: a browser session, a desktop token, an API key or the worker. It holds the user, the organization and the resolved permissions. |
@@ -270,7 +270,7 @@ Folders by subject: `ai`, `apikey`, `doc`, `flag`, `mail`, `member`, `notificati
 | `get-entitlement.use-case.ts` | Reads the organization's plan ceiling for the role editor, which greys out permissions the plan does not include. |
 | `grant-permission-override.use-case.ts` | Gives one person one extra permission for a stated reason until a date (30 days by default, 90 at most). |
 | `grant-permission.use-case.ts` | Adds a permission to a role. Nobody can hand out a permission they do not hold themselves. |
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `inspect-effective-permissions.use-case.ts` | Shows what one member can actually do and where each permission came from (role, override, plan). |
 | `list-permission-overrides.use-case.ts` | Lists one member's live exceptions, including platform denies. |
 | `list-roles.use-case.ts` | Lists the organization's roles with their permissions. |
@@ -287,7 +287,7 @@ Folders by subject: `ai`, `apikey`, `doc`, `flag`, `mail`, `member`, `notificati
 |---|---|
 | `activity-relay.subscriber.ts` | Writes an audit row that a catalog transaction could not write on the organization's own node, after it arrives through the outbox. |
 | `event.subscriber.ts` | `EventSubscriber`: the base for anything that reacts to domain events. Each must be safe to run twice on the same event. |
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `subscriber-registry.ts` | `SubscriberRegistry`: the list of every event subscriber, checked at start-up (unique names, known events) so a wiring mistake crashes on boot instead of losing events. |
 
 ### `packages/application/tests/ai/`
@@ -407,7 +407,7 @@ Folders by subject: `ai`, `apikey`, `doc`, `flag`, `mail`, `member`, `notificati
 | File | What it does |
 |---|---|
 | `index.md` | Principal, Authorizer, and the abstract ports. Zero framework imports and no third-party runtime dependency — the package that makes every infrastructure decision reversible. |
-| `meta.json` | Sidebar title, description and page order for this docs folder. |
+| `meta.json` | Sidebar order. |
 
 ### `packages/application/docs/reference/`
 
@@ -415,7 +415,7 @@ Folders by subject: `ai`, `apikey`, `doc`, `flag`, `mail`, `member`, `notificati
 |---|---|
 | `authorizer.md` | Three lines that are the system's only real permission gate — why they live in the use-case, the position they occupy, and the timing leak that position accepts. |
 | `doc.md` | One slice for public, private and organization docs — why platform docs are the platform organization's rows, how a page is rendered once and read from one row, and who may read what. |
-| `meta.json` | Sidebar title, description and page order for this docs folder. |
+| `meta.json` | Sidebar order. |
 | `notification-policy.md` | What an event means to a person — who hears about it, in which channel, and why the unread count is cached while the rows never are. |
 | `platform.md` | What a use-case above the tenant may assume, why its health seam is a slice port rather than a cross-cutting one, and the audit rebase that keeps a global change out of a customer's trail. |
 | `ports.md` | One section per port whose reasoning outgrew a two-line comment — why three of them carry no Principal, and what each abstract method is refusing to offer. |
