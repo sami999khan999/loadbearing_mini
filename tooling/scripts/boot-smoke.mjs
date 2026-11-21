@@ -2,7 +2,7 @@
 //
 // The hole this closes: every check in CI runs against source. Nothing ever started a
 // process, so a missing environment variable — `env.ts` parses at module load — was
-// invisible until a deploy. See docs/setup/26.
+// invisible until a deploy.
 //
 // Run: node tooling/scripts/boot-smoke.mjs worker | web | realtime
 
@@ -33,7 +33,7 @@ const APPS = {
     started: "Listening on:",
     // `/`, not `/api/health`. The health route renders no JSX and reports its
     // dependencies, so it answers 200 through the bug this exists to catch and 503
-    // through a dependency nobody started. See docs/setup/26-hygiene-and-ci.md, step 26.4d.
+    // through a dependency nobody started.
     probe: "/",
   },
   realtime: {
