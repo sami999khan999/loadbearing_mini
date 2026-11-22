@@ -19,6 +19,7 @@ pnpm repo:check           # sherif: workspace shape
 pnpm infra:up             # postgres, redis, minio, mailpit — the whole lite stack
 pnpm smoke                # wiring check against live containers
 pnpm platform:grant <email>  # the first platform admin; later ones are invited
+pnpm admin:seed           # local only: a verified platform admin, ADMIN_EMAIL/ADMIN_PASSWORD or a printed one
 pnpm queue:replay <queue> [job]  # re-queue failed jobs (kept a week)
 pnpm queue:status | queue:pause <queue|all> | queue:resume <queue|all>  # BullMQ's global pause
 pnpm db:generate          # drizzle-kit, then partition-ddl.ts writes PARTITION BY

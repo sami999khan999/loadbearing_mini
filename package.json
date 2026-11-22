@@ -44,6 +44,7 @@
     "db:migrate": "pnpm --filter @loadbearing/infrastructure run db:migrate",
     "db:partitions": "pnpm --filter @loadbearing/infrastructure run db:partitions",
     "db:seed": "pnpm --filter @loadbearing/infrastructure run db:seed",
+    "admin:seed": "pnpm --filter @loadbearing/infrastructure run admin:seed",
     "db:studio": "pnpm --filter @loadbearing/infrastructure run db:studio",
     "platform:grant": "pnpm --filter @loadbearing/infrastructure run platform:grant",
     "queue:replay": "pnpm --filter @loadbearing/infrastructure run queue:replay",
