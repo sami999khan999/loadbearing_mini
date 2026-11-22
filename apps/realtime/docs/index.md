@@ -5,15 +5,13 @@ description: The stream process. It holds every open browser stream and nothing 
 
 # `@loadbearing/realtime`
 
-**This app answers one question: who holds the open line to every browser tab?** Not the web app.
+**This app holds the open line to every browser tab** — so the web app does not.
 Every tab keeps one server-sent-event stream open for as long as it is open; held in the
-process that also renders pages, a busy hour or a deploy's reconnect wave competes with every click.
-Here, it competes with nothing.
+page-rendering process, a busy hour or a deploy's reconnect wave would compete with every click.
 
 It holds no business logic, and no router of its own. The one stream — `realtime.stream`, the
 user's channel — comes from `@loadbearing/api-server`, the same
-code and the same `authed` chain the web app mounts. What is this app's own is the HTTP listener,
-the probe and the shutdown.
+`authed` chain the web app mounts. Its own: the HTTP listener, the probe and the shutdown.
 
 ```
 apps/realtime/src/
@@ -35,10 +33,9 @@ the membership check each stream repeats every minute. Its pool is five connecti
 
 ## How the browser reaches it
 
-At the web app's own origin, under `/api/realtime`. `ApiClient.overHttp` sends every `realtime.*`
-procedure there and everything else to `/api/rpc`; Vite proxies the path to `REALTIME_PORT` in
-development, and the reverse proxy does in production. Same origin is what lets the session cookie
-ride along with no CORS and no second domain — the cookie is `SameSite=Lax` and host-scoped.
+At the web origin under `/api/realtime`: `ApiClient.overHttp` routes `realtime.*` there, everything else
+to `/api/rpc`; Vite (dev) or the reverse proxy (prod) forwards to `REALTIME_PORT`. Same origin lets the
+host-scoped `SameSite=Lax` cookie ride with no CORS.
 
 ## Reference
 

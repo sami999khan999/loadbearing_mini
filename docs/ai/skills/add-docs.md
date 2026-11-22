@@ -9,17 +9,16 @@ Every package carries its own `docs/`, next to the code it describes, answering 
 shaped the way it is**. Not what it does — the types say that — but what it costs, what breaks if
 you use it the obvious way, and which decision it encodes.
 
-That is a different job from the other three trees, and keeping them apart is what stops all four
+That is a different job from the other two trees, and keeping them apart is what stops all three
 rotting:
 
 | Tree | Answers |
 |---|---|
 | `packages/<name>/docs/` | Why *this package's* exports are shaped this way |
 | [`docs/opinions/`](../../opinions/index.md) | Why a *repository-wide* rule exists |
-| [`docs/setup/`](../../setup/index.md) | How the package was *built*, in order |
 | [`docs/ai/rules/`](../rules/index.md) | What an agent must *do*, stated flatly |
 
-**If what you are writing belongs in one of the lower three, put it there and link to it.** A
+**If what you are writing belongs in one of the lower two, put it there and link to it.** A
 repository-wide rule restated in a package's docs is a second copy that will drift.
 
 ---
@@ -41,8 +40,7 @@ Plain Markdown with YAML frontmatter, never MDX, so it renders on GitHub today a
 by a docs site later without touching the content. Callouts use GitHub alert syntax — `> [!NOTE]`,
 `> [!IMPORTANT]`, `> [!WARNING]`, `> [!CAUTION]`.
 
-`docs/` is not in `package.json`'s `files` array and never ships. See
-[06 · Package anatomy](../../setup/06-package-anatomy.md).
+`docs/` is not in `package.json`'s `files` array and never ships.
 
 > `reference/` has no `index.md` and should not have one — the parent names every page and
 > `meta.json` orders them. That exemption is stated in [Folders](../../opinions/folders.md).
@@ -74,7 +72,7 @@ two packages' docs comparable:
    and the one most often skipped; without it the package grows by accretion.
 5. **The exports themselves** — one subsection each, with the signature, a usage line, and a link
    to its reference page.
-6. **See also** — the reference pages, the `docs/setup/` document that built it, and any package
+6. **See also** — the reference pages, and any package
    whose decision this one inherits.
 
 `packages/core/docs/index.md` is the worked example. Read it before writing a new one.
@@ -125,7 +123,6 @@ it that does not exist is a dead link. Both are silent.
 ## Step 4 — link outward, never restate
 
 - To a repository rule → [`docs/opinions/`](../../opinions/index.md).
-- To how it was built → the numbered [`docs/setup/`](../../setup/index.md) document.
 - To another package's decision → that package's `docs/`, by relative path.
 
 `core`'s docs link `tooling/tsconfig`'s reference page for where `lib: ["ES2024"]` comes from rather

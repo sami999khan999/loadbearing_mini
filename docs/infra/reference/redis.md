@@ -5,8 +5,8 @@ description: One instance for the cache, the queue and realtime — durable, nev
 
 # `redis`
 
-One container holds three jobs: the cache, BullMQ's queue and live frames. It is configured for the
-job that cannot lose data, the queue.
+One container, three jobs — the cache, BullMQ's queue and live frames — configured for the one that
+cannot lose data: the queue.
 
 | | `redis` |
 | --- | --- |
@@ -18,40 +18,25 @@ job that cannot lose data, the queue.
 | **Holds** | capability cache, session cache, BullMQ jobs, pub/sub frames |
 | **If flushed** | **lost work** — the queue goes with the cache |
 
-`REDIS_CACHE_URL` and `REDIS_QUEUE_URL` both point at it, **on different databases**: the cache
-on `/1`, the queue on the default `/0`. `CacheStore.deletePrefix` runs `SCAN MATCH`, and a SCAN
-walks one database. On one shared database every role or grant change walked every BullMQ key
-too: 250 round trips beside 50,000 queue keys, twice per change (`BL.17`). Apart, it walks the
-cache alone. Live frames follow the cache URL, and pub/sub is not tied to a database.
+`REDIS_CACHE_URL` and `REDIS_QUEUE_URL` both point at it, **on different databases** — cache on `/1`,
+queue on `/0`. `CacheStore.deletePrefix` runs `SCAN MATCH`, which walks one database; sharing one,
+every role or grant change walked every BullMQ key too (250 round trips beside 50,000 queue keys,
+twice per change, `BL.17`). Live frames follow the cache URL; pub/sub is not tied to a database.
 
 ---
 
 ## Why one, and why two URLs
 
-Redis does three jobs here and they are not equally disposable.
+**Cache and sessions are cache-aside** (`CapabilityCache` → `PgCapabilityRepository`, Better Auth's
+secondary storage → the Postgres `session` table): losing them costs latency. **A BullMQ job is derived
+from nothing** — no table rebuilds it ([derived-store test](../../opinions/data-and-scale.md)). One
+instance forces one policy: `allkeys-lru` silently deletes queued jobs; `noeviction` makes a full cache
+error.
 
-**Cache and session storage are cache-aside.** `CapabilityCache` reads through to
-`PgCapabilityRepository` on a miss; Better Auth's secondary storage reads through to the Postgres
-`session` table. Losing either costs latency, not data.
-
-**A BullMQ job is derived from nothing.** It is work somebody asked for that has not happened yet.
-There is no table to rebuild it from, which is why the [derived-store
-test](../../opinions/data-and-scale.md) puts it in a different category from everything else
-on this page.
-
-One instance forces one eviction policy onto both:
-
-- `allkeys-lru` — memory pressure silently deletes queued jobs. Work vanishes with no error.
-- `noeviction` — the queue is safe, and a full cache starts returning errors on a path that should
-  degrade gracefully.
-
-**Lite picks `noeviction`, and the cache pays for it.** Every cache key carries a TTL, so stale
-entries expire on their own. A full instance is still an error rather than an eviction.
-
-**The two URLs stay separate anyway.** The code already dials the cache and the queue by different
-names. Splitting them onto two instances is two `.env` lines and a compose block —
-[split-redis](../../scale/split-redis.md). Do it once the cache wants `allkeys-lru`, or once
-flushing the cache without flushing the queue matters.
+**Lite picks `noeviction`, and the cache pays:** every cache key carries a TTL so stale entries expire,
+but a full instance is still an error. **The URLs stay separate anyway** — splitting onto two instances
+is two `.env` lines and a compose block ([split-redis](../../scale/split-redis.md)), worth doing once
+the cache wants `allkeys-lru` or flushing it alone matters.
 
 ---
 
@@ -62,30 +47,24 @@ redis:
   command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
 ```
 
-**`--appendonly yes`** turns on the append-only file — every write is journaled, so a crash loses at
-most the last fsync window rather than everything since the last snapshot. This is the flag that
-makes the volume meaningful.
+- **`--appendonly yes`** journals every write, so a crash loses at most the last fsync window — what
+  makes the volume meaningful.
+- **`--maxmemory-policy noeviction`** errors when full instead of deleting. A failed `enqueue` is a
+  failed request; a silently evicted job is a customer asking why nothing happened.
 
-**`--maxmemory-policy noeviction`** makes Redis return an error when memory is exhausted instead of
-deleting something. Loud and recoverable beats silent and lossy: a failed `enqueue` surfaces as a
-failed request, where a silently evicted job surfaces as a customer asking why nothing happened.
+**So both job sets are capped:** completed jobs kept an hour, max 1,000 per queue; failed jobs a week,
+max 10,000. The failed set is the dead letter (`pnpm queue:replay <queue>`), and the cap stops a
+failure storm filling a `noeviction` instance that would then refuse every enqueue. Likewise an
+embedding job carries its text's bucket key, never the text (up to 100 KB).
 
-**That is why both job sets are capped.** A completed job is kept an hour and at most a thousand
-per queue; a failed one a week and at most ten thousand. The failed set is the dead letter —
-`pnpm queue:replay <queue>` puts its jobs back — and the cap is what stops a day-long failure storm
-filling a `noeviction` instance, which would then refuse every enqueue. For the same reason an
-embedding job carries the key of its text in the bucket, never the text (up to 100 KB a job).
-
-> **AOF covers a crash. It does not cover `FLUSHALL`.** That is why the queue also wants a nightly
-> sweep that re-enqueues unprocessed work, reconciling against Postgres rather than against BullMQ's
-> own job records — which age out after an hour ([15](../../setup/15-infrastructure-package.md)).
+> **AOF covers a crash, not `FLUSHALL`.** Hence a nightly sweep re-enqueueing unprocessed work,
+> reconciled against Postgres rather than BullMQ job records, which age out in an hour.
 
 ---
 
 ## How the application picks one
 
-`RedisConnection` takes the URLs and hands out the right client per job
-([15](../../setup/15-infrastructure-package.md)):
+`RedisConnection` takes the URLs and hands out the right client per job:
 
 ```ts
 redis.client()           // cacheUrl    — prefixed, for RedisCacheStore
@@ -94,37 +73,25 @@ redis.realtimeClient()   // realtimeUrl — live frames; the cache client itself
 redis.subscriberClient() // realtimeUrl — subscriber mode, opened by the first stream
 ```
 
-Locally every URL names the one instance, so every client dials `localhost:26379`.
-
-**One class taking two URLs rather than two classes**, because which connection a consumer gets
-should be a property of what it is doing rather than a wiring decision. Passing two bare `Redis`
-instances into `Container` puts that choice at a call site where both arguments have the same type
+Locally every URL names the one instance (`localhost:26379`). **One class, several URLs**, so the
+connection follows what a consumer does — two bare `Redis` arguments to `Container` have the same type,
 and swapping them compiles.
 
-Two settings are not tuning:
+- **`maxRetriesPerRequest: null` on the queue client** — BullMQ's blocking commands stay open, and
+  ioredis's default retry limit kills them: workers stop consuming after minutes, with no error.
+- **A key prefix on the cache client, none on the queue client** — ioredis prepends it transparently,
+  right for cache keys and breaking for BullMQ.
 
-**`maxRetriesPerRequest: null` on the queue client.** BullMQ's blocking commands sit open
-indefinitely and ioredis's default retry limit kills them. The symptom is workers that stop consuming
-after a few minutes with no error.
+> **Sessions stay in Postgres; Redis is only a read-through.** Lite never evicts, but a TTL expires a
+> cached session, and a split Redis would evict — either way a missing session is a miss, never a
+> sign-out.
 
-**A key prefix on the cache client and none on the queue client.** ioredis prepends the prefix
-transparently, which is what you want for cache keys and what breaks BullMQ, whose key structure it
-manages itself.
+### A separate instance for live frames
 
-> **Sessions stay in Postgres, and Redis is only a read-through in front of them.** Lite's Redis
-> never evicts, but a TTL expires a cached session, and a split Redis would evict. Either way a
-> missing session must be a cache miss, never a sign-out.
-
-### A separate instance for live frames, when fan-out gets heavy
-
-`REDIS_REALTIME_URL` is optional. Unset, or equal to `REDIS_CACHE_URL`, live frames ride the cache
-instance and `realtimeClient()` **is** the cache client — no extra socket. Set it apart once fan-out
-competes with every request's session and permission reads. A wide fan-out is many publishes, on
-the instance a sign-in is waiting on.
-
-Pub/sub keeps nothing, so that instance needs no persistence and no eviction policy. What it does
-need is attention to `client-output-buffer-limit pubsub`: a subscriber that falls behind is
-**disconnected** at the limit, and every stream on that process then ends and resyncs at once.
+`REDIS_REALTIME_URL` is optional; unset or equal to `REDIS_CACHE_URL`, `realtimeClient()` **is** the
+cache client. Set it apart once wide fan-out (many publishes) competes with sign-in and permission
+reads. Pub/sub keeps nothing, but watch `client-output-buffer-limit pubsub`: a lagging subscriber is
+**disconnected** at the limit, ending and resyncing every stream on that process at once.
 
 ---
 
@@ -136,6 +103,5 @@ $C exec redis redis-cli config get maxmemory-policy   # noeviction
 $C exec redis redis-cli config get appendonly         # yes
 ```
 
-**Do not `flushall` this instance with work pending.** The cache and the queue share it, so a flush
-deletes queued jobs too. Locally that costs nothing. Clearing only the cache needs the split —
-[split-redis](../../scale/split-redis.md).
+**Never `flushall` with work pending** — the queue shares the instance. Clearing only the cache needs
+the split ([split-redis](../../scale/split-redis.md)).

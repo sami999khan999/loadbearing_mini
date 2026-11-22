@@ -22,17 +22,17 @@ How the browser (or a future desktop app) talks to the server: the typed API cli
 
 | File | What it does |
 |---|---|
-| `package.json` | The package manifest: its name, its build, test and type-check scripts, and its dependencies. Versions come from the workspace catalog. |
-| `tsconfig.json` | TypeScript settings. Extends a shared preset from `tooling/tsconfig` and type-checks the tests too. |
-| `tsup.config.ts` | Build settings: bundles `src/` into `dist/` as ES modules with type declarations. |
-| `vitest.config.ts` | Test runner settings. Resolves sibling packages to their source, so tests never run against a stale build. |
+| `package.json` | Package manifest. |
+| `tsconfig.json` | TypeScript settings. |
+| `tsup.config.ts` | Build settings. |
+| `vitest.config.ts` | Test settings. |
 
 ### `packages/api-client/src/`
 
 | File | What it does |
 |---|---|
-| `import.ts` | Every import from outside this package, written once and re-exported, so the rest of `src/` imports from one place. |
-| `index.ts` | The package's public entry point. Re-exports what other packages may use, and contains no logic. |
+| `import.ts` | Outside-import surface. |
+| `index.ts` | Public entry point. |
 
 ### `packages/api-client/src/auth/`
 
@@ -44,7 +44,7 @@ How the browser (or a future desktop app) talks to the server: the typed API cli
 | `bearer-auth.strategy.ts` | `BearerAuthStrategy`: adds `Authorization: Bearer <token>` from a token provider and never sends cookies. For the desktop app. |
 | `better-auth-error-normalizer.ts` | `BetterAuthErrorNormalizer`: turns Better Auth's error replies into this app's error codes, so forms can branch on them. |
 | `cookie-auth.strategy.ts` | `CookieAuthStrategy`: the browser's strategy: sends the session cookie with every request. |
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `organization.client.ts` | `OrganizationClient`: switch organization, create one, and accept an invitation, through the organization plugin's endpoints. |
 | `token.provider.ts` | `TokenProvider`: where a desktop or mobile host stores the bearer token (`get` and `set`). |
 
@@ -53,7 +53,7 @@ How the browser (or a future desktop app) talks to the server: the typed API cli
 | File | What it does |
 |---|---|
 | `api-client.ts` | `ApiClient`: the typed client for the whole API, built from the shared contract, so calling a missing endpoint fails to compile. Live-stream calls go to the realtime app, everything else to the web app. On the server it can call in-process instead of over the network. |
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 
 ### `packages/api-client/tests/auth/`
 
@@ -76,7 +76,7 @@ How the browser (or a future desktop app) talks to the server: the typed API cli
 | File | What it does |
 |---|---|
 | `index.md` | How to reach the server — the typed oRPC client, the auth-strategy seam, and a transport that lets SSR skip the network entirely. React-free, and it has to stay that way. |
-| `meta.json` | Sidebar title, description and page order for this docs folder. |
+| `meta.json` | Sidebar order. |
 
 ### `packages/api-client/docs/reference/`
 
@@ -84,5 +84,5 @@ How the browser (or a future desktop app) talks to the server: the typed API cli
 |---|---|
 | `auth-strategy.md` | Why the credential seam is an abstract class rather than a config flag, why bearer omits the cookie, and the two-method TokenProvider contract the desktop app depends on. |
 | `better-auth.md` | Why both clients throw instead of returning { data, error }, why a successful sign-in can be a failure, and the code-then-status table BetterAuthErrorNormalizer maps with. |
-| `meta.json` | Sidebar title, description and page order for this docs folder. |
+| `meta.json` | Sidebar order. |
 | `transport.md` | Why ApiClient's constructor is private, what the loopback SSR request actually costs, and why the fetch override reaches globalThis instead of naming Request and Response. |

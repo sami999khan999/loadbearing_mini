@@ -5,36 +5,28 @@ description: Why both clients throw instead of returning { data, error }, why a 
 
 # The Better Auth boundary
 
-`AuthClient` and `AccountClient` are the only files in the repository that name Better Auth's
-client. Everything above them sees `AppError` and promises that resolve or throw. This page is why
-that translation is not cosmetic.
+`AuthClient` and `AccountClient` are the only files naming Better Auth's client; everything above sees
+`AppError` and promises that resolve or throw.
 
 ## Two inferred client types, one instance
 
-`createClient` is not exported and exists for its return type. `ReturnType<typeof createAuthClient>`
-is the **unconfigured** client — the two-factor plugin widens the instance, and annotating with the
-unconfigured type erases that, so `client.twoFactor` does not exist. The type has to be inferred
-from the options and read back out. It is the same trap `AuthFactory.create` hits on the server
-side; see [`auth/docs/reference/auth-factory.md`](../../../auth/docs/reference/auth-factory.md).
-
-`AccountClient` takes the `AuthClient` rather than a config, so there is **one Better Auth instance
-per component tree**: a fetch here and a `getSession()` there share the same cookie handling and the
-same plugin set. The split between the two classes is the one the route groups already draw —
-`(shell)` versus `_authenticated` — and only one of them is ever rendered to an anonymous visitor.
+The unexported `createClient` exists for its return type: `ReturnType<typeof createAuthClient>` is the
+**unconfigured** client, erasing the two-factor plugin's `client.twoFactor`, so the type is inferred
+from the options — the server's `AuthFactory.create` trap
+([auth-factory](../../../auth/docs/reference/auth-factory.md)). `AccountClient` takes the `AuthClient`,
+so there is **one Better Auth instance per tree** sharing cookie handling and plugins. The split follows
+the route groups, `(shell)` vs `_authenticated`; only the first renders to anonymous visitors.
 
 ## Throwing is what makes the error codes reachable
 
-Every method throws rather than returning `{ data, error }`, and throws an `AppError` rather than a
-bare `Error`. The second half is the load-bearing one: `ErrorNormalizer` recognises an `AppError`
-structurally and maps everything else to `INTERNAL`, so a plain `Error` thrown here makes **every
-branch a caller could write on the code unreachable**. That was the bug `T-005` closed for the
-two-factor fork.
+Every method throws an `AppError` rather than returning `{ data, error }` or throwing a bare `Error` —
+`ErrorNormalizer` maps non-`AppError`s to `INTERNAL`, which makes **every caller branch on the code
+unreachable** (the bug `T-005` closed for the two-factor fork).
 
 ## A successful sign-in that is not one
 
-With a second factor enrolled, Better Auth answers `200 { twoFactorRedirect: true }` and no `error`.
-A client that only inspects `error` resolves, `onSuccess` fires, and the app navigates away from a
-sign-in that never completed.
+With a second factor enrolled, Better Auth answers `200 { twoFactorRedirect: true }` and no `error`, so
+an `error`-only check resolves and navigates away from an incomplete sign-in.
 
 ```ts
 if ((data as { twoFactorRedirect?: boolean } | null)?.twoFactorRedirect === true) {
@@ -42,17 +34,14 @@ if ((data as { twoFactorRedirect?: boolean } | null)?.twoFactorRedirect === true
 }
 ```
 
-Turning it into a throw puts both legs of the flow on one path: the caller branches on the code,
-exactly once. The second leg has three alternatives rather than a sequence — the authenticator app,
-a backup code for the phone that is gone, or a mailed code for the phone that is merely elsewhere —
-and all three throw on a bad code, so a form uses one error path rather than three.
+As a throw, the caller branches on the code once. The second leg has three alternatives (authenticator
+app, backup code for a lost phone, mailed code for an absent one), all throwing on a bad code — one
+error path for the form.
 
 ## `BetterAuthErrorNormalizer`: code first, then status
 
-`BetterAuthError` is declared structurally rather than imported: the library's own error type is
-generic over the configured plugins, and this file reads three fields.
-
-**By code.** Only the codes a form branches on are listed; everything else falls through.
+`BetterAuthError` is structural (the library's type is plugin-generic; three fields are read).
+**By code** — only codes a form branches on:
 
 | Better Auth code | Becomes | Why |
 |---|---|---|
@@ -62,8 +51,8 @@ generic over the configured plugins, and this file reads three fields.
 | `NOT_A_MEMBER` | `ForbiddenError("organization.switch")` | |
 | `INVITATION_NOT_CLAIMABLE` | `NotFoundError("invitation", "token")` | `NOT_FOUND` rather than `FORBIDDEN` for a dead invitation: it is the code the landing page has copy for, and a 403 reads as "please sign in" — which they just did |
 
-**By status, when no code matched.** The status, never the message: `error.message` is Better Auth's
-English prose, and matching on it breaks on their next release and in every locale but one.
+**Else by status, never message** — `error.message` is English prose that breaks on their next release
+and in every other locale.
 
 | Status | Becomes |
 |---|---|
@@ -73,14 +62,10 @@ English prose, and matching on it breaks on their next release and in every loca
 | 403 | `ForbiddenError("rejected")` |
 | anything else | `InternalError()` |
 
-**401 and 403 are different answers and get different arms.** A 401 is "we do not know who you
-are", whose copy is "please sign in"; a 403 is a signed-in user who may not, and telling them to
-sign in is advice that cannot help and reads as a broken session. They shared an arm until `P2.17`.
-
-**The 400 arm carries no violation, because it has no field to name.** It used to build one with an
-empty `field`, and every `error.field.*` template opens with `{field}` — so the sentence rendered as
-" is not valid.", opening on a space. `ErrorCopy.field` now falls back to the generic sentence for
-any violation naming no field, so a second producer cannot reintroduce it.
+**401 and 403 get separate arms** (shared until `P2.17`): 401 is "please sign in"; telling a signed-in
+user who may not to sign in reads as a broken session. **The 400 arm has no violation** — an empty
+`field` once rendered " is not valid."; `ErrorCopy.field` now uses the generic sentence for any
+fieldless violation.
 
 ## Method-level decisions worth knowing
 
@@ -97,13 +82,6 @@ any violation naming no field, so a second producer cannot reintroduce it.
 | `revokeOtherSessions` | Every session but this one, so it is usable from a settings page. `signOut` is the other button |
 | `signOut` | Throws like every other write. `useSignOut` clears the whole cache in `onSuccess`, and clearing it over a session the server still honours leaves a signed-out shell in front of a signed-in user |
 
-`listAccounts` and `listSessions` serialise dates with `toISOString()`. A `Date` dehydrates to a
-string and rehydrates as one through the TanStack Query cache, so the type would be a lie on the
-second render.
-
-## Why the vanilla client
-
-`better-auth/react`'s `useSession` keeps its own cache with its own invalidation rules, which puts
-two caching systems in one app — and they disagree on sign-out, showing a signed-in shell wrapped
-around a run of 401s. Wrapping the vanilla client here puts session state in the same cache as
-everything else, through `SessionStore`. One owner, one invalidation story.
+`listAccounts` and `listSessions` return ISO strings: a `Date` dehydrates to a string through the
+TanStack cache, so the type would lie on the second render. The vanilla-client choice is explained in
+the [package index](../index.md#why-the-vanilla-better-auth-client).

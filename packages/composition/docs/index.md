@@ -5,25 +5,16 @@ description: The hand-written DI root that replaces a framework container. One c
 
 # `@loadbearing/composition`
 
-The only package that knows both the abstract ports and their concrete implementations, because
-wiring them together is its entire job. Every other package knows one side or the other.
-
-That is also why it is the only place a swap happens. Moving from pgvector to Qdrant, from MinIO to
-S3, from Better Auth to something else — each is one line here, and nothing upstream notices.
-
-```bash
-grep -rn "PgVectorStore" packages apps --include=*.ts
-```
-
-Hits in `packages/infrastructure` (where it is defined) and `packages/composition/src/container/` (where it is
-named). Nothing between.
+The only package knowing both ports and implementations — wiring is its job, so every swap (pgvector →
+Qdrant, MinIO → S3, Better Auth → else) is one line here. `grep -rn "PgVectorStore" packages apps` hits only
+`infrastructure` (defined) and `composition/src/container/` (named).
 
 | | |
 | --- | --- |
 | **Package** | `@loadbearing/composition` (private, never published) |
 | **Entrypoint** | `src/index.ts` — `Container`, `ContainerConfig`, `HealthReport`, and the test kit |
 | **Depends on** | `application`, `auth`, `content`, `contracts`, `core`, `infrastructure`, `observability` |
-| **Used by** | `apps/web`, `apps/worker`. **Never** `apps/desktop` — it holds no container ([30](../../../docs/setup/30-desktop-app.md)) |
+| **Used by** | `apps/web`, `apps/worker`. **Never** `apps/desktop` — it holds no container |
 | **Environment** | server-only; `ServerOnly.assert()` in `src/index.ts` is the runtime tripwire |
 
 ```
@@ -37,6 +28,7 @@ packages/composition/src/
 │   ├── container-health.reader.ts
 │   └── test-container.ts             → TestContainer, TestPorts
 ├── mail/                             ← layout, renderer and the queued mailers
+├── push/                             ← the push-notification renderer
 ├── shard/                            → the organization sharding strategy
 └── fake/                             ← one double per port
     ├── index.ts
@@ -52,15 +44,10 @@ packages/composition/tests/
 └── mail/
 ```
 
-`import.ts` here is the longest in the repository, and that is the package working: naming a port
-and its implementation exactly once is the whole deliverable.
-
-**`fake/` and `test-container.ts` live in `src/`, and never reach `dist/`.** `tsup` builds from
-`src/index.ts`, which names neither, so nothing is bundled — but `tsc` still checks them, and that is
-the point: a port added to `application` is a **compile error** in `test-container.ts` until it has a
-double. They do reach `dist/index.js` now that the barrel exports the harness, and neither of
-`apps/web`'s bundles carries them: `tsup` emits ESM, so a consumer importing only `Container`
-shakes the rest out.
+`import.ts` is the repo's longest — naming each port and implementation once is the deliverable.
+**`fake/` and `test-container.ts` live in `src/`** so `tsc` checks them: a new `application` port is a
+**compile error** in `test-container.ts` until it has a double. The barrel exports the harness, so they
+reach `dist/index.js`, but ESM tree-shaking keeps them out of `apps/web`'s bundles.
 
 ## What it wires
 
@@ -83,49 +70,22 @@ shakes the rest out.
 | `capabilities` | `CapabilityCache` | — | concrete on purpose; it *is* the caching decision |
 | `principals` | `PrincipalBuilder` | — | concrete on purpose; four credential types, one shape |
 
-`database`, `redis`, `queuePublisher` and `transactions` are **private**. `dispose()` is what a
-consumer gets instead, and `apps/worker` builds its own `RedisConnection` rather than reaching in.
-
-The four rules that govern this class — abstract types on the public surface, no request state, no
-`process.env`, reverse-order disposal — are in
-[`docs/reference/container.md`](reference/container.md). The test shape that justifies all of it is
-in [`docs/reference/test-container.md`](reference/test-container.md).
-
-`src/mail/` is the one folder here that is more than wiring: it holds the mail layout and the
-renderer, because this is the only layer that sees both the translated copy and the transport.
-Why every message is a queue job, why there is no delivery table, and where the delivery record
-actually lives are in [`docs/reference/mail-pipeline.md`](reference/mail-pipeline.md).
+`database`, `redis`, `queuePublisher` and `transactions` are **private**; consumers get `dispose()`, and
+`apps/worker` builds its own `RedisConnection`. The four rules (abstract public types, no request state,
+no `process.env`, reverse-order disposal) are in [container](reference/container.md); the test shape in
+[test-container](reference/test-container.md). `src/mail/` is more than wiring — the only layer seeing
+both translated copy and transport ([mail-pipeline](reference/mail-pipeline.md)).
 
 ## Config arrives, it is never read
 
-`ContainerConfig` is every value the system needs in one shape, and none of it comes from the
-environment. `apps/web/src/env.ts` and `apps/worker/src/env.ts` are the only two files in the
-repository that touch `process.env`; they parse it, validate it, and hand this object down.
-
-```bash
-grep -rn "process\.env" packages --include=*.ts | grep -vE "\.config\.ts|src/(migrate|seed|smoke|tables)/"
-```
-
-Returns nothing. No package reads its own configuration — Biome's `noProcessEnv`
-([05](../../../docs/setup/05-lint-and-format.md)) is what keeps it true.
-
-That is what lets you construct the entire system in a test with a fake database and a frozen clock,
-and what lets the same code run in a web server and a background worker without either fighting over
-environment variables.
+`ContainerConfig` is every value in one shape; only each app's `env.ts` touches `process.env`, parsing
+and handing it down (Biome's `noProcessEnv` keeps packages clean). So the whole system builds in a test
+with a fake database and frozen clock, and the same code runs in web and worker.
 
 ## Every port has exactly one binding
 
-`Container` constructs an implementation for every port `application` declares — no exceptions, no
-`undefined` fields, nothing reachable that resolves to nothing. That is a property worth checking
-rather than assuming: read the port list in
-[`application/docs`](../../application/docs/index.md) against `container.ts` and the two should line
-up name for name.
-
-It has not always been true. `EventBus` was declared, faked in `TestContainer`, and bound nowhere —
-so a use-case that published an event would have published into a recording fake under test and into
-nothing at all in production. It was deleted rather than implemented, because a seam with no
-implementation and no caller is what [Simplicity](../../../docs/opinions/simplicity.md) argues
-against: it costs nothing today and teaches the next reader that events are a thing this system
-does. The design it was reserving — a transactional outbox — shipped later, and shipped whole:
-`DomainEventPublisher`, `PgOutboxPublisher` and a `Container` line in one change. That is the shape
-the deletion was arguing for.
+`Container` binds every port `application` declares — no `undefined` fields; check the
+[port list](../../application/docs/index.md) against `container.ts` name for name. `EventBus` was once
+declared, faked and bound nowhere (publishing into nothing in production); it was deleted
+([Simplicity](../../../docs/opinions/simplicity.md)), and the outbox later shipped whole —
+`DomainEventPublisher`, `PgOutboxPublisher` and a `Container` line in one change.

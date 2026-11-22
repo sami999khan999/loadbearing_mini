@@ -129,7 +129,7 @@ export default tseslint.config(
     },
   },
 
-  // ── application throws errors, never status codes (see docs/setup/09) ──
+  // ── application throws errors, never status codes ──
   {
     files: ["packages/application/src/**/*.ts"],
     rules: {
@@ -169,7 +169,7 @@ export default tseslint.config(
     },
   },
 
-  // ── route files throw redirects, which are not Errors (see docs/setup/24) ──
+  // ── route files throw redirects, which are not Errors ──
   //
   // `throw redirect({ to })` is how TanStack Router leaves a `beforeLoad` — the value
   // is a `Redirect`, deliberately, because the router catches it as control flow rather
@@ -183,7 +183,7 @@ export default tseslint.config(
     },
   },
 
-  // ── content may name a module, never a permission (see docs/setup/20) ──
+  // ── content may name a module, never a permission ──
   {
     files: ["packages/content/src/**/*.ts"],
     rules: {

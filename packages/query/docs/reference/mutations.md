@@ -5,20 +5,15 @@ description: Why useAppMutation invalidates before onSuccess, how a declared opt
 
 # Mutations and invalidation
 
-Every mutation in this package is a static factory on a class — `SessionMutations.useSignIn(auth)`,
-`AccountMutations.useChangePassword(client)`. A class of static hook factories is fine because the
-hook rules apply at the **call site**, and each of these is called unconditionally at the top of a
-component.
-
-The split between the classes is the one `AuthClient` and `AccountClient` already draw:
-`SessionMutations` is everything an anonymous visitor can start, `AccountMutations` is everything a
-signed-in person can change about their own account.
+Every mutation is a static factory on a class (`SessionMutations.useSignIn(auth)`,
+`AccountMutations.useChangePassword(client)`) — fine, since hook rules apply at the call site. The split
+follows `AuthClient`/`AccountClient`: `SessionMutations` is what an anonymous visitor can start,
+`AccountMutations` what a signed-in person changes about their own account.
 
 ## Invalidate before `onSuccess`
 
-`useAppMutation` runs its `invalidates` list **before** the caller's `onSuccess`. That order is the
-contract: a caller that navigates in `onSuccess` must be navigating to a cache that has already been
-marked stale, or the destination renders the value the mutation just changed.
+`useAppMutation` runs `invalidates` **before** the caller's `onSuccess` — a caller navigating in
+`onSuccess` must land on an already-stale cache, or the destination renders the value just changed.
 
 ## The three states of `invalidates`
 
@@ -46,24 +41,17 @@ marked stale, or the destination renders the value the mutation just changed.
 
 ### `TwoFactorForm` went through the client for a while, and that is the shape to recognise
 
-Four raw `AuthClient` calls behind a hand-rolled `pending`/`failed` pair, with a comment saying
-there was "no session to invalidate until this succeeds". Half true: the *verification* is exactly
-the moment one comes into being, and the route's own `complete()` was carrying what an
-`invalidates` line says in one place.
-
-The tell is not the raw call — it is the local `useState` that reimplements `isPending` and
-`isError` beside it. A form doing that is a form the seam is not serving, and the fix is a defined
-mutation rather than better local state. `mutation.reset()` is the piece the hand-rolled version had
-no equivalent for: four mutations each keep their own `isError`, and switching method must not leave
-the reader looking at a failure that belongs to the method they left.
+It used four raw `AuthClient` calls behind a hand-rolled `pending`/`failed` pair, claiming "no session to
+invalidate until this succeeds" — but verification is exactly when one appears. **The tell is a local
+`useState` reimplementing `isPending`/`isError`:** the seam is not serving that form, and the fix is a
+defined mutation. `mutation.reset()` had no hand-rolled equivalent — four mutations keep their own
+`isError`, and switching method must not show the old method's failure.
 
 ## `optimistic` is a declared edit, not four steps at each call site
 
-Three mutations remove a row the user is looking at — revoke a session, revoke an invitation, unlink
-an account — and for those the row *is* the feedback. Waiting for a round trip to take away something
-the user just clicked away reads as a click that did nothing.
-
-Done by hand that is four steps, and three of them are the ones people forget:
+Revoking a session or invitation and unlinking an account remove a row the user is looking at — the
+row *is* the feedback, and waiting a round trip reads as a dead click. By hand it is four steps, three
+of them commonly forgotten:
 
 ```ts
 optimistic: {
@@ -72,83 +60,53 @@ optimistic: {
 },
 ```
 
-- **Cancel before writing.** A refetch already in flight resolves with the server's *pre*-mutation
-  answer and puts the row straight back. This is the step whose absence looks like a flicker nobody
-  can reproduce.
-- **Snapshot, and restore before the caller's `onError`.** A failure handler often renders the
-  message beside the row, and the row has to be back for that to mean anything.
-- **Invalidate the optimistic key on success, whether or not `invalidates` names it.** An edit the
-  server never confirmed would otherwise sit there until something else refetched.
+- **Cancel before writing** — an in-flight refetch would return the *pre*-mutation answer and put the
+  row back: an unreproducible flicker.
+- **Snapshot, and restore before the caller's `onError`** — a failure message beside the row needs the
+  row back.
+- **Invalidate the optimistic key on success**, named in `invalidates` or not — or an unconfirmed edit
+  lingers.
 
-**`apply` receives the snapshot and must not mutate it.** It is the same object the rollback holds:
-editing in place leaves nothing to restore.
-
-**A paginated list makes the hook take its page.** `useRevokeInvitation(client, params)` needs the
-params because they are part of the cache key — an optimistic edit has to know *which* list the row
-is on, and pretending otherwise would silently edit page one while the reader is on page two. The
-component builds that object once and hands it to both the query and the mutation; building it per
-render is fine, because a query key is hashed structurally rather than by identity.
-
-**When the cached value is `undefined`, nothing happens and nothing is restored.** That is not a
-failure — it means the list is not on screen, and the invalidation on success covers it.
+**`apply` must not mutate the snapshot** — the rollback holds the same object. **A paginated list makes
+the hook take its page:** `useRevokeInvitation(client, params)` needs params because they are in the
+key — otherwise it edits page one while the reader is on page two. The component builds the object once
+for both query and mutation (per-render is fine; keys hash structurally). **An `undefined` cache value
+does nothing and restores nothing** — the list is not on screen, and success-invalidation covers it.
 
 ## Sign-out and switch clear the cache at the call site
 
-`useSignOut` and every `OrganizationMutations` hook declare no `invalidates`, and that is the point.
+`useSignOut` and every `OrganizationMutations` hook declare no `invalidates`, on purpose: afterwards
+**every cached row belongs to the tenant just left**. The only correct answer is `queryClient.clear()`,
+a lifecycle decision for the call site (the desktop shell may keep an offline cache). Invalidating only
+`["session"]` leaves other queries in memory, so the next person to sign in sees a flash of the previous
+user's data. Call sites do four things in order — clear the cache, invalidate the session store, re-run
+the root loader, navigate — factored into one `apps/web` helper.
 
-After a sign-out or a tenant switch, **every cached row in the client belongs to the tenant just
-left**. The only correct invalidation is `queryClient.clear()`, and that is a lifecycle decision the
-call site makes rather than something this package can decide: the desktop shell may want to keep an
-offline cache across a sign-out.
+## Key placement
 
-Invalidating only `["session"]` is the failure mode worth naming. It leaves every other query in
-memory, so the next person to sign in on that machine sees a flash of the previous user's data
-before the refetch lands.
-
-The call sites do the same four things, in order — clear the query cache, invalidate the session
-store, re-run the root loader, navigate — which is why `apps/web` factors that into one helper
-rather than repeating it.
-
-## Keys mirror procedure paths, parameters last
-
-`contract.task.list` becomes `["task", "list", params]`. Given a procedure you can write its key
-without looking anything up, which is the same derivability the file-naming rules have.
-
-Every namespace has `all()`, because TanStack matches by prefix: one call catches every list and
-detail below it, and that is what makes invalidation trustworthy.
-
-`account` is deliberately **not** under `session`. Those rows outlive a single session record — the
-linked-account list is a property of the user — and putting them under `session` would refetch three
-lists every time a session is refreshed.
+Key rules are in the [package index](../index.md#keys-are-never-written-at-a-call-site). `account` is
+deliberately **not** under `session`: linked accounts belong to the user and outlive a session record,
+and nesting them would refetch three lists on every session refresh.
 
 ## Stale times are backstops, not the mechanism
 
-Every query in this package is invalidated by the mutation that changes it. `staleTime` exists for
-the *other* tab, and the numbers say how long a lie is tolerable:
+Every query is invalidated by the mutation changing it; `staleTime` is for the *other* tab — how long
+a lie is tolerable:
 
 | Query | Stale time | Why |
 |---|---|---|
 | Linked accounts, roles, members | a minute | Changed only by a mutation on the same page, each of which invalidates |
 | Active sessions, invitations | shorter | A session can end, or an invitation be accepted from another device, with this tab doing nothing — and "where you are signed in" showing a minute-old answer is a screen that lies about the thing it exists for |
 
-Retries come from the error catalog rather than from a per-query setting: retryability is a fact
-about the code. A `FORBIDDEN` retried twice with backoff turns an instant "you cannot do that" into
-a three-second wait for the same answer. A signed-out session query is an answer, not a failure to
-retry, so it retries never.
+Retries come from the error catalog, not per-query settings; a signed-out session query is an answer,
+so it never retries.
 
 ## A cursor page is one query key, not one per page
 
-`useAppInfiniteQuery` is the same pass-through as `useAppQuery`, and it exists for the same reason:
-so a call site names one hook rather than the library's. Its five type parameters are copied from
-the library's signature verbatim — with fewer, `data` collapses to `unknown` at every call site,
-which typechecks and then loses every field.
-
-The rule it enforces is about the key. A keyset list's cursor lives in the **page data**, never in
-the query key: `["notification", "list", { limit, unreadOnly }]` covers page one and page forty
-alike, so one `invalidate` on that key refetches the whole scroll and a mutation does not have to
-know how far the reader got. Putting the cursor in the key gives every page its own cache entry,
-none of which any invalidation you would think to write will match.
-
-`getNextPageParam` reads `nextCursor` and nothing else. `items.length < limit` is the tempting
-version and it is wrong: a full last page is ordinary, and the server is the only party that knows
-whether a row follows the one it just sent.
+`useAppInfiniteQuery` is a pass-through like `useAppQuery`, with the library's five type parameters
+copied verbatim (fewer collapse `data` to `unknown`, which typechecks and loses every field). **A keyset
+cursor lives in the page data, never the key:** `["notification", "list", { limit, unreadOnly }]` covers
+page one and page forty, so one `invalidate` refetches the whole scroll; a cursor in the key gives each
+page an entry no ordinary invalidation matches. `getNextPageParam` reads `nextCursor` only —
+`items.length < limit` is wrong, since a full last page is ordinary and only the server knows if a row
+follows.

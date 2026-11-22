@@ -5,8 +5,7 @@ description: The blocks in the config — ignores, typed rules, the OOP shape as
 
 # Rules
 
-One config, four blocks. Each is scoped by `files`, which is what replaced the old
-`base` / `oop` / `react` preset split.
+One config, four blocks, each scoped by `files` (replacing the old `base`/`oop`/`react` presets).
 
 ---
 
@@ -23,17 +22,14 @@ ignores: [
 ];
 ```
 
-`dist` and `.output` are build artefacts; `migrations` is generated SQL. The other three share
-one reason: **those files are not inside any package's tsconfig `include`, so `projectService`
-cannot resolve them and a type-aware rule fails with a parsing error rather than a finding.**
+`dist`, `.output` and `migrations` are generated. The other three **sit outside every tsconfig
+`include`, so `projectService` cannot resolve them and type-aware rules fail with a parsing error.**
 
 > [!IMPORTANT]
-> Deliberately `**/*.config.ts`, not `*.config.*`. The wider glob also matches
-> `eslint.config.js` itself, which makes an editor report _"File ignored because of a matching
-> ignore pattern"_ on every config file you open.
->
-> The leading `**/` matters too: flat-config ignore patterns resolve against the config file's
-> own directory, so a bare `dist/**` would not match `packages/core/dist/`.
+> `**/*.config.ts`, not `*.config.*` — the wider glob matches `eslint.config.js` itself, and editors
+> report _"File ignored because of a matching ignore pattern"_ on every config. The leading `**/`
+> matters: flat-config ignores resolve against the config's directory, so bare `dist/**` misses
+> `packages/core/dist/`.
 
 ---
 
@@ -45,27 +41,21 @@ extends: [...tseslint.configs.recommendedTypeChecked],
 languageOptions: { parserOptions: { projectService: true } },
 ```
 
-`projectService` discovers each file's `tsconfig.json` automatically, so no block hardcodes
-project paths and a new package needs no lint configuration at all.
+`projectService` finds each file's `tsconfig.json`, so a new package needs no lint config.
 
 ### `no-floating-promises` and `no-misused-promises`
 
-The two rules that justify the cost of type-aware linting — they cannot work without type
-information. Every use-case is `async` and every repository call returns a promise, so a
-missing `await` on a `.save()` returns `200` while the write is still in flight, or never lands
-if the process exits. No unit test catches it and no reviewer reliably spots it.
+The two rules that justify type-aware linting. A missing `await` on a `.save()` returns `200` with the
+write in flight (or lost on exit), and no test or reviewer reliably catches it.
 
-> Biome ships a type-aware `noFloatingPromises` that does not use `tsc`. If it holds on this
-> codebase, deleting these rules and the `recommendedTypeChecked` extend removes most of what
-> makes the ESLint pass slow.
+> Biome's type-aware `noFloatingPromises` does not use `tsc`; if it holds here, dropping these and the
+> `recommendedTypeChecked` extend removes most of ESLint's slowness.
 
 ### `require-await`
 
-The inverse: an `async` function that never awaits is usually an unfinished signature change.
-
-`ContentSource`'s methods are `async` with nothing to await on purpose, so a CMS can be added
-later without changing any call site — but they are `async` methods satisfying an abstract
-signature, not free functions, so they do not trip this.
+An `async` function that never awaits is usually an unfinished signature change. `ContentSource`'s
+await-free `async` methods (kept so a CMS needs no call-site change) satisfy an abstract signature and
+do not trip it.
 
 ### `parameter-properties`
 
@@ -73,8 +63,7 @@ signature, not free functions, so they do not trip this.
 ["error", { prefer: "parameter-property" }];
 ```
 
-**The single rule with no Biome equivalent in either direction.** Biome has
-`noParameterProperties`, which bans the form; nothing requires it.
+**No Biome equivalent** — Biome's `noParameterProperties` bans the form; nothing requires it.
 
 ```ts
 // ✗ rejected
@@ -91,25 +80,22 @@ class ReactivateTaskUseCase {
 }
 ```
 
-The mandated form makes a class's dependencies readable as one list in its signature, which is
-the property the hand-written DI container relies on when you are checking the wiring.
+A class's dependencies read as one list in its signature — what checking the hand-written DI wiring
+relies on.
 
 > [!IMPORTANT]
-> Parameter properties emit runtime code, so Node's native type stripping (`node file.ts`)
-> **cannot** run this codebase. That is why `apps/worker` uses `tsx`, which transpiles rather
-> than strips. Revisiting means setting `erasableSyntaxOnly: true` and rewriting every
-> constructor.
+> Parameter properties emit runtime code, so Node's type stripping (`node file.ts`) **cannot** run this
+> codebase — `apps/worker` uses `tsx`, which transpiles. Revisiting means `erasableSyntaxOnly: true` and
+> rewriting every constructor.
 
 ### `prefer-readonly`
 
-A private field never reassigned after construction should say so — which makes the genuinely
-mutable fields visible by contrast.
+Private fields never reassigned say so, making the mutable ones visible.
 
 ### The three `"off"` entries
 
-`no-explicit-any`, `no-unused-vars`, `consistent-type-imports`. Biome owns all three
-(`noExplicitAny`, its recommended unused-variable rule, and `useImportType`). Leaving them on
-would double-report every violation.
+`no-explicit-any`, `no-unused-vars`, `consistent-type-imports` — Biome owns all three (`noExplicitAny`,
+its unused-variable rule, `useImportType`); both on would double-report.
 
 ---
 
@@ -121,12 +107,9 @@ const OOP_PACKAGES = [
 ];
 ```
 
-**That glob is the only place the React/non-React split is written down.** `query`, `ui`,
-`feature`, and `apps/*` are excluded — React components and hooks are functions by contract
-with the framework, and these selectors would reject every correct file in them.
-
-Four `no-restricted-syntax` selectors, covering the three ways a function escapes a module
-plus static mutable state:
+**The only place the React/non-React split is written.** `query`, `ui`, `feature` and `apps/*` are
+excluded — components and hooks are functions by contract. Four `no-restricted-syntax` selectors cover
+the three ways a function escapes a module, plus static mutable state:
 
 ```ts
 // ✗ wrong — behaviour floating free of the data it operates on
@@ -138,14 +121,10 @@ class CapabilitySet {
 }
 ```
 
-Free functions are how a codebase loses its shape, and the mechanism is always the same:
-`canReactivate` lands in a utils file, someone copies it for a variant, and now there are two
-answers to the same permission question with no signal they were meant to agree. A method on
-`CapabilitySet` cannot be copied without copying the class.
-
-The rule has teeth here specifically because the architecture's central claim is that
-`CapabilitySet.can()` is *one* implementation shared by the oRPC handler, the React `<Can>`,
-the route guard, and the worker.
+Free functions lose a codebase its shape: `canReactivate` lands in utils, gets copied for a variant,
+and two answers to one permission question drift. A method cannot be copied without its class — which
+matters because `CapabilitySet.can()` must be *one* implementation shared by the oRPC handler, `<Can>`,
+the route guard and the worker.
 
 ### The static-mutable-state ban
 
@@ -154,13 +133,11 @@ selector: "ClassBody > PropertyDefinition[static=true][readonly!=true]";
 ```
 
 > [!WARNING]
-> This catches a real production bug rather than a design smell. A `static cache = new Map()`
-> on a repository looks correct locally, passes every test, and under concurrency serves user
-> A's rows to user B. Where row visibility *is* the permission model, that is a cross-tenant
-> leak, not a caching bug.
+> A real production bug, not a smell: `static cache = new Map()` on a repository passes every test and
+> under concurrency serves user A's rows to user B — a cross-tenant leak where row visibility is the
+> permission model.
 
-`static readonly` passes. The one gap: a `static readonly Map` — the binding is readonly, the
-map is not.
+`static readonly` passes; the gap is a `static readonly Map` (readonly binding, mutable map).
 
 ### What deliberately does not trip these
 
@@ -171,18 +148,16 @@ map is not.
 | Permission fragments | an object literal |
 | Contract routers | an object literal, and oRPC's inference needs the literal shape |
 
-Those are data shapes, not behaviour. The selectors target function declarations and arrow
-functions precisely so declarative exports stay legal.
-
-Biome's `noStaticOnlyClass` is `off` for the mirror-image reason: `Uuid`, `Identifiers`,
-`ProcedurePermissions`, and `PermissionRegistry` are intentionally static-only namespacing
-classes, each with a `private constructor()` marking it uninstantiable.
+Data shapes, not behaviour — the selectors target function declarations and arrows so declarative
+exports stay legal. Biome's `noStaticOnlyClass` is `off` because `Uuid`, `Identifiers`,
+`ProcedurePermissions` and `PermissionRegistry` are deliberate static namespaces with a
+`private constructor()`.
 
 ---
 
 ## Block 4 — bans needing type-import nuance
 
-Two packages need bans that Biome cannot express. Both are here for the same reason.
+Two bans Biome cannot express.
 
 ### `packages/feature` — the `api-client` and router bans
 
@@ -198,30 +173,20 @@ rules: {
 ```
 
 > [!IMPORTANT]
-> **Biome's `noRestrictedImports` flags `import type` exactly like a value import** and has no
-> exemption — verified against 2.5.7. `SignInForm` needs
-> `import type { AuthClient } from "@loadbearing/api-client"`, a type-only import that emits
-> nothing and creates no runtime dependency, so a Biome-side ban would error on correct code.
->
-> The core ESLint rule has the same limitation, which is why it is switched `"off"` — leaving
-> both on means the core one still fires and the exemption never takes effect.
+> **Biome's `noRestrictedImports` flags `import type` like a value import**, with no exemption
+> (verified on 2.5.7), so it would error on `SignInForm`'s runtime-free
+> `import type { AuthClient } from "@loadbearing/api-client"`. The core ESLint rule shares the limit and
+> is `"off"`, or it fires and the exemption never applies.
 
-The bans themselves are load-bearing. The first stops `await client.task.list()` appearing
-inside a component under deadline pressure — it works perfectly and becomes a read no mutation
-will ever refresh. The second is what lets a Tauri webview mount `feature` under an entirely
-different routing shell.
+The first ban stops a deadline-pressure `await client.task.list()` in a component — a read no mutation
+will ever refresh. The second lets a Tauri webview mount `feature` under a different routing shell.
 
 ### `packages/content` — the `PermissionKey` ban
 
-`content` legitimately imports `ModuleKey` from `@loadbearing/permissions` and must never
-import `PermissionKey` or `PermissionRegistry`. That is a **named-export** ban, and Biome's
-rule bans whole modules only.
-
-Nav items carry `module: "rbac"`, never `permission: "rbac.role.read"`. If `permission` were a
-content field, a CMS edit would be a privilege escalation.
-
-**The pattern across both:** Biome handles bans that are "this whole module, no exceptions";
-ESLint handles the ones needing named-export or type-import nuance.
+`content` may import `ModuleKey` from `@loadbearing/permissions` but never `PermissionKey` or
+`PermissionRegistry` — a **named-export** ban Biome cannot express. Nav items carry `module: "rbac"`,
+never `permission: "rbac.role.read"`; a permission content field would make a CMS edit a privilege
+escalation. **Pattern:** Biome for whole-module bans, ESLint for named-export or type-import nuance.
 
 ---
 
@@ -236,26 +201,18 @@ rules: { "no-restricted-syntax": ["error",
 ]}
 ```
 
-Rule 9 of [visibility](../../../../docs/opinions/visibility.md): **never lazy-load by
-permission.** The bundle is not a secret, so a `lazy()` keyed on a permission hides nothing. It
-only adds a network waterfall to the one path the user is allowed to take. No type can hold the
-rule, which is why it is a lint.
-
-Three selectors, because there are three ways to spell it. The import catches `lazy as load`.
-The call catches a `lazy` from anywhere else. The member expression catches `React.lazy`.
-
-**The ban costs nothing.** Route splitting belongs to the router. TanStack's
-`lazyRouteComponent` and `createLazyFileRoute` have different names and pass. Neither tree
-held a `lazy()` when the ban landed.
+Rule 9 of [visibility](../../../../docs/opinions/visibility.md): **never lazy-load by permission** —
+the bundle is not secret, so it hides nothing and adds a waterfall to the allowed path. No type can hold
+it. Three selectors for three spellings: the import (`lazy as load`), a bare `lazy` call, and
+`React.lazy`. It costs nothing — route splitting is the router's, and TanStack's `lazyRouteComponent` /
+`createLazyFileRoute` pass.
 
 > [!NOTE]
-> Neither glob sits inside `OOP_PACKAGES`, and that matters. Flat config replaces a rule's
-> options rather than merging them. If the two blocks overlapped, whichever came later would
-> silently drop the other's selectors.
+> Neither glob overlaps `OOP_PACKAGES`: flat config replaces rule options rather than merging, so the
+> later block would silently drop the other's selectors.
 
 ---
 
 ## See also
 
 - [Overview](../index.md) — the two-tool split, dependency layout, and bin resolution
-- [Build order · 05](../../../../docs/setup/05-lint-and-format.md) — the `biome.json` half

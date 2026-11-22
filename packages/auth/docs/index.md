@@ -5,21 +5,17 @@ description: Identity, and the wall Better Auth stops at. Four credential types 
 
 # `@loadbearing/auth`
 
-**This package answers one question: who is asking?** Everything downstream answers *may they*, and
-it answers that against a `Principal` — a tenant, a user id, and a resolved `CapabilitySet` — with no
-idea which credential produced it.
-
-That collapse is the deliverable. A browser cookie, a Tauri bearer token, an integration's API key
-and the worker's scheduled run are four different things at the edge and one object one layer in, so
-`Authorizer.assert(actor, "rbac.role.read")` is written once and serves all four.
+**This package answers one question: who is asking?** Everything downstream answers *may they*
+against a `Principal` — tenant, user id and resolved `CapabilitySet` — blind to the credential. A browser
+cookie, a Tauri bearer token, an API key and the worker's scheduled run are four things at the edge and
+one object a layer in, so `Authorizer.assert(actor, "rbac.role.read")` serves all four.
 
 ```bash
 grep -rn "better-auth" packages apps --include=*.ts | grep -v packages/auth
 ```
 
-Returns hits in `packages/api-client` (the *client* half, a different library entrypoint) and
-nowhere else. **Swapping the auth library rewrites this package and nothing else** — which is the
-whole reason it is a package rather than a folder in `apps/web/src/server/`.
+hits only `packages/api-client` (the *client* half, a different entrypoint). **Swapping the auth library
+rewrites this package and nothing else** — why it is a package, not a folder in `apps/web/src/server/`.
 
 | | |
 | --- | --- |
@@ -28,7 +24,6 @@ whole reason it is a package rather than a folder in `apps/web/src/server/`.
 | **Depends on** | `@loadbearing/application`, `@loadbearing/contracts`, `@loadbearing/core`, `@loadbearing/infrastructure`, `@loadbearing/permissions`, plus `better-auth` |
 | **Used by** | `packages/composition` only. Nothing else may name it — Biome bans the import from `packages/ui/**`, `packages/feature/**`, `packages/query/**` and `apps/web/src/**` |
 | **Environment** | server-only; `ServerOnly.assert()` in `src/index.ts` is the runtime tripwire |
-| **Setup doc** | [16 · `@loadbearing/auth`](../../../docs/setup/16-auth-package.md) |
 
 ```
 packages/auth/
@@ -71,24 +66,19 @@ packages/auth/
 
 ## The ports declared here, not in `application`
 
-`MembershipReader`, `MembershipEnroller`, `InvitationClaimer`, `OrganizationFounder` and
-`AuthMailer` are abstract classes in this package, and `ApiKeyRepository` is a sixth. They break the
-usual rule — ports live in `packages/application/src/port/` — and the reason is the same for all of
-them: **they exist to populate an authentication artifact, and no use-case should learn that any of
-them exists.** A use-case must not know that sessions have an organization column, that a first
-session can be granted by an invitation, that a password reset is an email rather than a code read
-over the phone, or that API keys exist at all.
-
-Their implementations live in `packages/infrastructure` and `packages/composition`, neither of which
-can import this package's types — `auth` already depends on `infrastructure`, and `composition`
-depends on both. So the binding is **structural**, and it is checked exactly where the two meet:
+`MembershipReader`, `MembershipEnroller`, `InvitationClaimer`, `OrganizationFounder`, `AuthMailer` and
+`ApiKeyRepository` break the rule that ports live in `application/src/port/`, for one reason: **they
+populate an authentication artifact no use-case should know exists** — sessions with an organization
+column, first sessions granted by invitation, reset by email, API keys at all. Their implementations live
+in `infrastructure` and `composition`, which cannot import this package's types (`auth` depends on
+`infrastructure`; `composition` on both), so binding is **structural**, checked where they meet:
 
 ```ts
 // packages/composition/src/container/container.ts
 this.memberships = new PgMembershipReader(…);          // declared as MembershipReader
 ```
 
-A signature drift fails `composition`'s typecheck, on that line, rather than at runtime.
+Signature drift fails `composition`'s typecheck on that line, not at runtime.
 
 ---
 
@@ -101,51 +91,38 @@ bearer token ─┼─→ BetterAuthSessionResolver ─┐
     x-api-key ──→ ApiKeyResolver ────────────┘
 ```
 
-`BetterAuthSessionResolver` is the only file in the repository that names Better Auth's session API.
-It returns a `ResolvedSession` — the port's shape, declared in `application` — and everything above
-it depends on that.
-
-**It refuses a session with no `activeOrganizationId` rather than defaulting one.** A session written
-before the create hook existed, or written by hand, has no tenant; guessing one is a cross-tenant read
-with nothing downstream positioned to notice. No tenant means no session.
+`BetterAuthSessionResolver` is the only file naming Better Auth's session API; it returns the
+`application` port shape `ResolvedSession`. **It refuses a session with no `activeOrganizationId`** —
+one predating the create hook or written by hand — since guessing a tenant is an unnoticed cross-tenant
+read.
 
 ---
 
 ## Sign-in, end to end
 
-`AuthFactory` configures Better Auth once, and two of its options are the whole tenancy design.
+Two `AuthFactory` options are the whole tenancy design:
 
-**`databaseHooks.session.create.before` pins the tenant onto the session row.** Resolved once, at
-sign-in, so every later request reads it off a row Better Auth was going to load anyway — rather than
-a membership query per call, or a header the client chooses. Returning `false` aborts the session, so
-a user with no membership gets a failed sign-in rather than a principal with no tenant.
+- **`databaseHooks.session.create.before` pins the tenant onto the session row** once at sign-in, so
+  requests read it off a row Better Auth loads anyway — not a membership query per call or a
+  client-chosen header. `false` aborts the session: no membership, no sign-in.
+- **`MembershipEnroller` writes the first `memberships` row** — otherwise a fresh database never
+  produces a session. It runs from the same hook, not `user.create.after`, which Better Auth queues
+  until the sign-up endpoint finishes, *after* the session was refused.
 
-**`MembershipEnroller` is what puts the first row in `memberships`.** Without it nothing in the
-repository ever writes that table, and a fresh database can never produce a session: the hook above
-correctly refuses one, forever. Enrolment runs from the same hook rather than from
-`user.create.after`, and that is not a preference — Better Auth queues `create.after` hooks until the
-whole sign-up endpoint has finished, which is *after* the session hook has already run and refused.
-
-Which enroller runs is `AUTH_ENROLMENT_MODE`'s decision, and every mode is wrapped so that an
-invited address joins the organization that invited it before the mode is consulted at all. The
-three modes, the decorator, the claim rules and the locks are
-[the enrolment reference](reference/enrolment.md).
-
-**A user who belongs to two organizations is in exactly one per session.** The session row pins it
-at sign-in — the last one they switched to, else the oldest membership — and moving is an explicit
-act through the organization endpoints, never an ambient one.
+`AUTH_ENROLMENT_MODE` picks the enroller, every mode wrapped so an invited address joins its inviter
+first ([enrolment](reference/enrolment.md)). **A user in two organizations is in exactly one per
+session** — the last switched to, else the oldest membership; moving is an explicit act through the
+organization endpoints.
 
 ---
 
 ## Switching, founding, accepting
 
-`OrganizationPlugin` mounts three `POST` endpoints on Better Auth — `/organization/switch`,
-`/organization/create`, `/invitation/accept` — and every one of them ends by rebinding the session
-row to the new tenant, the Redis copy with it, and **re-issuing the session cookie cache**. They are
-endpoints rather than oRPC procedures because only a handler holding Better Auth's `ctx` can call
-`setSessionCookie`, and because they are identity-gated rather than permission-gated. The full
-argument, the `rebind()` order and the refusal semantics are in
-[`reference/organization-plugin.md`](reference/organization-plugin.md).
+`OrganizationPlugin` mounts `/organization/switch`, `/organization/create` and `/invitation/accept` on
+Better Auth; each rebinds the session row and its Redis copy to the new tenant and **re-issues the
+cookie cache**. They are endpoints, not oRPC procedures, because only a handler with Better Auth's `ctx`
+can call `setSessionCookie`, and they are identity- not permission-gated
+([organization-plugin](reference/organization-plugin.md)).
 
 ---
 

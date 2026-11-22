@@ -14,7 +14,7 @@ apps/*/src/route-tree.gen.ts
 out/
 release/
 
-# The `pnpm dev | tee` target for the local Loki pipeline (docs/setup/11).
+# The `pnpm dev | tee` target for the local Loki pipeline.
 # The directory is committed, the logs are not: Docker creates a missing bind-mount
 # path as root, and then `tee` into it fails for the developer who owns the repo.
 

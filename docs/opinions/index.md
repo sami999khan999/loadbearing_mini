@@ -5,34 +5,18 @@ description: The positions this repository takes, stated flatly. Naming, folders
 
 # Opinions
 
-> Every rule this repository has decided, in one place. `docs/setup/` is the build order, walked
-> once. This is the reference, consulted continually.
+Every rule this repository has decided: each page states a position, the reason, the failure it
+prevents, and what enforces it — a rule nothing checks is a suggestion.
 
-Each page states a position, gives the reason, and names the failure it prevents. Where a rule is
-enforced by a linter or the type system, the page says which — a rule nothing checks is a
-suggestion, and this repository prefers mechanical enforcement to good intentions.
+**Every rule serves one of two tests:**
+1. Given a feature name and a layer, you can write the file path, folder and class name without
+   looking anything up.
+2. Given a fact the system produces, you can say which store owns it.
 
----
-
-## The two tests every opinion serves
-
-**1. Given a feature name and a layer, you should be able to write the file path, the folder, and
-the class name without looking anything up.**
-
-**2. Given a fact the system produces, you should be able to say which store owns it without another
-conversation.**
-
-Most pages here serve the first. [Data and scale](data-and-scale.md) serves the second, and it earns
-its place for the same reason: one answer, consulted continually, and expensive in a particular way
-if it is decided late. A naming rule adopted late costs a rename. A storage rule adopted late costs
-a migration with customer data in it.
-
-Those two are the only justification any rule here needs. When a rule stops producing either
-property, the rule has a gap worth fixing rather than working around.
-
-[Simplicity](simplicity.md) is the one page that serves neither directly, and it is deliberately last
-in the reading order: it is the **tie-breaker** for when two designs both satisfy every rule above,
-and the answer to how much structure to build once the naming questions are settled.
+Most pages serve the first; [Data and scale](data-and-scale.md) serves the second, and matters most
+early — a late naming rule costs a rename, a late storage rule a migration with customer data in it.
+A rule that stops producing either has a gap to fix. [Simplicity](simplicity.md) is last on purpose:
+the tie-breaker when two designs satisfy every other rule.
 
 ---
 
@@ -53,19 +37,14 @@ and the answer to how much structure to build once the naming questions are sett
 
 ---
 
-## The three that get broken most
+## The three broken most
 
-**1. `src/` holds `index.ts`, `import.ts`, and folders. Nothing else.** Not a "just this one file"
-helper, not a small type. The moment a loose file appears, the next one has a precedent.
-See [Folders](folders.md).
-
-**2. The barrel names every export.** `export *` republishes anything a file exports, which makes
-widening the public API invisible in review. Enforced by Biome's `noReExportAll`.
-See [Imports and exports](imports.md).
-
-**3. Comments are `//`, and they stop at two lines.** The argument for a design belongs in the
-package's `docs/reference/`, where it can have headings and worked examples and gets reviewed.
-See [Comments](comments.md).
+1. **`src/` holds `index.ts`, `import.ts` and folders — nothing else.** One loose file is a
+   precedent. [Folders](folders.md)
+2. **The barrel names every export.** `export *` hides API widening from review; Biome's
+   `noReExportAll` enforces it. [Imports and exports](imports.md)
+3. **Comments are `//`, at most two lines.** The argument goes in `docs/reference/`.
+   [Comments](comments.md)
 
 ---
 
@@ -102,6 +81,5 @@ See [Comments](comments.md).
 | A query that cannot be scoped to a tenant | Review |
 | Everything else on these pages | Review |
 
-The last row is the one to shrink. A rule that moves from "review" to a check is a rule that stops
-being argued about — and `check-architecture.mjs` exists because the most important rules here are
-ones no linter expresses.
+The last row is the one to shrink: a rule moved from review to a check stops being argued about.
+`check-architecture.mjs` exists because the most important rules here are ones no linter expresses.

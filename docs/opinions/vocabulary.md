@@ -7,8 +7,6 @@ description: Permissions, procedures, events, queues, contract members, database
 
 ## Permissions, procedures, events, queues
 
-Four vocabularies that look alike and mean different things.
-
 | Kind | Grammar | Example |
 |---|---|---|
 | **Permission key** | `<module>.<subject>.<action>[.<qualifier>]`, action **imperative** | `task.reactivate`, `task.update.self` |
@@ -22,89 +20,56 @@ Four vocabularies that look alike and mean different things.
 | **Widget key** | `<module>.<name>`, the module one `PermissionRegistry.modules()` knows | `member.count` |
 | **Zone key** | `<page>.<region>` | `dashboard.main` |
 
-**Permission actions are imperative because they name a capability you hold; activity names are past
-tense because they record something that happened.** `task.reactivate` is a right.
-`task.reactivated` is a fact. Keeping them distinct is what makes an audit log readable.
+**Permissions are imperative because they name a right you hold; activities are past tense because
+they record a fact.** `task.reactivate` is a right, `task.reactivated` a fact — the distinction is
+what keeps an audit log readable.
 
-**The qualifier vocabulary is closed**: `.self`, `.goal`, `.global`, `.org`. Do not invent `.own` or
-`.mine` alongside `.self`.
+- **Qualifiers are closed:** `.self`, `.goal`, `.global`, `.org`. No `.own` or `.mine`.
+- **Scopes are closed and a different axis:** `org`, `goal`, `platform`. A qualifier narrows a key
+  inside a tenant; a scope says which set holds it. `platform` sits above the tenant, held only via a
+  role in the organization marked `is_platform`, and `CapabilitySet.can()` reaches it through a branch
+  that consults neither the wildcard nor the `core` exception — see
+  [`platform-scope.md`](../../packages/permissions/docs/reference/platform-scope.md).
+- **Procedure paths mirror their permission where 1:1, and `ProcedurePermissions` stays explicit
+  anyway** — an identity-looking map is what fails closed when a procedure is added without an entry.
+- **A flag names a change, a widget a unit, a zone a place.** All are dotted, none is a permission.
+  A flag is temporary, so its key says what changes, not what it guards; a widget key leads with its
+  owning module; a zone key leads with its page. [Visibility](visibility.md) combines them.
+- **A zone, never a surface.** "Surface" already means the `--surface` colour token and a package's
+  `index.ts`/`import.ts` import surfaces; names are `ZoneKey`, `<Zone>`, `ui-zone`.
+- **REST paths** on `.route({ path })` are kebab-case, plural, braced params matching the contract
+  field: `/tasks/{taskId}/reactivate`.
+- **Shard words:** a **shard key** places a request (the organization id — the organization *is* the
+  shard); a **node** is a physical Postgres (`shard_assignments.node`); a **placement** is where a
+  *table* lives (`catalog`, `local` or `routed`, exactly one each); the **directory** is
+  `shard_assignments`. No "virtual shard" — nobody needed the extra level.
 
-**The *scope* vocabulary is closed too, and it is a different axis**: `org`, `goal`, `platform`. A
-qualifier narrows what a key covers inside a tenant; a scope says which set holds it. `platform` is
-the one above the tenant, held only through a role in the organization marked `is_platform`, and
-`CapabilitySet.can()` reaches it through a branch that consults neither the wildcard nor the `core`
-exception — see
-[`permissions/docs/reference/platform-scope.md`](../../packages/permissions/docs/reference/platform-scope.md).
+**A log event is not an activity.** An activity is a business fact a user may read, written to a
+partitioned Postgres table in the transaction and kept one to two years; a log event is a diagnostic
+an operator reads, written to stdout and Loki and kept thirty days
+([`@loadbearing/observability`](../../packages/observability/docs/index.md)). A business fact in
+stdout is lost on restart; a diagnostic in Postgres is a retention bill.
 
-**Procedure paths mirror their permission where the mapping is 1:1**, and the `ProcedurePermissions`
-map stays explicit regardless. An identity-looking map is still the thing that fails closed when
-someone adds a procedure and forgets the entry
-([10](../setup/10-contracts-package.md), [24](../setup/24-web-app.md)).
+**An activity name is a catalog entry, not a string.** `ACTIVITY_ACTIONS` is merged from per-slice
+fragments in `packages/contracts/src/catalog/` like `DOMAIN_EVENTS`, and `ActivityLogger.record`
+takes its key union — because `projection_policy` holds one row per action, so an undeclared action
+has no policy. The two catalogs stay separate: an event carries a payload schema for subscribers, an
+activity a label for screens. See [Data and scale](data-and-scale.md).
 
-**A flag names a change, a widget names a unit, and a zone names a place.** All three are dotted
-like a permission key, and none of them is one. A flag is temporary and deleted after its
-rollout, so its key says what is changing, not what it guards. A widget key leads with a module
-so a reader can see which slice owns the card. A zone key leads with the page, because a zone
-belongs to a screen, not a slice. [Visibility](visibility.md) has how the three combine.
-
-**The mount point is a zone, never a surface.** "Surface" already means two things here:
-`--surface` is one of the twelve colour tokens, and a package's `index.ts` and `import.ts` are its
-import surfaces. A third meaning would turn every grep for the word into noise. So the names are
-`ZoneKey`, `<Zone>` and `ui-zone`.
-
-**REST paths** on `.route({ path })` are kebab-case, plural resources, braced params matching the
-contract field name: `/tasks/{taskId}/reactivate`.
-
-**Shard vocabulary, four words that are easy to conflate.** A **shard key** is what a request is
-placed by — here the organization id, because the organization *is* the shard. A **node** is a
-physical Postgres; `shard_assignments.node` is one. A **placement** is where a *table* lives —
-`catalog`, `local` or `routed` — and every table has exactly one. The **directory** is
-`shard_assignments`, the table mapping keys to nodes. There is deliberately no "virtual shard":
-a number between the key and the node is a level nobody needed.
-
-**A log event code is not an activity name.** An activity is a business fact a user may read
-(`task.reactivated`); a log event is a diagnostic an operator reads (`queue.job.failed`). Both are
-past tense because both record something that already happened, and they live in different catalogs
-with different sinks — see [`@loadbearing/observability`](../../packages/observability/docs/index.md).
-Never emit one where the other belongs: a business fact in stdout is lost on restart, and a
-diagnostic in Postgres is a retention bill.
-
-The sinks are the reason: activities go to a partitioned Postgres table inside the transaction and
-are kept for one to two years; log events go to stdout, on to Loki, and are kept for thirty days.
-
-**An activity name is a catalog entry, not a string.** `ACTIVITY_ACTIONS` is merged from
-per-slice fragments in `packages/contracts/src/catalog/`, exactly as `DOMAIN_EVENTS` is, and
-`ActivityLogger.record` takes its key union. That is not tidiness: the projection policy holds one
-row per action deciding whether it reaches the analytics store and for how long, so an action with
-no entry is an action with no policy. Declaring it is the first step, and the compile error at the
-call site is the reminder.
-
-The two catalogs stay separate for the reason above. A domain event carries a payload schema
-because a subscriber parses it; an activity carries a label because a screen renders it. Merging
-them would give every audit row a subscriber and every event a retention policy, and neither is
-what either one is for.
-[Data and scale](data-and-scale.md) has the full four-stream taxonomy.
-
-**A label is not a field.** The four labels above are the *only* ones a log line may be indexed by.
-Every other value — `trace_id`, `user_id`, `task_id`, `organization_id` — lives in the line body and
-is queried after the label selector has narrowed the streams. A label creates one stream per distinct
-value, so promoting a high-cardinality field looks like an optimisation and is the fastest way to
-make the log platform unusable.
-
-`event_code` being a label makes `EVENT_CATALOG` its cardinality budget — plus `error.raised`, the
-one code that lives outside the catalog because its level is decided by the error being logged. Every
-slice that adds a catalog fragment spends the budget, which is a reason to keep codes coarse.
+**A label is not a field.** Only the four labels index a line; `trace_id`, `user_id`, `task_id`,
+`organization_id` live in the body, queried after the selector narrows. A label is one stream per
+value. `EVENT_CATALOG` is `event_code`'s cardinality budget, plus `error.raised` (its level comes from
+the error), so keep codes coarse.
 
 ## Error codes
 
-`SCREAMING_SNAKE_CASE`, and the union is closed — `ERROR_CATALOG` is the whole vocabulary. A code is
-a fact about a failure, never a sentence: `Error.message` **is** the code, and every word a user
-reads lives in `@loadbearing/content` keyed by that code
-([09](../setup/09-errors-package.md), [20](../setup/20-content-package.md)).
+`SCREAMING_SNAKE_CASE`, a closed union — `ERROR_CATALOG` is the whole vocabulary. A code is a fact,
+never a sentence: `Error.message` **is** the code, and every user-facing word lives in
+`@loadbearing/content` keyed by it.
 
 ## Contract members
 
-Every `*Contract` class uses the same static member names, so reading one is reading all of them.
+Every `*Contract` uses the same static names:
 
 | Member | Holds |
 |---|---|
@@ -114,8 +79,8 @@ Every `*Contract` class uses the same static member names, so reading one is rea
 | `listQuery` | filter / pagination input |
 | `<verb>` | any domain action's input — `reactivate`, `approve` |
 
-Derived types follow the schema name: `TaskDto` from `entity`, `CreateTaskInput` from `create`.
-**`Dto` for wire shapes, `Input` for procedure inputs**, never both on one type.
+Types follow the schema: `TaskDto` from `entity`, `CreateTaskInput` from `create`. **`Dto` for wire
+shapes, `Input` for procedure inputs**, never both.
 
 ## Database
 
@@ -135,69 +100,51 @@ Derived types follow the schema name: `TaskDto` from `entity`, `CreateTaskInput`
 | Enum values | `snake_case` | `in_progress` |
 | Drizzle export | `camelCase` plural, matching the table | `goalMembers` |
 
-**Zod enums mirror the DB enum values exactly** — `in_progress`, never `IN_PROGRESS` or
-`InProgress`. One string travels from Postgres to a React `<select>` with no mapping layer to drift.
+- **Zod enums mirror DB values exactly** (`in_progress`, never `IN_PROGRESS`/`InProgress`) — one
+  string from Postgres to a `<select>` with no mapping layer.
+- **Append-only tables are singular** because each is one log or one history, never joined as a
+  collection. `session` is singular only because Better Auth named it.
+- **`organization_id` on every domain table, and every unique index on one leads with it**
+  (`roles_key_uq` on `(key)` alone blocks two tenants' `owner` roles). `check-architecture.mjs` §9
+  holds the table list, so adding to it is a decision. The exceptions:
 
-**Append-only tables are singular, and the exception is worth stating because it looks like a
-mistake.** `goal_members` is a collection of rows you add to and remove from; `activity_log` is one
-log, `task_status_history` is one history. The plural rule serves readability at a join site, and
-neither of these is ever joined that way. `session` is singular too, but only because Better Auth
-named it.
+  | Index | Why it cannot lead with the tenant |
+  |---|---|
+  | `organizations_slug_uq` | This *is* the tenant table |
+  | `organizations_platform_uq` | The same table, partial: at most one row may be the platform tier |
+  | `invitations_token_uq` | The landing page and accept endpoint arrive with a token and no tenant |
+  | `api_keys_hash_uq` | A key arrives as a bare header; the lookup establishes the organization |
+  | the Better Auth tables | Generated against that library's schema |
 
-**`organization_id` is on every domain table, and every unique index on one leads with it.**
-`roles_key_uq` on `(key)` alone means two tenants cannot both have an `owner` role.
-`check-architecture.mjs` §9 holds the list of tables so that adding to it is a decision someone made
-rather than a file nobody noticed.
+- **A nullable column in a unique index is not covered by it** — NULLs are distinct, so
+  `permission_overrides_uq` on `(user_id, goal_id, permission)` enforced nothing for org-scope rows.
+  Use two partial indexes, and check every unique index over a nullable column this way:
 
-There are exactly three kinds of exception, and each has a reason a reader can check:
+  ```sql
+  CREATE UNIQUE INDEX … ON permission_overrides (organization_id, user_id, permission)
+    WHERE goal_id IS NULL;
+  CREATE UNIQUE INDEX … ON permission_overrides (organization_id, user_id, goal_id, permission)
+    WHERE goal_id IS NOT NULL;
+  ```
 
-| Index | Why it cannot lead with the tenant |
-|---|---|
-| `organizations_slug_uq` | This *is* the tenant table |
-| `organizations_platform_uq` | The same table, and partial: at most one row may be the platform tier, and any number may not |
-| `invitations_token_uq` | The landing page and the accept endpoint arrive holding a token and no tenant — resolving it is the point |
-| `api_keys_hash_uq` | Same: a key arrives as a bare header, and the lookup is what establishes the organization |
-| the Better Auth tables | Generated against that library's own schema |
-
-**A nullable column in a unique index is not covered by it.** NULLs are distinct in Postgres, so
-`permission_overrides_uq` on `(user_id, goal_id, permission)` exempted every org-scope row — the
-index existed, read as a constraint, and enforced nothing for the rows that mattered most. The shape
-that works is two partial indexes:
-
-```sql
-CREATE UNIQUE INDEX … ON permission_overrides (organization_id, user_id, permission)
-  WHERE goal_id IS NULL;
-CREATE UNIQUE INDEX … ON permission_overrides (organization_id, user_id, goal_id, permission)
-  WHERE goal_id IS NOT NULL;
-```
-
-Check any unique index over a nullable column against that question before trusting it.
-
-Spell it **`organization`**, not `organisation`, everywhere — the column name settles it, and a
-codebase using both resolves it inconsistently per file.
-
-**A snapshot table name says it is derived.** `goal_risk_daily` reads as a rollup at a grain;
-`goal_risks` would read as a domain table somebody could write to. Only a projection consumer writes
-to one, and it is rebuildable by replaying the activity log ([Data and scale](data-and-scale.md) §2).
-The kit ships no snapshot table today — it had two, empty and unread, and they went with the port
-that was supposed to read them — so the row above is a naming rule rather than a pointer.
+- **Spell it `organization`**, never `organisation`.
+- **A snapshot name says it is derived** — `goal_risk_daily` is a rollup at a grain, `goal_risks`
+  would read as writable. Only a projection consumer writes one, rebuildable from the activity log.
+  The kit ships none today (two empty, unread ones left with their port), so this is a naming rule.
 
 ## Packages, env, React
 
-- **Packages:** `@loadbearing/<single-lowercase-word>`. Scope by layer, never by feature — no
-  `@loadbearing/task-contracts`.
-- **Env vars:** `SCREAMING_SNAKE_CASE`, prefixed by subsystem: `DATABASE_URL`, `S3_BUCKET`. Where
-  one technology serves two purposes, the purpose is the prefix, not the technology —
-  `REDIS_CACHE_URL` and `REDIS_QUEUE_URL`, never one `REDIS_URL`, because the two have different
-  durability guarantees and mixing them loses queued work.
-  Client-exposed vars carry the framework's public prefix and nothing else does. Read once in
-  `apps/*/src/env.ts` and passed down — Biome's `noProcessEnv` enforces that everywhere else.
-- **React components:** `PascalCase` export in a kebab-case file — `task-card.tsx` exports
-  `TaskCard`.
-- **Hooks:** `use<Noun>` — `useCapabilities`.
-- **Props type:** `<Component>Props`, same file.
-- **Handler props:** `on<Event>`; the implementations filling them: `handle<Event>`.
-- **Query factories:** `<Subject>Queries` / `<Subject>Mutations` in `@loadbearing/query`, never in
+- **Packages:** `@loadbearing/<single-lowercase-word>`, scoped by layer, never feature (no
+  `@loadbearing/task-contracts`).
+- **Env vars:** `SCREAMING_SNAKE_CASE`, prefixed by subsystem (`DATABASE_URL`, `S3_BUCKET`). Where one
+  technology serves two purposes, the purpose is the prefix: `REDIS_CACHE_URL` and `REDIS_QUEUE_URL`,
+  never `REDIS_URL`, since mixing durabilities loses queued work. Only client-exposed vars carry the
+  framework's public prefix. Read once in `apps/*/src/env.ts` and passed down; Biome's `noProcessEnv`
+  enforces it elsewhere.
+- **Components:** `PascalCase` export in a kebab-case file — `task-card.tsx` exports `TaskCard`.
+- **Hooks:** `use<Noun>` (`useCapabilities`). **Props:** `<Component>Props`, same file.
+- **Handlers:** props `on<Event>`, implementations `handle<Event>`.
+- **Query factories:** `<Subject>Queries` / `<Subject>Mutations` in `@loadbearing/query`, never
   `api-client`.
-- **Query keys** mirror the procedure path, params last: `["task", "list", { goalId }]`. Never
+- **Query keys** mirror the procedure path, params last (`["task", "list", { goalId }]`), never
   hand-written at a call site.

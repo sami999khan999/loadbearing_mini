@@ -5,15 +5,9 @@ description: Every concrete adapter the system owns, behind a port and confined 
 
 # `@loadbearing/infrastructure`
 
-The package that owns `drizzle-orm`, `pg`, `ioredis`, `@aws-sdk/*` and `bullmq`, so nothing else has
-to. Each class implements a port from [`@loadbearing/application`](../../application/docs/index.md),
-and the `Container` decides which one to build.
-
-```bash
-grep -rn "drizzle-orm\|ioredis\|@aws-sdk\|bullmq\|from \"pg\"" packages --include=*.ts   | grep -v "packages/infrastructure"
-```
-
-Returns nothing. Every one of them appears in exactly one package, which is the whole claim.
+Owns `drizzle-orm`, `pg`, `ioredis`, `@aws-sdk/*` and `bullmq` so nothing else does; each class implements
+an [`application`](../../application/docs/index.md) port and `Container` picks which to build. A grep for
+those imports outside this package returns nothing.
 
 **A separate database package used to sit beside this one, and was folded in.** The two were
 siblings with no edge between them. Merging in this direction keeps the name honest: an S3 client in
@@ -54,6 +48,7 @@ packages/infrastructure/
     │              storage-key.ts           → StorageKey
     ├── bullmq/    bullmq-queue.publisher.ts → BullMqQueuePublisher
     ├── smtp/      smtp-email.sender.ts     → SmtpEmailSender
+    ├── web-push/  web-push.sender.ts       → WebPushSender
     ├── unified/   unified-markdown.renderer.ts → UnifiedMarkdownRenderer
     ├── canned/    canned-assistant.model.ts → CannedAssistantModel
     ├── gemini/    gemini-embedding.provider.ts → GeminiEmbeddingProvider
@@ -69,20 +64,15 @@ packages/infrastructure/
 execute it on import — the failure that moved `seed.ts` out when `PgPersonalOrganizationEnroller`
 needed `SystemRoleSeed`. `src/pg/seed/` keeps the class; `seed.ts` is the thing you run.
 
-**One folder per external system**, so `ls src/` answers "what does this package depend on?" in one
-line. The filenames already led with the technology ([Files](../../../docs/opinions/files.md) — *"you
-should be able to see what you would delete"*); the folders agree with them, which makes each one a
-subject folder in the sense [Folders](../../../docs/opinions/folders.md) means.
+**One folder per external system**, so `ls src/` lists the dependencies, and filenames lead with the
+technology ([Files](../../../docs/opinions/files.md)).
 
 **The external system is the subject, and it is the only subject.** `pg/repository/` used to be five
 folders — `activity/`, `analytics/`, `rbac/`, `vector/`, `maintenance/` — each holding one or two
 files. They were flattened for two reasons.
 
-The first is [Simplicity](../../../docs/opinions/simplicity.md): a folder holding one file is a path,
-not a subject. The second is what happens when a port gets a second implementation.
-`openai/openai-embedding.provider.ts` beside `gemini/gemini-embedding.provider.ts` reads as what it
-is — two implementations of one port, each named after the service it speaks to. **The technology is
-the axis this package sorts on, and naming the subject twice would break that.**
+One-file folders are paths ([Simplicity](../../../docs/opinions/simplicity.md)), and two implementations
+of one port should read as `openai-…` beside `gemini-…` — **technology is the axis**.
 
 `tests/smoke/` is the only folder that is not a system: it spans every store at once. And
 `pg/schema/` is the one place the subject rule bends — drizzle-kit needs a single barrel naming every
@@ -103,11 +93,8 @@ built only when `EMBEDDING_PROVIDER` names them — see [Embedding](reference/em
 | Postgres | **yes** | `drizzle-orm` + `pg` behind most of the ports, plus the schema and migrations |
 | A log platform | **nowhere** | Logs are JSON on stdout. No client, no port, nothing to import |
 
-**The last row is the one worth understanding.** `JsonLogger` writes structured JSON to stdout and
-has never heard of a log store. That is what keeps adding one a config change — the write path has no
-seam because it has no dependency. Bringing back a collector and a reader is
-[Logs](../../../docs/scale/logs.md); a separate analytics store is
-[Analytics](../../../docs/scale/analytics.md).
+`JsonLogger` writes stdout and has never heard of a log store, so adding one is config
+([Logs](../../../docs/scale/logs.md); analytics: [Analytics](../../../docs/scale/analytics.md)).
 
 ## The swap points, and what makes them real
 
@@ -124,22 +111,15 @@ There was a third. `AnalyticsReader` had a `postgres` and a `clickhouse` impleme
 `ANALYTICS_DRIVER`, and **nothing ever read through either** — so the port, both adapters and the
 flag were deleted rather than kept warm. See [Simplicity](../../../docs/opinions/simplicity.md).
 
-**The `driver` field is what stops "swap the implementation" from being a claim.** A seam with exactly
-one implementation is untested by construction. A seam with a discriminated config is exercised the
-first time somebody flips the value — and `Container.buildVectorStore` has an exhaustive `switch`, so
-a driver added to the union and not to the switch is a build error.
-
-**What makes the vector swap cheap is not the switch.** It is that `VectorStore.search()` takes the
-resolved goal scope as a parameter. A remote store holds no `CapabilitySet` and can join back to
-nothing, so the permission filter had to run on the input set from the first day or the port would
-have been unswappable at any price. `searchText` takes the same scope for the same reason.
+**A discriminated `driver` makes "swap it" real** — `buildVectorStore`'s exhaustive `switch` fails the
+build on an unhandled one. **The vector swap is cheap because `search()` and `searchText()` take the
+resolved goal scope** — a remote store cannot join back to permissions.
 
 ## One Redis, two roles, one class
 
-`RedisConnection` takes a URL per role and hands out a client per role, and that is a correctness
-boundary rather than tuning. Lite points `REDIS_CACHE_URL` and `REDIS_QUEUE_URL` at the same
-instance, which runs `noeviction` so a full Redis refuses writes rather than dropping jobs. Splitting
-them is config only — see [Split Redis](../../../docs/scale/split-redis.md).
+A URL and client per role — a correctness boundary. Lite points `REDIS_CACHE_URL` and `REDIS_QUEUE_URL`
+at one `noeviction` instance (full means refused writes, not dropped jobs); splitting is config
+([Split Redis](../../../docs/scale/split-redis.md)).
 
 | | `client()` | `queueClient()` |
 | --- | --- | --- |
@@ -159,10 +139,7 @@ the same type and swapping them compiles.
 ioredis's default retry limit kills them — the symptom is workers that stop consuming after a few
 minutes, with no error.
 
-**One client per role, memoised.** `client()` called twice used to be two TCP connections, and the
-second one is invisible until the connection count is the symptom. `healthy(role)` then pings the
-connection the cache store and the queue publisher are *already* using — opening a fresh one to
-answer a health check reports green on a socket nothing else has.
+**One memoised client per role**; `healthy(role)` pings the one in use, not a fresh socket.
 
 `healthy` takes the role rather than handing out a `Redis`, which is what lets
 [`Container.healthy()`](../../composition/docs/reference/container.md) check every role without
@@ -170,8 +147,7 @@ answer a health check reports green on a socket nothing else has.
 
 ## The `keyPrefix` asymmetry, in both directions
 
-ioredis applies `keyPrefix` to key arguments but **not** to `SCAN`. That cuts both ways, and
-`deletePrefix` has to handle each:
+ioredis prefixes key arguments but **not** `SCAN`, so `deletePrefix` handles both directions:
 
 ```ts
 const keyPrefix = this.redis.options.keyPrefix ?? "";
@@ -180,36 +156,19 @@ const pattern = `${keyPrefix}${prefix}*`;                       // MATCH needs i
 await this.redis.unlink(...keys.map((k) => k.slice(keyPrefix.length)));   // and stripped back off
 ```
 
-**Missing the second half is silent.** `SCAN` returns fully-prefixed keys; handing those straight to
-`unlink` prefixes them a second time and deletes nothing, and `UNLINK` on a missing key is not an
-error. The smoke check asserts a read-back *after* the prune for exactly this reason — the version
-without that line printed a clean run while deleting nothing.
-
-It matters because `deletePrefix` is how capability invalidation works. A silently broken prune means
-a user keeps permissions after their role changed.
+**Missing the strip is silent** — double-prefixed `UNLINK` deletes nothing without error, so the smoke
+check reads back after pruning. `deletePrefix` is capability invalidation: a broken prune keeps revoked
+permissions.
 
 ## Other decisions worth knowing
 
-**A corrupt cache entry is a miss, not a throw — and a logged one.** Deserialisation failures happen
-after a deploy that changed a DTO shape. Throwing turns a stale cache into an outage; evicting and
-falling through turns it into a latency bump. Silently is the part that was wrong: a deploy that
-halves the hit rate looks exactly like one that does not, so the eviction emits
-`cache.entry.corrupt` with the key.
-
-**`SCAN` + `UNLINK`, never `KEYS` + `DEL`.** `KEYS` is O(n) over the whole keyspace and blocks the
-server while it runs; `UNLINK` frees memory off the main thread.
-
-**Storage keys never contain a filename.** `<subject>/<yyyy>/<mm>/<uuid>.<ext>` — path traversal,
-unicode collisions and length limits are three live problems a UUID solves at once. The display name
-belongs in the database row.
-
-**`removeOnComplete` and `removeOnFail` are mandatory.** BullMQ keeps completed jobs forever by
-default; ten jobs a second is about a million records a day, and on a `noeviction` instance that ends
-with everything stopping.
-
-That retention is also why the recovery sweep cannot ask BullMQ what it missed — an hour after a
-success the evidence is gone. It reconciles against Postgres instead, which is what makes handler
-idempotency a requirement rather than a nicety.
+- **A corrupt cache entry is a logged miss** (`cache.entry.corrupt`), not a throw — post-deploy DTO
+  changes become latency, not an outage, and stay visible.
+- **`SCAN` + `UNLINK`, never `KEYS` + `DEL`** — `KEYS` blocks the server.
+- **Storage keys hold no filename** (`<subject>/<yyyy>/<mm>/<uuid>.<ext>`) — traversal, unicode and length
+  in one; the display name lives in the row.
+- **`removeOnComplete`/`removeOnFail` are mandatory** — forever-kept jobs fill a `noeviction` instance.
+  So recovery reconciles against Postgres, making handler idempotency a requirement.
 
 ## The smoke check
 
@@ -217,21 +176,12 @@ idempotency a requirement rather than a nicety.
 pnpm --filter @loadbearing/infrastructure run smoke
 ```
 
-Not a unit test — these are adapters, and testing an adapter against a fake tests the fake. The files
-under `tests/smoke/` run against the live containers. They round-trip the cache, prune it and read
-back, count a rate limit, deliver and replay a realtime frame, round-trip an object through S3 with a
-checksum, and publish and dedupe jobs. `pooled.smoke.spec.ts` checks what a transaction pooler could
-break: the statement timeout, savepoints, advisory locks and the outbox claim.
-
-**The optional parts are checked when they are configured and skipped when they are not.** A second
-node (`DATABASE_SHARD_1_URL`), a replica (`DATABASE_REPLICA_URL`) and the scale runs
-(`TENANT_CEILING`, `FAN_OUT_SCALE`, `ROUTED_SCALE`) each gate their own file. A run against a stack
-without them should say so and pass, rather than fail on a service nobody started.
-
-`vitest.smoke.config.ts` reads `.env` from the repository root explicitly. Under a pnpm filter the
-process cwd is this package, so a bare lookup found nothing and every variable came back undefined —
-which looks exactly like an unconfigured stack. It throws on a missing required name rather than
-guessing one.
+`tests/smoke/` runs against live containers (a fake tests the fake): cache round trip and prune, rate
+limit, realtime deliver and replay, S3 with checksum, job publish and dedupe; `pooled.smoke.spec.ts` checks
+what a pooler could break (statement timeout, savepoints, advisory locks, outbox claim). Optional parts
+gate their own files — `DATABASE_SHARD_1_URL`, `DATABASE_REPLICA_URL`, `TENANT_CEILING`, `FAN_OUT_SCALE`,
+`ROUTED_SCALE` — and skip with a line. `vitest.smoke.config.ts` reads the root `.env` explicitly (a pnpm
+filter's cwd finds nothing) and throws on a missing name.
 
 ## Reference
 

@@ -5,33 +5,25 @@ description: What a use-case above the tenant may assume, why its health seam is
 
 # `application/src/platform/`
 
-Every other slice in this package acts inside one tenant. This one acts above every tenant, and
-three things follow from that.
+Every other slice acts inside one tenant; this one acts above all of them.
 
 ## The actor is ordinary; the key is not
 
-A platform use-case takes the same `Principal` every other use-case takes. Nothing about it is
-special — it carries whichever organization the session is pointed at, which for a platform admin
-is usually a customer tenant they switched into.
-
-What makes it platform work is the key:
+The `Principal` is ordinary — it carries whatever organization the session points at, often a customer
+tenant. The key makes it platform work:
 
 ```ts
 this.authorizer.assert(actor, "platform.status.read");
 ```
 
-`platform.*` is `scope: "platform"`, so `CapabilitySet.can()` takes the branch that consults the
-platform axis and nothing else. A tenant owner's `wildcard` does not reach it. The four leak paths
-and what closes each are in
-[`permissions/docs/reference/platform-scope.md`](../../../permissions/docs/reference/platform-scope.md).
+`platform.*` is `scope: "platform"`, so `can()` consults only the platform axis; a tenant `wildcard` never
+reaches it (
+[platform scope](../../../permissions/docs/reference/platform-scope.md)).
 
 ## The audit row is rebased, and it is a rule rather than a field
 
-A platform admin's active tenant is whichever they switched to. An audit row under it would say a
-customer changed a global setting — and a support engineer reading that tenant's trail would be
-looking at a change nobody in that tenant made.
-
-So a platform use-case records its audit row against the **tier**:
+Recorded under the admin's active tenant, a global change would appear in a customer's trail. So
+platform use-cases audit against the **tier**:
 
 ```ts
 await this.activity.record(
@@ -57,14 +49,9 @@ abstract class PlatformReader {
 }
 ```
 
-Two methods because they have different callers and different costs. `organizationId` is read on
-**every RBAC write** — `CapabilityCache` asks it to decide whether flushing a tenant should also
-flush the platform axis — so it returns the one value that question needs. `organization` is the
-screen's, and carries the slug and name beside it.
-
-Both throw rather than returning null. `organizations_platform_uq` guarantees at most one and
-`pnpm db:seed` guarantees at least one, so a miss is a database nobody seeded: a broken deployment,
-not a case every caller has to branch on.
+`organizationId` is read on **every RBAC write** (`CapabilityCache` decides whether to flush the platform
+axis); `organization` adds slug and name for the screen. Both throw on a miss — `organizations_platform_uq`
+allows at most one and `db:seed` makes one, so a miss is an unseeded, broken deployment.
 
 ## `PlatformHealthReader` — a slice port, not a cross-cutting one
 
@@ -93,12 +80,9 @@ A third slice port, beside the two above, and a **catalog** read. The directory 
 a tenant is, so it cannot be routed by one — see
 [sharding](../../../infrastructure/docs/reference/sharding.md).
 
-Lite keeps one method. `findByTerm(term)` takes an organization id **or** a slug, because an
-operator pasting one of the two should not have to say which. The entitlement and flag-target use
-cases call it to find the tenant they act on. The comparison is `organizations.id::text = $1`,
-never `$1::uuid`: a slug cast to a uuid is a `22P02` from the database rather than the empty answer
-a typed search should get. A miss is `null` and not a `NOT_FOUND` — a miss is what typing usually
-produces, and an error screen for normal typing is worse than no answer.
+Lite keeps one method: `findByTerm(term)` takes an id **or** slug (for the entitlement and flag-target
+use-cases), comparing `organizations.id::text = $1` (a slug cast to `uuid` is `22P02`); a miss is `null`,
+not `NOT_FOUND`.
 
 The big kit's shards screen adds a node listing and a tenant page per node, and moves tenants
 between nodes. The way back is [`docs/scale/shard-nodes.md`](../../../../docs/scale/shard-nodes.md).
@@ -128,10 +112,7 @@ The capability flush and the shard cache invalidation run **after** the commit. 
 the cache would refill from rows the transaction had not removed yet — which is the stale entry the
 flush exists to prevent.
 
-Two refusals, and the first is not a formality: the tier holds the platform roles every admin's
-capability comes from, this one included, so deleting it locks the deployment out of its own
-platform screens. The second is the typed slug, compared here as well as in the browser — a
-confirmation only the client checks is a confirmation the API does not have.
+**Two refusals:** the tier (deleting it locks every admin out) and a typed slug checked server-side too.
 
 What it does **not** do is delete the cold objects. Those stay thirty days, until the nightly
 `retention` job sweeps them; see
@@ -146,10 +127,8 @@ The day comes from the clock **once**, in the use-case, and travels in the paylo
 next morning then writes the objects the job id already claimed rather than a second day's set.
 The id is dotted — `tenant-export.<organization>.<day>` — because BullMQ rejects a colon.
 
-`ListTenantExportsUseCase` reads the bucket rather than a table, and that is deliberate: nothing
-records an export in Postgres, so there is no second index to disagree with what is actually
-downloadable. Every URL is presigned for fifteen minutes, which is why the query that reads them
-has `staleTime: 0` — a cached page is a page of links that have quietly stopped working.
+`ListTenantExportsUseCase` reads the bucket, not a table (nothing to disagree), with fifteen-minute
+presigned URLs and `staleTime: 0`.
 
 What the export **does not** carry is the hashes. `invitations.token_hash` and
 `api_keys.token_hash` are nulled on the way out: a hash is a credential, not data the customer
@@ -157,10 +136,8 @@ owns, and handing one back is handing back the ability to brute-force the key it
 
 ## The bucket rule is composed in one place
 
-`RetentionRules.lifecycleFor()` is the whole rule set, and lite composes one rule: objects under
-`export/` expire after seven days. An export is a copy of a tenant's data in a bucket, and seven
-days is how long that is a download rather than a liability. The nightly `retention` job compares
-the bucket against it with `lifecycleMatches` and writes only on a difference.
+`RetentionRules.lifecycleFor()` composes lite's one rule — `export/` expires after seven days (a download,
+not a liability); the nightly `retention` job writes only when `lifecycleMatches` finds a difference.
 
 The big kit composes a rule per table from its retention policies. The way back is
 [`docs/scale/retention.md`](../../../../docs/scale/retention.md).
@@ -171,10 +148,10 @@ The big kit composes a rule per table from its retention policies. The way back 
 than a convention — the repository reads it without an `order by`. The migration deliberately does
 **not** insert it: an absent row is the defaults, and the first save is what creates it.
 
-`platform_policy.replica_reads_enabled` is the switch, and `ToggleReplicaReadsUseCase`, under
-`platform.replica.manage`, is the write. In lite nothing reads it to route a query. The big kit's
-analytics consumer did; see [`docs/scale/read-replica.md`](../../../../docs/scale/read-replica.md).
-Lite's own replica reads are the public doc reads, which ask for a standby per call.
+`platform_policy.replica_reads_enabled`, written by `ToggleReplicaReadsUseCase`
+(`platform.replica.manage`), routes nothing in lite (the big kit's analytics consumer read it —
+[`read-replica.md`](../../../../docs/scale/read-replica.md)); lite's public doc reads ask for a standby per
+call.
 
 **It lives on `/platform/status`.** The status DTO carries
 `replica: { healthy, lagSeconds, readsEnabled } | null`. The operator deciding whether reads go

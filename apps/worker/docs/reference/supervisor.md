@@ -5,21 +5,19 @@ description: Lanes, WORKER_QUEUES, the two ceilings a worker process checks befo
 
 # The supervisor
 
-**A worker process runs lanes, and `WORKER_QUEUES` picks which.** A lane is one queue served
-inside one process: one BullMQ `Worker` with its own concurrency. Before this, every process ran
-every consumer. Adding a copy to speed up embedding also added a copy of mail, outbox and the rest,
-and each copy opened database connections.
+**A process runs lanes; `WORKER_QUEUES` picks which.** A lane is one queue in one process — a BullMQ
+`Worker` with its own concurrency — so scaling embedding no longer copies mail, outbox and their
+connections.
 
 | Piece | File | Job |
 |---|---|---|
 | `LaneRegistry` | `src/supervisor/lane-registry.ts` | Every queue this build can serve, in start order, with its starting concurrency and the variable that sets it |
-| `QueueLimits` | `src/supervisor/queue-limits.ts` | The most one process may run of each queue, whatever the environment says |
+| `QueueLimits` | `packages/application/src/primitive/queue-limits.ts` | The most one process may run of each queue, whatever the environment says |
 | `WorkerSupervisor` | `src/supervisor/worker-supervisor.ts` | Checks the ceilings, starts the selected lanes, and closes them on drain |
 
 ## `WORKER_QUEUES`
 
-A comma list of queue names. Unset or empty serves every queue, which is the behaviour before the
-variable existed.
+A comma list of queues; unset or empty serves all.
 
 ```bash
 # One service for the light queues, one for embedding with three replicas.
@@ -27,18 +25,12 @@ WORKER_QUEUES=mail,event,notification,maintenance
 WORKER_QUEUES=embedding
 ```
 
-Copies of one service split a queue's jobs between them: BullMQ hands each job to one taker, and
-the repeatable schedules already dedupe by job id.
+Copies split a queue's jobs (one taker per job; schedules dedupe by id). **A wrong name fails boot** — a
+typo is an undrained queue that looks quiet.
 
-**A wrong name is a boot error, not a warning.** A typo here is a queue nobody drains, and it
-looks exactly like a quiet queue.
-
-**Leaving `mail` out is allowed, and it is your job to serve it elsewhere.** Every sign-up's
-verification link is a mail job. The same goes for `event`: without it the outbox is never drained.
-
-Every process still registers the schedules and runs the partition check at boot, whatever lanes it
-serves. Registration is idempotent, and a schedule only puts jobs on a queue — the lane that
-serves the queue runs them.
+**Omitting `mail` or `event` is allowed — serve them elsewhere** (every sign-up mails; `event` drains the
+outbox). Every process still registers schedules and runs the boot partition check (idempotent; lanes run
+the jobs).
 
 ## Two ceilings, checked before the first lane starts
 
@@ -47,13 +39,8 @@ serves the queue runs them.
 2. **Per process:** the sum across the selected lanes may not exceed
    `WORKER_PROCESS_MAX_CONCURRENCY` (64). The error names each lane's variable and value.
 
-Both are refusals, and both happen before any lane starts. A refusal halfway would leave a process
-consuming some queues and then exiting.
-
-The older `worker.pool.oversubscribed` warning still runs after boot. It compares the lanes that
-started, mail excluded, against `DATABASE_POOL_MAX` — see [`env.md`](./env.md). The ceiling is a
-hard stop on a process that is clearly misconfigured; the warning is about the pool you actually
-have.
+Both refuse before any lane starts (halfway would consume some queues, then exit). After boot,
+`worker.pool.oversubscribed` warns about the real pool ([env](./env.md)).
 
 ## Pausing a queue everywhere
 
@@ -64,12 +51,7 @@ pnpm queue:resume mail
 pnpm queue:pause all           # every queue, e.g. before moving the queue Redis
 ```
 
-The pause is BullMQ's own, stored in the queue's Redis keys. Every worker obeys it, including one
-started after it, and it survives restarts. Publishers keep enqueueing, so nothing is lost; the jobs
-wait. `queue:pause` with no queue is refused rather than read as `all`.
-
-## What comes next
-
-The big kit adds the runtime half on this same lane list: a process registry, pause and queue moves
-per process, and in-process autoscaling, all from a platform **Workers** page. It is additive here.
-See [Worker control](../../../../docs/scale/worker-control.md).
+BullMQ's own pause, in the queue's Redis keys: every worker obeys it, later ones too, across restarts;
+publishers keep enqueueing. A bare `queue:pause` is refused, not read as `all`. The big kit adds a
+process registry, per-process pause and moves, and autoscaling from a platform **Workers** page
+([Worker control](../../../../docs/scale/worker-control.md)).

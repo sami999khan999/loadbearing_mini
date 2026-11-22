@@ -13,61 +13,45 @@ Semantic search is one switch, `EMBEDDING_PROVIDER`, read once by the container.
 | `openai` | cosine distance over `vector(1536)` | text and a vector | `EMBEDDING_API_KEY` |
 | `gemini` | the same | the same | `EMBEDDING_API_KEY` |
 
-`Container.buildSearchMode` turns the setting into a `SearchMode`: `lexical`, or `semantic` with an
-`EmbeddingProvider`. `IndexDocumentUseCase`, `SearchDocumentsUseCase` and `ReembedChunksUseCase`
-branch on that value and nothing else. No use-case names a vendor, and none asks which class it was
-handed. A third provider, such as a local model, is one more adapter and one more `case`.
+`Container.buildSearchMode` yields a `SearchMode` — `lexical`, or `semantic` with an `EmbeddingProvider` —
+and the index, search and re-embed use-cases branch on that alone, naming no vendor. A third provider is
+one adapter and one `case`.
 
 ## The two adapters
 
-Both are `fetch` against the vendor's REST endpoint. There is no SDK, so there is no new catalog
-entry.
+Both `fetch` the REST endpoint (no SDK, no catalog entry):
 
-- **`OpenAiEmbeddingProvider`** posts `/embeddings` in batches of 96. `dimensions` is sent, so the
-  model is cut to the column's width. It ignores `purpose`, because OpenAI embeds a query and a
-  document the same way.
-- **`GeminiEmbeddingProvider`** posts `models/<model>:batchEmbedContents` in batches of 100, with the
-  key in `x-goog-api-key` rather than the query string. It sends `outputDimensionality`, so its
-  vectors share the `vector(1536)` column with OpenAI's. `purpose` maps to `taskType`: a document is
-  `RETRIEVAL_DOCUMENT` and a query is `RETRIEVAL_QUERY`. Gemini embeds the two differently, and
-  mixing them up costs recall.
+- **`OpenAiEmbeddingProvider`** — `/embeddings`, batches of 96, `dimensions` cut to the column; ignores
+  `purpose` (queries and documents embed alike).
+- **`GeminiEmbeddingProvider`** — `models/<model>:batchEmbedContents`, batches of 100, key in
+  `x-goog-api-key`, `outputDimensionality` to share `vector(1536)`; `purpose` → `taskType`
+  (`RETRIEVAL_DOCUMENT`/`RETRIEVAL_QUERY` — mixing them costs recall).
 
-Both answer a failed or short response with `UNAVAILABLE`, which is retryable, so the embedding
-consumer tries again rather than dead-lettering a blip. An unset `EMBEDDING_MODEL` defaults to
-`text-embedding-3-small` or `gemini-embedding-001`.
+A failed or short response is retryable `UNAVAILABLE`. Default models: `text-embedding-3-small`,
+`gemini-embedding-001`.
 
 ## Lexical search
 
-`document_chunks.search` is a generated `tsvector`: `to_tsvector('simple', content)`, with a GIN
-index. `PgVectorStore.searchText` matches it with `websearch_to_tsquery('simple', …)`, which takes
-what a person types (quotes and a leading minus included) and never throws on it. Hits are ranked by
-`ts_rank`. The hit shape is the same `SearchHit` the semantic path returns, and the goal scope is
-applied the same way, on the input set, before anything is ranked.
-
-`simple`, not a language: the corpus has no single language, and a stemmer for the wrong one is
-worse than none. The cost is recall: `invoices` does not match `invoice`. That is the trade-off for
-needing no key and making no call.
+`document_chunks.search` is a generated `to_tsvector('simple', content)` with a GIN index;
+`PgVectorStore.searchText` uses `websearch_to_tsquery('simple', …)` (takes what people type, never throws),
+ranks by `ts_rank`, returns the same `SearchHit`, and scopes goals on the input set first. `simple`
+because the corpus has no single language — the cost is recall (`invoices` ≠ `invoice`).
 
 ## Switching providers
 
-Every chunk records `embedding_model`. `search` compares only chunks the active model wrote,
-because a vector from another model is a point in another space and a distance to it ranks noise.
-So after a switch, the old chunks are unread until they are re-embedded:
+Every chunk records `embedding_model`, and `search` reads only the active model's (another model's
+vector is another space), so after a switch old chunks are unread until re-embedded:
 
 ```bash
 pnpm ai:reindex
 ```
 
-That queues one `reembed` job per organization on the embedding queue, through the app's own
-queue publisher, so each job gets the usual eight attempts with backoff. A tenant already waiting
-or running is not queued twice, and a rerun after a failure queues it again. The worker's
-`ReembedChunksUseCase` re-embeds, a batch at a time, every chunk whose model is missing or
-different. It keeps the stored text rather than re-splitting the source, so chunk boundaries do not
-move. With `EMBEDDING_PROVIDER=none` the job does nothing, because lexical search already reads
-every chunk. Chunks written before `0002_chunk_embedding_model` have no model and count as stale.
+One `reembed` job per organization on the embedding queue (eight attempts with backoff; not queued
+twice while pending; requeued on a rerun). `ReembedChunksUseCase` re-embeds, in batches, chunks whose
+model is missing or different, keeping stored text so boundaries do not move; under `none` it does
+nothing. Chunks written before `0002_chunk_embedding_model` have no model and count as stale.
 
-**`EMBEDDING_DIMENSIONS` stays 1536 for both providers.** Changing it means `ALTER TABLE` on the
-column plus a re-embed of the whole corpus.
+**`EMBEDDING_DIMENSIONS` stays 1536** — changing it is an `ALTER TABLE` plus a full re-embed.
 
 ## Trade-offs
 

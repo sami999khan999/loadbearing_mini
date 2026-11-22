@@ -7,28 +7,20 @@ description: The tie-breaker when two designs satisfy every other rule: the leas
 
 > **Build the least structure that achieves the goal. Performance is part of the goal.**
 
-Both halves are load-bearing. Structure removed at the cost of a slower system has not been
-simplified — the cost has moved somewhere nobody is looking.
+Structure removed at the cost of a slower system has not been simplified; the cost has moved.
 
-**Ceremony** is structure a pattern demanded: a folder per file, an interface with one implementation
-and no prospect of a second. **Terseness** is removing what a reader needed. The test is neither line
-count nor file count: **how much must someone hold in their head to change this safely?**
+**Ceremony** is structure a pattern demanded (a folder per file, an interface with one
+implementation and no second in prospect). **Terseness** is removing what a reader needed. The test
+is **how much someone must hold in their head to change this safely**, not line or file count.
 
 A directory earns its place by holding more than one file or being a path a tool requires; a package
-by having a dependency boundary a folder cannot express; an abstraction by a second implementation
-existing — **with one exception: a seam earns its place early when the swap is certain and the
-retrofit is spread rather than local.** An abstraction whose future swap touches one adapter has
-earned nothing; write the adapter.
+by a dependency boundary a folder cannot express; an abstraction by a second implementation —
+**except a seam whose swap is certain and whose retrofit would be spread, not local.** If the
+future swap touches one adapter, just write the adapter.
 
-**Three questions when adding anything structural:** What breaks if I leave it out? Is the cost of
-adding it later spread or local? Does the simpler version cost throughput, latency, or a query?
+**Before adding structure:** What breaks without it? Is adding it later spread or local? Does the
+simpler version cost throughput, latency or a query?
 
-**Deleting structure is a change like any other** and gets the same verification.
+**Deleting structure is a change** and gets the same verification.
 
----
-
-**The argument.**
-[`docs/opinions/simplicity.md`](../../opinions/simplicity.md) — how much structure to build, and why performance is part of the goal.
-
-When this file and `docs/opinions/` disagree, **`docs/opinions/` wins and this file is stale;
-say so.**
+Argument: [`docs/opinions/simplicity.md`](../../opinions/simplicity.md).

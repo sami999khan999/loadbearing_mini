@@ -5,59 +5,44 @@ description: Why this app has two import.ts files rather than one, what each may
 
 # The two import surfaces
 
-Every package in this repository writes each external import exactly once, in `src/import.ts`, and
-imports it from there. This app has **two**, and the split is the server-only boundary made
-readable.
+Every package writes each external import once, in `src/import.ts`. This app has **two**, splitting on
+the server-only boundary:
 
 | Surface | May name | Read by |
 |---|---|---|
 | `src/import.ts` | the client-safe workspace packages, React, `@tanstack/react-query`, `createRouter`, zod | anything |
 | `src/server/import.ts` | `@loadbearing/composition`, `@loadbearing/application` and the vendor SDKs beneath them | `src/server/**` only |
 
-`apps/web/src/**` is banned from naming `composition`, `application`, `auth`, `infrastructure` and
-their vendors. `apps/web/src/server/**` is the one exemption, because nothing that reads that file
-reaches a browser.
-
-**Merging them would hand every route component an edge into the server graph** and leave the client
-bundle's cleanliness resting on tree-shaking — which is exactly what `check-architecture` §8 exists
-to avoid depending on.
-
-Read as a list, `server/import.ts` answers "what does the transport layer touch?", and a server-only
-package appearing on the client surface instead is the leak.
+`apps/web/src/**` may not name `composition`, `application`, `auth`, `infrastructure` or their vendors;
+`apps/web/src/server/**` is exempt, since nothing reading it reaches a browser. **One surface would give
+every route an edge into the server graph**, leaving bundle cleanliness to tree-shaking (what
+`check-architecture` §8 avoids depending on). `server/import.ts` lists what the transport touches; a
+server-only package on the client surface is the leak.
 
 ## The three imports that sit outside both
 
-Each is forced by a tool, and each is commented at the line where it appears.
+Each tool-forced and commented at its line:
 
-**`env.ts` keeps its own imports.** It carries the marker that makes Start's import-protection plugin
-fail the build if the module ever becomes reachable from the client graph, and **a side-effect import
-cannot be re-exported**. Before that marker was there, `Env` shipped in the browser bundle as
-`Schema.parse({})` and threw on `DATABASE_URL` before the first render.
-
-**`@tanstack/react-router` is imported directly inside `src/route/`.** The route generator only
-recognises `createFileRoute` when it is imported from that specifier literally, and prepends its own
-import when it is not. `createRouter` is on the client surface because `router.tsx` is a file the
-generator never reads.
-
-**`@tanstack/react-start` and its `/server` subpath are imported directly in `server/*.fn.ts`.** See
-[`server-functions.md`](./server-functions.md) — a re-exported `/server` entry is a client-graph edge
-that Start's import protection denies outright.
+- **`env.ts` keeps its own imports** — its server-only marker (which fails the build if the module joins
+  the client graph) is a side-effect import that cannot be re-exported. Before it, `Env` shipped to the
+  browser as `Schema.parse({})` and threw on `DATABASE_URL` before first render.
+- **`@tanstack/react-router` is direct in `src/route/`** — the generator recognises `createFileRoute`
+  only from that literal specifier and otherwise prepends its own. `createRouter` stays on the surface
+  since the generator never reads `router.tsx`.
+- **`@tanstack/react-start` and `/server` are direct in `server/*.fn.ts`** — a re-exported `/server`
+  entry is a client-graph edge import protection denies ([server functions](./server-functions.md)).
 
 ## The stylesheet
 
-Not on either surface. `__root.tsx` imports its own
-[`src/style/app.css`](../../src/style/app.css) with `?url` and links it once. That file is the
-Tailwind entry: it `@import`s `@loadbearing/ui/style.css`, names the package sources
-Tailwind scans with `@source`, and compiles all of it into one stylesheet. A relative file, so it is
-never re-exported from an `import.ts`.
+On neither surface: `__root.tsx` links [`src/style/app.css`](../../src/style/app.css) via `?url`. It is
+the Tailwind entry — `@import`s `@loadbearing/ui/style.css`, names scanned sources with `@source`, and
+compiles one stylesheet.
 
 ## What the client surface deliberately does not carry
 
-- **`SERVER_CATALOG`.** The client catalog by way of `StaticContentSource`, always — the `email`
-  namespace is the worker's, and the ESLint ban fires on that line.
-- **Wire shapes.** Only the two branded ids `session.fn.ts` casts to. What a component renders
-  arrives through `@loadbearing/query`.
-- **zod, for anything but search parameters.** A route validates what a browser put in its own URL
-  bar; the wire shapes are `contracts`' business.
-- **A module-singleton `AuthClient`.** It is constructed per component, because the instance differs
-  per environment and the desktop shell supplies absolute URLs of its own.
+- **`SERVER_CATALOG`** — always the client catalog via `StaticContentSource`; `email` is the worker's
+  and the ESLint ban fires on that line.
+- **Wire shapes** — only the two branded ids `session.fn.ts` casts to; rendered data comes via `query`.
+- **zod beyond search parameters** — routes validate their own URL; wire shapes are `contracts`'.
+- **A module-singleton `AuthClient`** — built per component, since instances differ per environment
+  and the desktop shell supplies its own absolute URLs.

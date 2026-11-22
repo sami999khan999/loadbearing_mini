@@ -15,8 +15,8 @@ mailpit:
     test: ["CMD", "/mailpit", "readyz"]
 ```
 
-No config file and no volume. Every setting is a flag or a default, and the inbox is in memory —
-`pnpm infra:down` empties it, which is the correct behaviour for a scratch mailbox.
+No config file or volume; the inbox is in memory, so `pnpm infra:down` empties it — right for a
+scratch mailbox.
 
 ## What it is for
 
@@ -24,15 +24,14 @@ No config file and no volume. Every setting is a flag or a default, and the inbo
 `smtp://localhost:21025` locally. Mailpit accepts the message, **delivers it nowhere**, and shows it
 at <http://localhost:28025>.
 
-The transport is **pooled** — up to five connections, each recycled after a hundred messages — and
-bounded: ten seconds to connect and greet, thirty of silence mid-send. A hung server fails the send
-as `UNAVAILABLE`, which the queue retries, rather than holding the job for nodemailer's minutes.
-The pool connects on the first send, so a process that never mails opens no socket.
+The transport is **pooled** (up to five connections, recycled every hundred messages) and bounded —
+ten seconds to connect and greet, thirty of mid-send silence — so a hung server fails as `UNAVAILABLE`
+for the queue to retry instead of holding the job for nodemailer's minutes. It connects on first send,
+so a process that never mails opens no socket.
 
 > [!IMPORTANT]
-> **It cannot send mail to a real address, and that is the feature.** A misaddressed digest during
-> development reaches an inbox you own rather than a customer. The day this is swapped for a real
-> provider is the day that stops being true.
+> **It cannot reach a real address — the feature.** A misaddressed dev digest lands in your inbox,
+> not a customer's; that ends the day it is swapped for a real provider.
 
 ## Reading what was sent
 
@@ -41,8 +40,7 @@ open http://localhost:28025          # the UI — subject, recipients, HTML and 
 curl -s localhost:28025/api/v1/messages | jq '.messages[0].Subject'
 ```
 
-The API is what makes it usable from a test: send, then assert on what arrived, without a
-provider's sandbox or a fake in the container.
+The API lets a test send, then assert on what arrived — no provider sandbox, no fake.
 
 ## The swap
 
@@ -53,15 +51,13 @@ SMTP_URL=smtp://localhost:21025                    # mailpit
 SMTP_URL=smtps://user:key@smtp.provider.com:465   # any real provider
 ```
 
-`smtps://` for implicit TLS on 465, `smtp://` with STARTTLS on 587. The sender behind the port reads
-the URL and nothing else, which is what keeps the provider a deployment decision rather than a
-dependency — see [Dependencies](../../opinions/dependencies.md) on Tier 0.
+`smtps://` for implicit TLS on 465, `smtp://` with STARTTLS on 587. The sender reads only the URL, so
+the provider is a deployment decision ([Tier 0](../../opinions/dependencies.md)).
 
 ## The healthcheck is unusual, and deliberately so
 
-The image ships neither `wget` nor `curl`, so the usual `CMD curl -f …` probe fails with
-`executable file not found` and the container sits `unhealthy` forever while working perfectly.
-`/mailpit readyz` is the binary answering about itself — the probe the project documents.
+No `wget` or `curl` in the image, so a `CMD curl -f …` probe fails `executable file not found` and
+leaves a working container `unhealthy` forever. `/mailpit readyz` is the documented self-probe.
 
 ## What to check when it is wrong
 

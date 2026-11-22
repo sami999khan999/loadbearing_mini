@@ -9,24 +9,19 @@ description: Why every UUID is branded, what branding costs, and where the parse
 export class Identifiers {
   public static readonly organizationId: z.ZodBranded<z.ZodUUID, "OrganizationId">;
   public static readonly userId: z.ZodBranded<z.ZodUUID, "UserId">;
-  public static readonly roleId: z.ZodBranded<z.ZodUUID, "RoleId">;
-  public static readonly goalId: z.ZodBranded<z.ZodUUID, "GoalId">;
-  public static readonly taskId: z.ZodBranded<z.ZodUUID, "TaskId">;
-  public static readonly apiKeyId: z.ZodBranded<z.ZodUUID, "ApiKeyId">;
+  // … one per id
 }
 
 export type OrganizationId = z.infer<typeof Identifiers.organizationId>;
 export type UserId = z.infer<typeof Identifiers.userId>;
-export type RoleId = z.infer<typeof Identifiers.roleId>;
-export type GoalId = z.infer<typeof Identifiers.goalId>;
-export type TaskId = z.infer<typeof Identifiers.taskId>;
-export type ApiKeyId = z.infer<typeof Identifiers.apiKeyId>;
+// …
 ```
 
-`organizationId` is the tenant key, present on every domain table and used as the sharding key
-([Data and scale](../../../../docs/opinions/data-and-scale.md)). It is the one identifier where a
-swapped argument is a cross-tenant leak rather than an empty result set, which is why it is branded
-like the rest rather than passed as a bare `string`.
+The ids: `organizationId`, `userId`, `roleId`, `goalId`, `taskId`, `apiKeyId`, `invitationId`,
+`notificationId`, `conversationId`, `messageId`, `docSpaceId`, `docPageId`.
+
+`organizationId` is the tenant and sharding key ([Data and scale](../../../../docs/opinions/data-and-scale.md))
+— the one id where a swapped argument is a cross-tenant leak, not an empty result.
 
 ---
 
@@ -38,13 +33,9 @@ Without it, every identifier in the system is `string`, and this compiles:
 reactivateTask(goalId, taskId);   // signature is (taskId: string, goalId: string)
 ```
 
-The arguments are swapped. Both are UUID-shaped, both are strings, and nothing objects. The query
-runs, matches nothing, and returns an empty result — which reads like missing data rather than a bug,
-so it gets investigated in the repository layer where nothing is wrong.
-
-With a brand, that line is a compile error at the call site. In a system with a dozen UUID-shaped
-identifiers this catches a real mistake regularly, and each one would otherwise have been found in
-production.
+Swapped, and nothing objects: the query matches nothing and the empty result looks like missing data,
+investigated in the wrong layer. Branded, it is a compile error — with a dozen UUID-shaped ids, a real
+catch, regularly.
 
 ## What it costs
 
@@ -54,9 +45,8 @@ A branded value cannot be constructed by assignment. You have to parse:
 const taskId = Identifiers.taskId.parse(raw);
 ```
 
-That is the whole cost, and it is charged at exactly the boundary where you wanted validation
-anyway — an oRPC input, a row read off Postgres, a queue payload. Downstream of that line the type
-travels with the value and nothing has to check it again.
+The whole cost, paid where validation belongs anyway (an oRPC input, a Postgres row, a queue payload);
+downstream the type travels with the value.
 
 ## The brand is compile-time only
 
@@ -67,23 +57,16 @@ const goalId = Identifiers.goalId.parse(UUID);
 taskId === goalId;   // true — same string
 ```
 
-Nothing is added to the runtime value. `JSON.stringify` produces a plain string, Postgres stores a
-plain `uuid`, and a branded id round-trips through the wire without any special handling. The type
-is erased; only the compiler ever knew.
-
-This is why the spec asserts both facts — that the two are equal at runtime, and that assigning one
-to the other is a `@ts-expect-error`.
+Nothing is added at runtime — a plain string in JSON, a plain `uuid` in Postgres. The spec asserts both
+runtime equality and that cross-assignment is a `@ts-expect-error`.
 
 ## No message, here or anywhere
 
-`z.uuid()` carries Zod's own failure text, and this package never replaces it with a custom string.
-A malformed id produces an issue with `code: "invalid_format"`, `ValidationError.fromIssues` turns
-that into `{ field, rule: "invalidFormat" }`, and `@loadbearing/content` renders
-`error.field.invalidFormat`. See [errors](../../../errors/docs/reference/error-normalizer.md).
+No custom message: a malformed id is a Zod `invalid_format` issue, which `ValidationError.fromIssues`
+maps to `{ field, rule: "invalidFormat" }` and `content` renders as `error.field.invalidFormat`
+([errors](../../../errors/docs/reference/error-normalizer.md)).
 
 ## Adding one
 
-One line in this class and one exported type. The name is the domain noun in `PascalCase`, and the
-schema member is the same noun in `camelCase` — `Identifiers.invoiceId` / `InvoiceId`. Anything
-UUID-shaped that means something specific belongs here; a UUID that is genuinely just a UUID
-(a request id, a trace id) does not.
+One member and one exported type — `Identifiers.invoiceId` / `InvoiceId`. A UUID that means something
+belongs here; one that is just a UUID (a request or trace id) does not.

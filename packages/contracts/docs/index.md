@@ -5,19 +5,15 @@ description: Branded identifiers, the one list envelope, the merged oRPC contrac
 
 # `@loadbearing/contracts`
 
-Everything that crosses a boundary is described here, once. A shape declared in this package is the
-same shape the server validates, the browser form checks, the worker parses off a queue, and the
-desktop app's offline queue rejects before it ever enqueues a mutation.
-
-The package is **isomorphic and I/O-free**: Zod schemas, entity behaviour, and oRPC contract
-definitions. No handler, no database, no transport. That is what lets a rule like "a reactivation
-reason is at least ten characters" be written once and enforced in four places.
+Everything that crosses a boundary is described here once — the shape the server validates, the form
+checks, the worker parses off a queue and a desktop offline queue rejects. **Isomorphic and I/O-free**
+(Zod schemas, entity behaviour, oRPC contracts), so a rule is written once and enforced in four places.
 
 | | |
 | --- | --- |
 | **Package** | `@loadbearing/contracts` (private, never published) |
 | **Entrypoint** | `src/index.ts` |
-| **Depends on** | `zod`, `@orpc/contract`, `@loadbearing/permissions` (type-only), and — once slices land — `@loadbearing/core` and `@loadbearing/errors` |
+| **Depends on** | `zod`, `@orpc/contract`, `@loadbearing/permissions` (type-only) |
 | **Used by** | `application`, `infrastructure`, `api-client`, `query`, `ui`, `feature`, `apps/*` |
 | **Environment** | isomorphic — server, browser, worker, and Tauri webview |
 | **Build** | `tsup` → `dist/index.js` + `dist/index.d.ts` |
@@ -30,8 +26,7 @@ packages/contracts/
 │   ├── import.ts                    ← zod, @orpc/contract, @loadbearing/permissions
 │   ├── primitive/
 │   │   ├── index.ts
-│   │   ├── identifiers.ts           → Identifiers, OrganizationId, UserId, RoleId, GoalId,
-│   │   │                                TaskId, ApiKeyId, InvitationId
+│   │   ├── identifiers.ts           → Identifiers and the branded ids
 │   │   ├── envelope.ts              → Envelope
 │   │   ├── pagination.ts            → Pagination, PaginationQuery
 │   │   └── password.ts              → Password   ← the bounds AuthFactory enforces
@@ -50,7 +45,7 @@ packages/contracts/
 │   ├── mail/                        ← a manifest, not a slice: no contract, no procedures
 │   │   ├── index.ts
 │   │   └── mail-template.manifest.ts → MailTemplates, MailTemplateKey, MailTemplateParams
-│   └── <subject>/                   ← one folder per domain subject; `role/` and `member/` ship
+│   └── <subject>/                   ← one folder per domain subject (role, member, notification, doc, …)
 │       ├── index.ts
 │       ├── <subject>.contract.ts    → <Subject>Contract   (Zod shapes)
 │       ├── <subject>.entity.ts      → <Subject>Entity     (behaviour, no I/O)
@@ -60,12 +55,8 @@ packages/contracts/
     │   ├── identifiers.spec.ts
     │   ├── envelope.spec.ts
     │   └── pagination.spec.ts
-    ├── role/role.contract.spec.ts
-    ├── member/member.contract.spec.ts
-    ├── mail/mail-template.manifest.spec.ts
-    └── registry/
-        ├── domain-events.spec.ts
-        └── procedure-permissions.spec.ts
+    ├── <subject>/…                  ← mirrors src/
+    └── registry/procedure-permissions.spec.ts …
 ```
 
 ---
@@ -79,88 +70,49 @@ packages/contracts/
 | `<subject>.procedures.ts` | `TaskProcedures` | What operations exist, at what path? |
 | `catalog/<subject>.permissions.ts` | — | Which permission gates each procedure path? |
 
-The fourth is **not** in the subject folder. It is a cross-check — "does every declared procedure
-have a gate" — rather than part of the subject's own definition, and it follows the fragment pattern
-`@loadbearing/permissions` uses for its own catalog: one team, one file, no merge conflicts.
-
----
-
-## No feature slices ship
-
-`primitive/` is real. `procedure/` and `catalog/` are **empty merge points**, and that is the
-deliverable: `contract` is `{}` and `PROCEDURE_PERMISSIONS` is `{}` until a product adds a slice.
-The kit ships the seam, not a sample task tracker.
-
-That makes the coverage test in `tests/registry/` vacuous against the real contract, so it runs
-against a fixture built with `oc` as well — see
-[procedure-permissions](reference/procedure-permissions.md). Without the fixture the test would be
-green for the wrong reason and stay green through the first slice that forgot a gate.
+The fourth sits in `catalog/`, not the subject folder: a cross-check ("every procedure has a gate") in
+`permissions`' fragment pattern — one team, one file. `procedure/` and `catalog/` merge every slice's
+fragments; the coverage test runs against the real contract and an `oc` fixture
+([procedure-permissions](reference/procedure-permissions.md)). (`Task` in examples is illustrative; no
+task slice ships.)
 
 ---
 
 ## Two conversions that happen in exactly one place
 
-**Timestamps are ISO strings in contracts, `Date` in entities.** The contract crosses a JSON
-boundary and JSON has no date type: `z.iso.datetime()` at the edge, `new Date(…)` in `fromDto`.
-
-**Identifiers are strings on the wire, branded types in code.** `Identifiers.taskId.parse(raw)` at
-the boundary, and everything downstream is typed — see [identifiers](reference/identifiers.md).
-
----
+- **Timestamps:** ISO strings in contracts (`z.iso.datetime()`; JSON has no date), `Date` in entities
+  (`fromDto`).
+- **Identifiers:** strings on the wire, branded in code — parsed once at the boundary
+  ([identifiers](reference/identifiers.md)).
 
 ## Schemas carry no messages
 
-A schema never takes `{ message: … }`. Zod's own text is discarded, and a custom string would be
-user-facing prose living outside `@loadbearing/content` — the one thing that split exists to
-prevent. A failed rule becomes `{ field, rule, params }` and `content` renders it.
+No `{ message: … }`: Zod's text is discarded and a custom string would be prose outside `content`. A
+failed rule becomes `{ field, rule, params }`; `z.string().min(10)` still states the rule once.
 
-`z.string().min(10)` still declares the business rule exactly once. Only the sentence lives
-elsewhere.
+`vitest.config.ts` sets `resolve.conditions: ["development"]` so specs resolve `permissions` source, not a
+stale `dist/`.
 
----
+## Two pagination shapes
 
-## Testing
-
-Specs live in `tests/`, mirroring `src/`. `vitest.config.ts` sets
-`resolve.conditions: ["development"]` so a spec resolves `@loadbearing/permissions` to its source
-rather than a stale `dist/` — the same condition `apps/web/vite.config.ts` sets.
-
-## Two pagination shapes, and the newer one is the default for growth
-
-`Pagination` (`limit` + `offset`) still serves the lists bounded by the tenant — roles, members,
-invitations. `Keyset` (`limit` + opaque `cursor`) serves the ones that grow with activity, and its
-page carries no `total`, because an exact count over a partitioned table is exactly the cost keyset
-pagination exists to avoid. Which to reach for, what the cursor encodes, and the query shape it
-pairs with are in [keyset](reference/keyset.md).
+`Pagination` (`limit` + `offset`) for tenant-bounded lists; `Keyset` (`limit` + opaque `cursor`, no
+`total`) for lists that grow with activity — [keyset](reference/keyset.md).
 
 ## `mail/` is a manifest, not a slice
 
-It holds no `.contract.ts`, no `.entity.ts` and no `.procedures.ts`, because a mail template is
-never a procedure — nothing on the wire sends one. What it holds is a closed record of template key
-→ params schema, which is the one shape both ends of the mail queue need: a publisher writes params
-it can prove match the key, and the worker parses them back out of JSON it has to distrust.
-
-**It is here rather than in `content` or `application` because of the layering, not by preference.**
-`application` has no zod and may not import one; `contracts` may not import `content`, which sits to
-its right. That leaves the recipient's `Locale` riding the `MailPublisher` port in `application`
-(where the edge to `content` *is* legal, type-only) while the params live here.
-
-Adding a key is deliberately more than one edit: the renderer switches on it with a `never` default,
-so a new row does not compile until a template and its copy exist.
+No procedure sends a mail template, so no contract/entity/procedures — just a closed record of template
+key → params schema, the shape both ends of the mail queue need (the worker distrusts the JSON). **Here by
+layering:** `application` has no zod, and `contracts` cannot import `content`, so `Locale` rides the
+`MailPublisher` port (type-only to `content`) while params live here. The renderer's `never` default
+makes a new key fail to compile until its template and copy exist.
 
 ## `DomainEvents` is the same shape as `ProcedurePermissions`, on purpose
 
-A catalog of team-owned fragments, merged in `catalog/index.ts`, read through a registry class with
-a private constructor. Two lookups exist for the same reason in the same package because the
-property they buy is the same: **the name union is a compile-time check in every layer**, so a
-use-case cannot publish an event nothing declares and a subscriber cannot listen for one.
-
-`.events.ts` keeps its meaning here — a catalog fragment — exactly as `.permissions.ts` already does
-in two packages. It is `DOMAIN_EVENTS` and not `EVENT_CATALOG`: that name belongs to
-`@loadbearing/observability`, and the two are different vocabularies. A domain event is a business
-fact with a schema and a `published_at`; a log event code is a diagnostic that may be lost.
-[Vocabulary](../../../docs/opinions/vocabulary.md) keeps them apart, and a spec asserts every event
-name here is past tense.
+Team fragments, merged in `catalog/index.ts`, read through a private-constructor registry: **the name
+union is a compile-time check in every layer**, so nothing publishes or subscribes to an undeclared event.
+`DOMAIN_EVENTS`, not `EVENT_CATALOG` (observability's log codes — a diagnostic that may be lost, versus a
+business fact with a schema and `published_at`; [Vocabulary](../../../docs/opinions/vocabulary.md)). A spec
+asserts every name is past tense.
 
 ## `ActivityActions` is the third of them, and the reason is the type
 
@@ -168,19 +120,13 @@ Same shape again: fragments in `catalog/`, merged, read through a registry class
 `ActivityLogger.record` takes `ActivityAction`, the key union, rather than a `string`. So an audit
 action cannot be written without an entry beside the others, and a typo does not compile.
 
-A fragment entry carries a `label` and not a schema, which is the whole difference from
-`.events.ts`. A subscriber parses an event payload; nothing parses an audit payload, because the
-audit trail is read by people. In the big kit the label is what the analytics projection screen
+An entry carries a `label`, not a schema — nothing parses an audit payload; people read it. In the big kit the label is what the analytics projection screen
 renders beside each action's toggle. Lite has no such screen, so nothing reads `all()` today; the
 entries stay because the type needs them. See [`docs/scale/analytics.md`](../../../docs/scale/analytics.md).
 
-One call site may emit two actions — `set-member-active.use-case.ts` picks between
-`member.deactivated` and `member.reactivated` on the value it is writing — and both are entries.
+One call site may emit two actions (`set-member-active.use-case.ts`: `member.deactivated` or
+`member.reactivated`); both are entries.
 
-**`envelope` is a discriminated union built once at module load.** One `parse` turns a job's JSON
-back into a typed event, which is what keeps the consumer from reading `name` first and picking a
-schema by hand — a second place to forget a case.
-
-The payloads carry what a subscriber needs and no more. `member.invited` deliberately omits the
-invitation token: `invitations` stores only its hash so that a dump of that table accepts nothing,
-and an event carrying the plaintext would hand it straight back.
+**`DomainEvents.envelope` is a discriminated union built at module load** — one `parse` types a job's
+JSON, so no consumer picks a schema by `name`. Payloads carry only what subscribers need:
+`member.invited` omits the token, which `invitations` stores only hashed.

@@ -78,5 +78,4 @@ writes (`moving_to`, `moved_from`, `moved_at`, `source_droppable_at`), the write
 > about the cost: several databases, each with its own pooler, replica and backups, is an ongoing
 > operations job, not a one-off change.
 
-Background: `upstream:packages/infrastructure/docs/reference/sharding.md`,
-`upstream:plans/archive/DB-SCALING-PLAN.md`, and `upstream:plans/archive/PLAN.md` Phase 24.
+Background: `upstream:packages/infrastructure/docs/reference/sharding.md`.

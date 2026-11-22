@@ -26,16 +26,16 @@ The rules it enforces: deny by default, a denial always beats a grant, the plan 
 
 | File | What it does |
 |---|---|
-| `package.json` | The package manifest: its name, its build, test and type-check scripts, and its dependencies. Versions come from the workspace catalog. |
-| `tsconfig.json` | TypeScript settings. Extends a shared preset from `tooling/tsconfig` and type-checks the tests too. |
-| `tsup.config.ts` | Build settings: bundles `src/` into `dist/` as ES modules with type declarations. |
-| `vitest.config.ts` | Test runner settings. Resolves sibling packages to their source, so tests never run against a stale build. |
+| `package.json` | Package manifest. |
+| `tsconfig.json` | TypeScript settings. |
+| `tsup.config.ts` | Build settings. |
+| `vitest.config.ts` | Test settings. |
 
 ### `packages/permissions/src/`
 
 | File | What it does |
 |---|---|
-| `index.ts` | The package's public entry point. Re-exports what other packages may use, and contains no logic. |
+| `index.ts` | Public entry point. |
 
 ### `packages/permissions/src/capability/`
 
@@ -43,7 +43,7 @@ The rules it enforces: deny by default, a denial always beats a grant, the plan 
 |---|---|
 | `capability-set.ts` | `CapabilitySet`: what one person may do in one organization, resolved from their roles. Deny by default; a denial always beats a grant; the `core` permissions everyone holds; platform permissions only from the platform organization. `can()` answers the question; it also turns into a plain object (DTO) to send to the browser. |
 | `entitlement-mask.ts` | `EntitlementMask`: what an organization's plan allows, applied as a filter over what its roles grant. Grants are hidden, never deleted, so upgrading the plan restores them at once. |
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 
 ### `packages/permissions/src/catalog/`
 
@@ -81,7 +81,7 @@ The rules it enforces: deny by default, a denial always beats a grant, the plan 
 | File | What it does |
 |---|---|
 | `flag-registry.ts` | `FlagRegistry`: looks up a flag's declaration (owner, expiry, description). Flags are declared in code and switched on or off in the database. |
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `module-registry.ts` | `ModuleRegistry`: which menu sections (modules) a person sees, given their permissions. |
 | `permission-registry.ts` | `PermissionRegistry`: looks up a permission key's details (its module, its scope, what it depends on) and lists keys by module or scope. |
 
@@ -125,7 +125,7 @@ The rules it enforces: deny by default, a denial always beats a grant, the plan 
 | File | What it does |
 |---|---|
 | `index.md` | The shared authorization kernel — one permission vocabulary, one resolution algorithm, one nav-gate map, running identically on server, browser, worker, and desktop. |
-| `meta.json` | Sidebar title, description and page order for this docs folder. |
+| `meta.json` | Sidebar order. |
 
 ### `packages/permissions/docs/reference/`
 
@@ -134,7 +134,7 @@ The rules it enforces: deny by default, a denial always beats a grant, the plan 
 | `capability-set.md` | CapabilitySet — deny-by-default permission resolution, the five rules, and why intersect() is the method an RBAC model gets quietly defeated through. |
 | `entitlement-mask.md` | EntitlementMask — what an org's plan allows, as a filter over role grants rather than a deletion of them, and the four rules for which key survives. |
 | `flag-registry.md` | FlagRegistry — flags declared in code with an owner and an expiry, switched in Postgres, none declared in lite, and a client-gating set that is empty until widgets are ported back. |
-| `meta.json` | Sidebar title, description and page order for this docs folder. |
+| `meta.json` | Sidebar order. |
 | `module-registry.md` | ModuleRegistry — nav gates as a second registry, why content may name a module but never a permission, and the gate barrel missing from the build doc. |
 | `permission-registry.md` | PermissionRegistry — the permission vocabulary, the fragmented catalog behind it, and why isKnown() uses Object.hasOwn rather than the `in` operator. |
 | `platform-scope.md` | A third axis above the tenant — the four leak paths it closes, why the tier is an organization run like any other, the guards that protect its admins, and why the first admin comes from a script rather than the API. |

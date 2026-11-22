@@ -1,15 +1,12 @@
 ---
 title: "@loadbearing/worker"
-description: The background process. Five consumers, seven schedules, one container — and a single recurring failure it is shaped to prevent: work that stops quietly and looks exactly like work that is running.
+description: The background process. Six consumers, seven schedules, one container — and a single recurring failure it is shaped to prevent: work that stops quietly and looks exactly like work that is running.
 ---
 
 # `@loadbearing/worker`
 
-**This app answers one question: what runs when nobody is watching?** It holds no business logic —
-every consumer is a thin adapter that deserialises a job, builds a `SystemPrincipal`, and calls a
-use-case, exactly as an oRPC router does.
-
-One failure mode shapes almost every decision in it:
+**What runs when nobody is watching.** No business logic: each consumer deserialises a job, builds a
+`SystemPrincipal` and calls a use-case, as an oRPC router does. One failure shapes it:
 
 > A schedule with no consumer accumulates silently. A consumer with no store succeeds silently.
 > Both look identical, from the outside, to a pipeline that is working.
@@ -21,7 +18,6 @@ One failure mode shapes almost every decision in it:
 | **Loose at `src/`** | `main.ts` and `env.ts` only, both resolved by name — see [Folders](../../../docs/opinions/folders.md) |
 | **Depends on** | `@loadbearing/{application,composition,content,contracts,infrastructure,permissions}`, plus `bullmq` |
 | **Environment** | node only. The one process that reads `SERVER_CATALOG` |
-| **Setup doc** | [25 · The worker app](../../../docs/setup/25-worker-app.md) |
 
 ```
 apps/worker/
@@ -37,12 +33,13 @@ apps/worker/
 │   │   └── with-shard.ts             → withShard
 │   ├── consumer/
 │   │   ├── index.ts
-│   │   ├── embedding.consumer.ts     → EmbeddingConsumer   (index · reembed)
+│   │   ├── assistant.consumer.ts     → AssistantConsumer   (one answer per job)
+│   │   ├── embedding.consumer.ts     → EmbeddingConsumer   (index · reembed · doc-reindex)
 │   │   ├── mail.consumer.ts          → MailConsumer        (send)
-│   │   ├── outbox.consumer.ts        → OutboxConsumer      (drain · deliver)
 │   │   ├── notification.consumer.ts  → NotificationConsumer (digest-fanout · digest)
-│   │   └── maintenance.consumer.ts   → MaintenanceConsumer (cleanup · partitions · retention ·
-│   │                                   orphans · spares · tenant-export · tenant-delete)
+│   │   ├── outbox.consumer.ts        → OutboxConsumer      (drain · deliver)
+│   │   └── maintenance.consumer.ts   → MaintenanceConsumer (cleanup · partitions · retention · orphans ·
+│   │                                   spares · doc-* · tenant-*)
 │   ├── supervisor/
 │   │   ├── index.ts
 │   │   ├── lane-registry.ts          → LaneRegistry
@@ -55,45 +52,24 @@ apps/worker/
 │   │   ├── outbox-drain.schedule.ts  every second
 │   │   ├── partitions.schedule.ts    02:00 on the first, and once at boot
 │   │   ├── retention.schedule.ts     03:30 daily
-│   │   └── spares.schedule.ts        every five minutes
-└── tests/
-    ├── bootstrap/system-principal.spec.ts
-    ├── bootstrap/worker-bootstrap.spec.ts
-    ├── consumer/mail.consumer.spec.ts
-    ├── consumer/maintenance.consumer.spec.ts
-    ├── consumer/notification.consumer.spec.ts
-    └── consumer/outbox.consumer.spec.ts
+│   │   ├── spares.schedule.ts        every five minutes
+│   │   └── utc-cron.ts               → UtcCron
+└── tests/                            ← mirrors src/: bootstrap/, consumer/, supervisor/
 ```
 
 ---
 
 ## What belongs here
 
-A consumer, a schedule, or the wiring that starts them. Nothing else.
-
-**What does not belong here.** A rule, a query, or a decision. If the logic would be identical when
-invoked from an HTTP request, it belongs in a use-case and this app should be calling it —
-`EmbeddingConsumer` is the shape: deserialise, build a principal, call `IndexDocumentUseCase`, and
-let it throw.
-
-The worker builds no adapter itself. It asks the container.
+Consumers, schedules and the wiring that starts them — never a rule, query or decision (logic identical
+over HTTP is a use-case). `EmbeddingConsumer` is the shape: deserialise, build a principal, call
+`IndexDocumentUseCase`, let it throw. Adapters come from the container.
 
 ## `SystemPrincipal`: narrow, explicit, reviewed
 
-**Every job carries an organization.** There is no global system principal, because there is no
-global data — a job that processes rows must know whose rows.
-
-The grant list is written out and reviewed. Never `PermissionRegistry.instance.all()`, and it is
-validated at boot rather than at 3am, when the symptom would be a job that silently started failing
-authorization after somebody renamed a permission.
-
-The actor id is a fixed, reserved uuid rather than the organization's own: an actor column holding a
-tenant id reads as a user.
-
-## The five consumers and seven schedules
-
-See [`reference/consumers.md`](reference/consumers.md) and
-[`reference/schedules.md`](reference/schedules.md).
+**Every job carries an organization** — no global data, so no global principal. The grant list is
+written out and reviewed (never `PermissionRegistry.instance.all()`), validated at boot, not at 3am after
+a rename. The actor id is a reserved uuid — a tenant id in an actor column reads as a user.
 
 ## Reference
 

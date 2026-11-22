@@ -11,16 +11,13 @@ public override async run<T>(work: () => Promise<T>): Promise<T> {
 }
 ```
 
-Two classes, and the important one is the three-line `TransactionScope`.
+The important class is the three-line `TransactionScope`.
 
 ## Why not a `tx` parameter
 
-The obvious design is `save(task, tx?)` on every repository method. It works, and it puts a database
-concept into `packages/application` — the one thing this architecture spends all its effort keeping
-out. A port with a transaction handle in its signature is a port that describes Postgres.
-
-`AsyncLocalStorage` is a Node built-in, costs effectively nothing, and keeps the transaction invisible
-above this package. `BaseRepository` is the only reader:
+`save(task, tx?)` works and puts a database concept into `application` — a port that describes Postgres.
+`AsyncLocalStorage` costs nearly nothing and keeps the transaction invisible above this package;
+`BaseRepository` is the only reader:
 
 ```ts
 protected get db() {
@@ -28,19 +25,12 @@ protected get db() {
 }
 ```
 
-**This is the one place ambient context is acceptable, and the reasons are specific.** The value is
-scoped to a single `run()` call rather than to a request, it is written in exactly one place, and
-nothing outside `BaseRepository` reads it. That is a different thing from a request-scoped container,
-which [17](../../../../docs/setup/17-composition-container.md) still bans — and the difference is
-lifetime, not mechanism.
+**The one acceptable ambient context:** scoped to one `run()`, written in one place, read only by
+`BaseRepository` — unlike a request-scoped container (banned), the difference is lifetime.
 
-## One `TransactionScope` per container, not per call
-
-`PgUnitOfWork` and every repository must receive **the same instance**. Two scopes means two answers to
-"am I in a transaction", and the repository holding the wrong one writes outside the transaction while
-reading as though it is inside. Nothing fails; the audit row is simply not covered by the rollback.
-
-This is a wiring mistake that no type catches, so it is worth checking in `container.ts` by eye.
+**One `TransactionScope` per container.** `PgUnitOfWork` and every repository must share the instance, or
+one writes outside the transaction while looking inside — nothing fails, the audit row just escapes the
+rollback. No type catches it; check `container.ts` by eye.
 
 ## Nesting joins, it does not open a second connection
 
@@ -54,46 +44,28 @@ private get db(): DrizzleClient {
 }
 ```
 
-**`this.db`, never `this.database.client`.** That accessor is the same one `BaseRepository` exposes:
-the open transaction handle when there is one, the pool otherwise. Inside an open transaction,
-drizzle's `tx.transaction()` issues a `SAVEPOINT` on the same connection, so a `run()` inside a
-`run()` is one atomic unit — which is what anyone reading `run()` expects.
+**`this.db`, never `this.database.client`** — so a nested `run()` is a `SAVEPOINT` on the same connection,
+one atomic unit. Off the pool (the shipped bug once) it is a second independent transaction: the inner
+commits when the outer rolls back, the two deadlock on timing, and single-level tests pass.
+`tests/transaction/pg-unit-of-work.spec.ts` pins it.
 
-Off the pool it would be a **second connection and a second independent transaction**, and the
-symptoms are worth naming because none of them looks like a transaction bug:
-
-- the inner unit commits when the outer rolls back, so a failed operation leaves half its writes;
-- the two can deadlock on rows the outer has already locked, and the deadlock is timing-dependent;
-- every test that exercises one level passes.
-
-That was the shipped behaviour until it was fixed, and
-`tests/transaction/pg-unit-of-work.spec.ts` now pins both directions.
-
-The consequence to know: **an inner failure that propagates rolls back the outer work too.** That is
-correct, and it is why a use-case should not wrap an optional side effect in `run()` — put it after
-the commit, or publish an event. An inner failure the outer callback *catches* rolls back to the
-savepoint and leaves the outer work intact, which is the other assertion in that spec.
-
-`PgOrganizationFounder.found` reaches for the same accessor for the same reason: called inside the
-personal enroller's transaction it is a savepoint, called standalone it is a transaction of its own.
+**A propagated inner failure rolls back the outer too** — so optional side effects go after commit or
+into an event; a *caught* inner failure rolls back only to its savepoint. `PgOrganizationFounder.found`
+uses the same accessor.
 
 ## What this makes true
 
-`PgActivityLogger` writes through the same scope, so a state change and its audit row commit together
-or neither does. That is the whole reason the audit trail lives in Postgres rather than in the log
-stream: no external store can join a transaction it has never heard of.
+`PgActivityLogger` writes through the scope, so state and audit commit together — why the audit trail is
+in Postgres, not the log stream.
 
-The domain event rides the same scope. `PgOutboxPublisher` writes an `outbox_event` row through
-`this.db`, so the state change and the event announcing it commit together or not at all — a
-**transactional outbox**. The drain relays it to the queue after commit. Publishing to the queue
-*inside* the transaction is the tempting mistake: it holds the transaction open across a network
-call and reintroduces the two-store atomicity problem the outbox exists to avoid. The outbox drain made it until `CP4.2`,
-relaying inside its claim; it claims with a lease now and relays with nothing open.
+The domain event rides the same scope: `PgOutboxPublisher` writes `outbox_event` through `this.db`, so
+state and event commit together — a **transactional outbox**, relayed to the queue after commit.
+Publishing to the queue *inside* the transaction holds it open across a network call and reintroduces
+two-store atomicity; the drain did until `CP4.2`, and now claims with a lease and relays with nothing open.
 
 ## The test is the only proof
 
-An assertion, not a code review. `tests/transaction/pg-unit-of-work.spec.ts` runs all four
-directions — commit, rollback, nesting, and the savepoint — against the local stack:
+The spec runs commit, rollback, nesting and savepoint against the local stack:
 
 ```ts
 await expect(
@@ -111,13 +83,11 @@ const found = await database.client
 expect(found).toEqual([]);
 ```
 
-**Test the commit case too.** A `run()` that rolls back everything — including on success — passes the
-rollback assertion perfectly.
+**Test commit too** — a `run()` that always rolls back passes the rollback case.
 
-## The query-count assertion needs a seam
+## The query-count seam
 
-`DatabaseConfig` takes an optional drizzle `logger`, and that exists so "four queries" can be an
-assertion rather than a claim:
+`DatabaseConfig` takes an optional drizzle `logger` so "four queries" is an assertion:
 
 ```ts
 counter.count = 0;
@@ -125,37 +95,22 @@ await repository.resolveFor(organizationId, userId);
 expect(counter.count).toBe(4);
 ```
 
-`PgCapabilityRepository.resolveFor` is the hottest query in the system. "Four queries" decays silently
-— someone adds a lookup inside the loop and it becomes 4 + N, invisible at ten users and fatal at five
-thousand. Without the logger seam there is no way to notice.
+`resolveFor` is the hottest query; a lookup in the loop makes it 4 + N, invisible at ten users, fatal
+at five thousand.
 
 ## The statement timeout is set here, not on the connection
 
-`PgUnitOfWork` takes an optional `statementTimeoutMs`, and when it is set `run()` issues
-`set local statement_timeout = <ms>` as the first statement of the transaction. The worker passes
-120 000; the web app passes 30 000, which is already the role floor, so the statement is a no-op
-there and costs one round trip per transaction.
+With `statementTimeoutMs`, `run()` first issues `set local statement_timeout = <ms>` — worker 120 000,
+web 30 000 (the role floor, so one wasted round trip per transaction).
 
-**`SET LOCAL`, never `SET`.** This is the whole reason the knob lives here rather than on the pool.
-`pg` can send `statement_timeout` as a startup parameter, and that works on a direct connection —
+**`SET LOCAL`, never `SET`** — why the knob is here, not on the pool. A startup `statement_timeout` works
+on a direct connection,
 but through a transaction pooler such as pgBouncer the parameter is dropped, and
-`SHOW statement_timeout` reads `0`. Unlimited, on every application connection. Lite runs no pooler
-(see [PgBouncer](../../../../docs/scale/pgbouncer.md)), and is written as if it did.
-`0000_lite_baseline.sql` puts a floor back with `ALTER ROLE`, and `SET LOCAL` is how a transaction raises it above that floor for work that needs
-longer, because it dies with the transaction and cannot follow the server connection to the next
-client.
+`SHOW statement_timeout` reads `0`. Unlimited. Lite runs no pooler ([PgBouncer](../../../../docs/scale/pgbouncer.md)) but is written as if
+it did: `0000_lite_baseline.sql` restores a floor with `ALTER ROLE`; `SET LOCAL` raises it and dies with
+the transaction.
 
-A plain `SET` would do the opposite of what it looks like. In transaction mode pgBouncer does not
-run `server_reset_query` at all, so a session-level `SET` on a pooled connection is inherited by
-every client that later gets handed that connection. Measured: one client setting `7s` was followed
-by twenty-five fresh clients all reading `7s`. **Nothing in this repository may issue a
-session-level `SET`.**
-
-**A nested `run()` sets nothing.** The inner call is a savepoint on the same transaction, and
-`SET LOCAL` inside a savepoint outlives a rollback to it — the outer transaction would silently keep
-the inner call's ceiling. `applyStatementTimeout` returns early when a transaction is already in
-scope.
-
-The spec asserts both directions with two values that are neither the default: 25 s on the pool,
-90 s inside `run()`, and 25 s again on the pool afterwards. A `SET LOCAL` that never ran and one
-that leaked both fail it.
+A plain `SET` is worse: transaction-mode pgBouncer runs no `server_reset_query`, so it leaks to every later
+client (measured: one `7s`, then twenty-five fresh clients reading `7s`). **No session-level `SET`,
+anywhere.** **A nested `run()` sets nothing** — `SET LOCAL` in a savepoint outlives a rollback to it.
+The spec uses 25 s (pool), 90 s (inside `run()`), 25 s again — catching both a no-op and a leak.

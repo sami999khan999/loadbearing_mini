@@ -24,16 +24,16 @@ Anything thrown anywhere passes through `ErrorNormalizer` before it is logged, s
 
 | File | What it does |
 |---|---|
-| `package.json` | The package manifest: its name, its build, test and type-check scripts, and its dependencies. Versions come from the workspace catalog. |
-| `tsconfig.json` | TypeScript settings. Extends a shared preset from `tooling/tsconfig` and type-checks the tests too. |
-| `tsup.config.ts` | Build settings: bundles `src/` into `dist/` as ES modules with type declarations. |
-| `vitest.config.ts` | Test runner settings. Resolves sibling packages to their source, so tests never run against a stale build. |
+| `package.json` | Package manifest. |
+| `tsconfig.json` | TypeScript settings. |
+| `tsup.config.ts` | Build settings. |
+| `vitest.config.ts` | Test settings. |
 
 ### `packages/errors/src/`
 
 | File | What it does |
 |---|---|
-| `index.ts` | The package's public entry point. Re-exports what other packages may use, and contains no logic. |
+| `index.ts` | Public entry point. |
 
 ### `packages/errors/src/catalog/`
 
@@ -50,7 +50,7 @@ Anything thrown anywhere passes through `ErrorNormalizer` before it is logged, s
 | `app.error.ts` | `AppError`, the base of every error the app throws. Its message is the error code, never a sentence; the words a user reads come from the `content` package. It turns into a JSON envelope to cross the network and can be rebuilt from one. Also `TransportError` for network failures. |
 | `conflict.error.ts` | `ConflictError`: the thing changed since you read it, or the value must be unique and is already taken. |
 | `forbidden.error.ts` | `ForbiddenError`: you are signed in but not allowed to do this. |
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `internal.error.ts` | `InternalError`: what any unrecognised failure becomes. The original error is kept for the logs but never sent to the browser. |
 | `not-found.error.ts` | `NotFoundError`: the thing does not exist, or you are not allowed to know it exists. |
 | `rate-limited.error.ts` | `RateLimitedError`: too many requests to this endpoint; try again later. |
@@ -65,14 +65,14 @@ Anything thrown anywhere passes through `ErrorNormalizer` before it is logged, s
 | File | What it does |
 |---|---|
 | `error-normalizer.ts` | `ErrorNormalizer`: the one gate every thrown value passes before it is logged, sent or shown. Whatever was thrown (a string, a database error, `undefined`), the result is a known `AppError`, and internal details such as table names never reach the browser. |
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 
 ### `packages/errors/src/transport/`
 
 | File | What it does |
 |---|---|
 | `http.ts` | `HTTP_STATUS`: which HTTP status code each error code maps to. The only file in the package that knows HTTP exists; the business layer may not import it. |
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `trace-id.ts` | `TraceIds`: checks a trace ID arriving from the network (length and allowed characters) before it is attached to logs and errors. |
 
 ### `packages/errors/tests/error/`
@@ -94,7 +94,7 @@ Anything thrown anywhere passes through `ErrorNormalizer` before it is logged, s
 | File | What it does |
 |---|---|
 | `index.md` | One failure shape every runtime throws, serialises and reconstructs — carrying structured context and no prose, because content owns every word a user reads. |
-| `meta.json` | Sidebar title, description and page order for this docs folder. |
+| `meta.json` | Sidebar order. |
 
 ### `packages/errors/docs/reference/`
 
@@ -103,4 +103,4 @@ Anything thrown anywhere passes through `ErrorNormalizer` before it is logged, s
 | `app-error.md` | AppError — why the message is the code, how the envelope round-trips, and why from() can return null. |
 | `catalog.md` | ERROR_CATALOG and HTTP_STATUS — a closed code union, why the metadata is transport-agnostic, and why the status map is quarantined from the domain layer. |
 | `error-normalizer.md` | ErrorNormalizer — why detection is structural rather than instanceof, and how the original error is kept for logs while staying out of the envelope. |
-| `meta.json` | Sidebar title, description and page order for this docs folder. |
+| `meta.json` | Sidebar order. |

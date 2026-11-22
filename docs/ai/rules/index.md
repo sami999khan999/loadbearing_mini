@@ -5,15 +5,10 @@ description: The rules an agent must know unprompted, one file per topic. A dige
 
 # Repository rules
 
-One file per topic: the longest is `workflow.md` at ~1,650 tokens and all fourteen are ~11,100
-(~8,900 by words × 1.33 instead of characters ÷ 4). Procedures that touch many files in a fixed
-order are run books instead, in [`../skills/`](../skills/index.md) — adding a feature slice,
-writing a package's docs.
-
-**In Claude Code every file below is already loaded** — `CLAUDE.md` `@`-imports the lot, so this page
-is an index of what you are holding rather than a fetch list. Any other agent starts at
-[`AGENTS.md`](../../../AGENTS.md) and routes through [`docs/ai/index.md`](../index.md), which names
-the one or two files that answer a given task.
+Fourteen files, ~8,200 tokens in all; the longest is `workflow.md` at ~1,200. **In Claude Code all of
+them are already loaded** (`CLAUDE.md` `@`-imports them). Other agents start at
+[`AGENTS.md`](../../../AGENTS.md) and route through [`docs/ai/index.md`](../index.md). Multi-file
+procedures are run books in [`../skills/`](../skills/index.md).
 
 | File | Decides |
 |---|---|
@@ -30,37 +25,19 @@ the one or two files that answer a given task.
 | [`visibility.md`](visibility.md) | Flag, entitlement, permission — which hides what, and in what order |
 | [`simplicity.md`](simplicity.md) | The tie-breaker when two designs satisfy every other rule |
 | [`workflow.md`](workflow.md) | Commands, what to run before claiming done, commits and who authors them, adding a feature |
-| [`explaining.md`](explaining.md) | Answering a person: what to lead with, whose words to use, and verifying before you explain |
+| [`explaining.md`](explaining.md) | Answering a person: what to lead with, whose words to use, verifying first |
 
-## What is in these files and what is not
+**A rule is stated here when not knowing it causes a silent violation** — code that compiles, lints
+and passes review while wrong. Each file ends by citing its page in
+[`docs/opinions/`](../../opinions/index.md), which holds the argument and the worked example.
+**When a file here and its cited page disagree, the page wins and this file is stale; say so.**
+Never re-derive a convention from surrounding code. `packages/<name>/docs/` explains why an export
+is shaped as it is.
 
-A rule is stated here when not knowing it causes a *silent* violation — code that compiles, lints,
-and passes review while being wrong. Everything you would naturally look up is a reference instead.
-The full argument for every rule — the failure it prevents, the worked example — lives in
-`docs/opinions/`. **When a file here and `docs/opinions/` disagree, `docs/opinions/` wins and the
-file here is stale; say so.**
+**The two tests every rule serves:** given a feature name and a layer, you can write the file path,
+folder and class name without looking anything up; given a fact the system produces, you can say
+which store owns it.
 
-## The two tests every rule serves
-
-1. **Given a feature name and a layer, you can write the file path, the folder, and the class name
-   without looking anything up.**
-2. **Given a fact the system produces, you can say which store owns it without another
-   conversation.**
-
-A rule that stops producing either has a gap worth fixing rather than working around.
-
-## Where the full argument lives
-
-Every file above ends by naming its page in [`docs/opinions/`](../../opinions/index.md) — the
-argument for each rule, the failure it prevents, the worked example. Start from a rule file and
-follow its footer; do not re-derive a convention from surrounding code when `docs/opinions/` states
-it.
-
-Beyond that: `packages/<name>/docs/` is why an export is shaped as it is, and
-[`docs/setup/28-folder-structure.md`](../../setup/28-folder-structure.md) is the whole tree on one
-page.
-
-**This is checked** — `check-architecture.mjs` §12 fails if an opinions page exists that no rule
-file cites, if a rule file is routed to from none of `AGENTS.md`, [`docs/ai/index.md`](../index.md),
-or here, if `CLAUDE.md` does not `@`-import a rule file, or if any route or import points at a path
-that does not exist. Adding a file to this folder without adding its import fails the build.
+**Checked** by `check-architecture.mjs` §12: every opinions page is cited by a rule file, every rule
+file is routed to from `AGENTS.md`, [`docs/ai/index.md`](../index.md) or here, `CLAUDE.md`
+`@`-imports every rule file, and every route and import exists.

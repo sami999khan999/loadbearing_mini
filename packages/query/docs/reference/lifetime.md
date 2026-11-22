@@ -9,24 +9,20 @@ description: Why the query client is a factory, the provider is context, and nei
 export function createQueryClient(options: QueryClientOptions): QueryRuntime
 ```
 
-A function, not `export const queryClient = new QueryClient(...)`. The difference only shows up in
+A function, not `export const queryClient = new QueryClient(...)` — a difference visible only in
 production, on the second concurrent request.
 
 ## The failure, precisely
 
-A module-scope `QueryClient` inside a server bundle is created once per **process** and shared by
-every request that process handles. TanStack caches by key, and the keys here are things like
-`["rbac", "effective", userId]` — so:
+A module-scope `QueryClient` in a server bundle is per **process**, shared by every request, and keys
+look like `["rbac", "effective", userId]`:
 
 1. User A's request populates `["session"]` and a dozen tenant-scoped keys.
 2. User B's request arrives on the same process, hits the same client, and finds them fresh.
 3. Nothing refetches, because `staleTime` has not elapsed.
 
-**Under this permission model that is a cross-tenant read, not a caching bug.** No error is logged,
-no assertion fires, and the response is a valid render of someone else's data.
-
-It works perfectly in development, where there is one user and one tab. That is what makes it worth a
-reference page rather than a comment.
+**A cross-tenant read, not a caching bug** — no error, a valid render of someone else's data, and
+perfect in development with one user.
 
 ## Three lifetimes, one factory
 
@@ -36,9 +32,8 @@ reference page rather than a comment.
 | `apps/web` browser | one singleton | One user per browser; the cache is theirs |
 | Tauri webview | one singleton | No SSR, so no shared-process concern |
 
-The same definition serves all three, because what differs is *when it is called*, not what it
-builds. The browser calls it once at startup; the server calls it per request, in the same place it
-builds the per-request `ApiClient`.
+One definition; what differs is *when* it is called — once at browser startup, per request on the
+server beside the per-request `ApiClient`.
 
 ## The provider is context for the same reason
 
@@ -46,18 +41,13 @@ builds the per-request `ApiClient`.
 const ApiClientContext = createContext<ApiClient | null>(null);
 ```
 
-`useApiClient` reads from context rather than importing a module-level client, because the SSR
-instance and the browser instance are **different objects with different transports** — one wraps the
-in-process router client, the other an HTTP link. A module import cannot be two things at once.
-
-`useApiClient` throws rather than returning `null` when there is no provider. A component rendered
-outside the provider is a wiring mistake, and the error naming the provider is a shorter debugging
-session than `undefined` propagating into a `queryFn`.
+`useApiClient` reads context because SSR and browser instances are **different objects with different
+transports** (in-process vs HTTP); a module import cannot be both. It throws without a provider — a
+named wiring error beats `undefined` in a `queryFn`.
 
 ## The same rule, three times in this repository
 
-This is not a React idiom. It is one rule about request-scoped state, and it shows up wherever
-per-request data meets a long-lived process:
+Not a React idiom but one rule about request-scoped state in long-lived processes:
 
 | Thing | Rule | Where |
 | --- | --- | --- |
@@ -65,15 +55,11 @@ per-request data meets a long-lived process:
 | `Container` | one per **process**, and it holds no request state — the `Principal` is an argument to `execute()` | [`composition`](../../../composition/docs/reference/container.md) |
 | `MessageStore` | one per request; a module-scope store serves one user's locale to the next | [`content`](../../../content/docs/index.md) |
 
-The container is the interesting contrast. It is *deliberately* a process singleton — because it
-holds only things that are the same for every request: a connection pool, a clock, an authorizer.
-The moment something per-request goes on it, it inherits the failure above. That is why doc 17 rule 2
-exists, and why it reads as the mirror image of this page.
-
-**The test that catches it** is not a unit test. `createQueryClient` returning a fresh instance is
-asserted here; a module singleton reintroduced later would still pass that. What catches the
-regression is the rule being written down, plus `grep -rn "new QueryClient" packages apps` returning
-exactly one hit — inside this factory.
+The container is *deliberately* a process singleton, holding only per-request-invariant things (pool,
+clock, authorizer); put something per-request on it and it inherits the failure — the mirror image of
+this page ([container rules](../../../composition/docs/reference/container.md)). **The regression
+check** is not a unit test (a reintroduced singleton would pass one) but the written rule plus
+`grep -rn "new QueryClient" packages apps` returning one hit, inside this factory.
 
 ## `staleTime` is the blast radius
 
@@ -84,7 +70,6 @@ staleTime: 30_000,
 gcTime: 5 * 60_000,
 ```
 
-`staleTime` is how long a cached answer is served without refetching, so on a leaked singleton it is
-also *how long the wrong tenant's data is served*. `gcTime` is how long an unused entry survives in
-memory. Neither number is the fix — the factory is — but a shorter `staleTime` narrows nothing about
-correctness and only costs round trips, which is why the answer is the lifetime and not the timeout.
+On a leaked singleton `staleTime` is *how long the wrong tenant's data is served*; `gcTime` how long
+unused entries live. Neither is the fix — shortening them costs round trips and fixes nothing; the
+lifetime is the answer.

@@ -24,17 +24,17 @@ This is diagnostics only. Business facts (who did what) go to the audit log in P
 
 | File | What it does |
 |---|---|
-| `package.json` | The package manifest: its name, its build, test and type-check scripts, and its dependencies. Versions come from the workspace catalog. |
-| `tsconfig.json` | TypeScript settings. Extends a shared preset from `tooling/tsconfig` and type-checks the tests too. |
-| `tsup.config.ts` | Build settings: bundles `src/` into `dist/` as ES modules with type declarations. |
-| `vitest.config.ts` | Test runner settings. Resolves sibling packages to their source, so tests never run against a stale build. |
+| `package.json` | Package manifest. |
+| `tsconfig.json` | TypeScript settings. |
+| `tsup.config.ts` | Build settings. |
+| `vitest.config.ts` | Test settings. |
 
 ### `packages/observability/src/`
 
 | File | What it does |
 |---|---|
-| `import.ts` | Every import from outside this package, written once and re-exported, so the rest of `src/` imports from one place. |
-| `index.ts` | The package's public entry point. Re-exports what other packages may use, and contains no logic. |
+| `import.ts` | Outside-import surface. |
+| `index.ts` | Public entry point. |
 
 ### `packages/observability/src/catalog/`
 
@@ -54,7 +54,7 @@ This is diagnostics only. Business facts (who did what) go to the audit log in P
 
 | File | What it does |
 |---|---|
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `json.logger.ts` | `JsonLogger`: writes one JSON object per line to standard output, or a readable format in a terminal during development. |
 | `logger.ts` | `Logger`: the logging interface every server part uses. Each call names an event code; `child()` attaches fields such as the trace ID to every later line; `failure()` logs an error with the severity its error code declares. |
 | `redactor.ts` | `Redactor`: replaces the value of any field whose name looks secret (token, password, key, cookie) with `[redacted]` before a line is written. |
@@ -65,7 +65,7 @@ This is diagnostics only. Business facts (who did what) go to the audit log in P
 | File | What it does |
 |---|---|
 | `correlation.ts` | `Correlation`: one trace ID per request. It is taken from an incoming `x-request-id` header if there is one, or generated, then attached to every log line and error for that request. |
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `log-level.ts` | `LogLevels`: the four log levels (debug, info, warn, error) and how an error's severity maps to one. |
 
 ### `packages/observability/tests/catalog/`
@@ -94,7 +94,7 @@ This is diagnostics only. Business facts (who did what) go to the audit log in P
 | File | What it does |
 |---|---|
 | `index.md` | One diagnostic stream — closed event codes, levels decided by a catalog, structured fields as JSON lines to stdout. The other half of the split that keeps errors free of prose. |
-| `meta.json` | Sidebar title, description and page order for this docs folder. |
+| `meta.json` | Sidebar order. |
 
 ### `packages/observability/docs/reference/`
 
@@ -103,4 +103,4 @@ This is diagnostics only. Business facts (who did what) go to the audit log in P
 | `catalog.md` | Why a log line has a code, why the level lives in the catalog rather than the call site, and how sampling becomes a per-code dial. |
 | `correlation.md` | One id per request, adopted from upstream where there is one, stamped onto the error envelope so a user can read it back. |
 | `logger.md` | The seam, why it returns void rather than a promise, what failure() reads off an AppError, and where the redaction line sits. |
-| `meta.json` | Sidebar title, description and page order for this docs folder. |
+| `meta.json` | Sidebar order. |

@@ -24,29 +24,29 @@ Every word a user reads, in English and Bengali, split by screen area (namespace
 
 | File | What it does |
 |---|---|
-| `package.json` | The package manifest: its name, its build, test and type-check scripts, and its dependencies. Versions come from the workspace catalog. |
-| `tsconfig.json` | TypeScript settings. Extends a shared preset from `tooling/tsconfig` and type-checks the tests too. |
-| `tsup.config.ts` | Build settings: bundles `src/` into `dist/` as ES modules with type declarations. |
-| `vitest.config.ts` | Test runner settings. Resolves sibling packages to their source, so tests never run against a stale build. |
+| `package.json` | Package manifest. |
+| `tsconfig.json` | TypeScript settings. |
+| `tsup.config.ts` | Build settings. |
+| `vitest.config.ts` | Test settings. |
 
 ### `packages/content/src/`
 
 | File | What it does |
 |---|---|
-| `import.ts` | Every import from outside this package, written once and re-exported, so the rest of `src/` imports from one place. |
-| `index.ts` | The package's public entry point. Re-exports what other packages may use, and contains no logic. |
+| `import.ts` | Outside-import surface. |
+| `index.ts` | Public entry point. |
 
 ### `packages/content/src/collection/`
 
 | File | What it does |
 |---|---|
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 
 ### `packages/content/src/collection/nav/`
 
 | File | What it does |
 |---|---|
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `nav.data.ts` | The main menu entries: each one's module, icon and label key. A menu entry names a module, never a permission, so editing menu content can never widen access. |
 | `nav.schema.ts` | The schema a menu entry must match, checked when the module loads. |
 
@@ -54,7 +54,7 @@ Every word a user reads, in English and Bengali, split by screen area (namespace
 
 | File | What it does |
 |---|---|
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `media-ref.ts` | `MediaResolver`: turns an image key such as `brand.logo` into a real URL. A CDN would plug in here. |
 | `static-media.resolver.ts` | `StaticMediaResolver`: the default resolver, reading the image manifest the `asset` package builds. |
 
@@ -65,7 +65,7 @@ Every word a user reads, in English and Bengali, split by screen area (namespace
 | `catalog.server.ts` | `SERVER_CATALOG`: the text bundles only the server may load, such as email copy, so they never reach a browser. |
 | `catalog.ts` | `CLIENT_CATALOG`: how the browser loads each language's text, one small file per language and screen area, only when a page needs it. |
 | `error-copy.ts` | `ERROR_COPY` and `ErrorCopy`: the words shown for every error code and every form validation rule. The only place a failure gets a sentence. |
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `namespace.ts` | The text namespaces (`auth`, `doc`, `platform` and so on) and the `MessageKey` type: every text key in the app, so a typo in a key fails to compile. `common`, `error` and `nav` are always loaded; the rest load per page. |
 
 ### `packages/content/src/message/bn/`
@@ -110,7 +110,7 @@ Every word a user reads, in English and Bengali, split by screen area (namespace
 
 | File | What it does |
 |---|---|
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `locale.ts` | `Locales`: the supported languages (English, Bengali), each named in its own language, and a safe check for an untrusted locale string. |
 
 ### `packages/content/src/source/`
@@ -118,14 +118,14 @@ Every word a user reads, in English and Bengali, split by screen area (namespace
 | File | What it does |
 |---|---|
 | `content-source.ts` | `ContentSource`: the interface any content provider implements (text, images, menu records, long-form content). A headless CMS would plug in here. |
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `static-content.source.ts` | `StaticContentSource`: the default provider, reading the bundled text files. |
 
 ### `packages/content/src/translator/`
 
 | File | What it does |
 |---|---|
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `message-store.ts` | `MessageStore`: holds the loaded text for the current language and loads more namespaces as the user navigates. Works without React. |
 | `translator.ts` | `Translator` and `MessageSnapshot`: looks up a text key and fills in its `{placeholders}`. The snapshot is also what the server writes into the HTML so the browser starts with the right text. |
 
@@ -157,7 +157,7 @@ Every word a user reads, in English and Bengali, split by screen area (namespace
 
 | File | What it does |
 |---|---|
-| `content-source.shapes.spec.ts` | Tests the four content shapes through the provider and translator, including that a missing namespace shows its key rather than failing silently. |
+| `content-source.shapes.spec.ts` | Tests the three content shapes through the provider and translator, including that a missing namespace shows its key rather than failing silently. |
 | `static-content.source.spec.ts` | Tests `static-content.source.ts`. |
 
 ### `packages/content/tests/translator/`
@@ -172,7 +172,7 @@ Every word a user reads, in English and Bengali, split by screen area (namespace
 | File | What it does |
 |---|---|
 | `index.md` | Every user-visible string, image reference, and structured record, split by locale and namespace so no runtime downloads words it cannot use. Three content shapes, each with a consumer. |
-| `meta.json` | Sidebar title, description and page order for this docs folder. |
+| `meta.json` | Sidebar order. |
 
 ### `packages/content/docs/reference/`
 
@@ -181,6 +181,6 @@ Every word a user reads, in English and Bengali, split by screen area (namespace
 | `content-shapes.md` | Why media and nav are separate shapes rather than one — and the rule that keeps a content edit from becoming a privilege escalation. |
 | `content-source.md` | The abstract seam a CMS slots into, StaticContentSource behind it, and why the shell namespaces are a property of the base class rather than a convention. |
 | `error-copy.md` | ERROR_COPY, FIELD_RULE_COPY and ErrorCopy — the only place in the repository where a failure gets words, and the reason @loadbearing/errors has no message field. |
-| `meta.json` | Sidebar title, description and page order for this docs folder. |
+| `meta.json` | Sidebar order. |
 | `namespace.md` | The closed MessageKey union derived from type-only imports — how the key guarantee survives splitting the runtime data into one chunk per locale and namespace. |
 | `translator.md` | Translator and MessageSnapshot — one immutable shape that is the constructor argument, the SSR wire format, and the merge unit, plus twelve lines of interpolation and no i18n library. |

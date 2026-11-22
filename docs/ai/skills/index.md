@@ -29,4 +29,4 @@ book that drifts from the one people actually follow.
 
 A procedure earns a run book when it touches more than one package in an order that is not
 obvious, and getting the order wrong costs a rewrite rather than a review comment. Anything
-smaller is a rule; anything larger is a document in [`docs/setup/`](../../setup/index.md).
+smaller is a rule.

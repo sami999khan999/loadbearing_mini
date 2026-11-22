@@ -29,14 +29,11 @@ packages/api-server/src/
     └── realtime.router.ts       the stream: the user's channel
 ```
 
-**Why a package and not a folder in `apps/web`.** Apps cannot import each other, and the second app
-that serves procedures needs the same chain exactly — the same principal resolution, the same
-permission gate that fails closed, the same shard scope carried across every frame of a stream.
-A copy would be the subtlest code in the transport, maintained twice. The decision is recorded in
-[`docs/opinions/dependencies.md`](../../../docs/opinions/dependencies.md), Tier 3.
-
-**What stays in the apps.** `RPCHandler` from `@orpc/server/fetch` or `/node`, CORS, and the route
-that mounts them. Those change when the HTTP framework does; nothing here does.
+**A package, not an `apps/web` folder:** apps cannot import each other, and the stream process needs the
+identical chain — principal resolution, the fail-closed gate, the shard scope across every frame. A copy
+would be the subtlest transport code twice ([dependencies](../../../docs/opinions/dependencies.md), Tier 3).
+**The apps keep** `RPCHandler` (`@orpc/server/fetch` or `/node`), CORS and the mounting route — what changes
+with the HTTP framework.
 
 - [Router](reference/router.md) — the chain's order, why streams are wrapped twice, and why one
   namespace is one process.

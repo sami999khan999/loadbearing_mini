@@ -22,8 +22,8 @@ A small separate process that holds every open live stream. Browsers connect to 
 
 | File | What it does |
 |---|---|
-| `package.json` | The package manifest: its name, its build, test and type-check scripts, and its dependencies. Versions come from the workspace catalog. |
-| `tsconfig.json` | TypeScript settings. Extends a shared preset from `tooling/tsconfig` and type-checks the tests too. |
+| `package.json` | Package manifest. |
+| `tsconfig.json` | TypeScript settings. |
 | `tsconfig.test.json` | TypeScript settings for type-checking the realtime app's tests. |
 | `vitest.config.ts` | Test runner settings for the realtime app, with a complete fake environment. |
 
@@ -39,14 +39,14 @@ A small separate process that holds every open live stream. Browsers connect to 
 
 | File | What it does |
 |---|---|
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `realtime-bootstrap.ts` | `RealtimeBootstrap`: starts the stream listener, and on shutdown stops taking new streams, lets open ones finish, then closes connections. |
 
 ### `apps/realtime/src/server/`
 
 | File | What it does |
 |---|---|
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `stream-listener.ts` | `StreamListener`: the HTTP server for live streams. Serves only `/api/realtime/*` through the same middleware chain as the API, plus a health probe. |
 
 ### `apps/realtime/tests/bootstrap/`
@@ -66,12 +66,12 @@ A small separate process that holds every open live stream. Browsers connect to 
 | File | What it does |
 |---|---|
 | `index.md` | The stream process. It holds every open browser stream and nothing else, so a thousand open tabs or a reconnect wave after a deploy never slows the web app's pages. |
-| `meta.json` | Sidebar title, description and page order for this docs folder. |
+| `meta.json` | Sidebar order. |
 
 ### `apps/realtime/docs/reference/`
 
 | File | What it does |
 |---|---|
 | `env.md` | What the stream process reads, the auth settings that must equal the web app's, and why its pool is five. |
-| `meta.json` | Sidebar title, description and page order for this docs folder. |
+| `meta.json` | Sidebar order. |
 | `shutdown.md` | Why a stop ends every stream cleanly at a random point in a window, rather than cutting them all at once. |

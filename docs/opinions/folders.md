@@ -7,9 +7,8 @@ description: src/ holds index.ts, import.ts, and folders. Role folders by defaul
 
 ## `src/` holds `index.ts`, `import.ts`, and folders. Nothing else
 
-Two files at the root, and both are surfaces rather than code: `index.ts` is what the package
-gives, `import.ts` is what it takes ([Imports and exports](imports.md)). Every other file lives in
-a folder.
+`index.ts` is what the package gives and `import.ts` is what it takes
+([Imports and exports](imports.md)); every other file lives in a folder.
 
 ```
 packages/errors/src/          packages/permissions/src/     packages/content/src/
@@ -21,93 +20,61 @@ packages/errors/src/          packages/permissions/src/     packages/content/src
                               └── route/                    └── translator/
 ```
 
-**Why the root is closed.** A loose file at `src/` root has no stated kind, so nothing tells you
-where the next one goes — and "just this one helper" is how `utils.ts` gets born. Keeping the root
-to two named surfaces means every question about placement has an answer that is already written
-down.
+**Why closed:** a loose file has no stated kind, so nothing says where the next one goes — "just this
+one helper" is how `utils.ts` is born. The cost is accepted: `errors/src/normalizer/` holds one file
+and `content/src/translator/translator.ts` stutters, but a one-file folder needs no move at three, and
+a rule with no judgement call is never litigated in review.
 
-The cost is real and worth paying: `errors/src/normalizer/` holds one file, and
-`content/src/translator/translator.ts` stutters. **Accept both.** A folder that holds one thing
-today needs no move when it holds three, and a rule with no judgement call in it is a rule nobody
-has to litigate in review.
-
-### An app's root is closed too, and the exceptions are the framework's
-
-`apps/*/src` follows the same rule with one addition: **a file the framework resolves by name
-stays at the root.** `main.ts` is the worker's entrypoint and `env.ts` is the one place
-`process.env` is read — an assertion in `check-architecture` §3 names that path. In `apps/web` the
-same applies to `router.tsx`, `endpoint.ts` and the generated `route-tree.gen.ts`.
-
-Everything else is a folder, and the test is the same one: `worker-bootstrap.ts` and
-`system-principal.ts` sat loose for as long as nobody asked what kind of thing they were. They are
-`bootstrap/` — what the process assembles before it starts working — and the question of where the
-next such file goes now has an answer.
+**An app's root is closed too, except for files the framework resolves by name:** `main.ts` (the
+worker entrypoint), `env.ts` (the only place `process.env` is read — `check-architecture` §3 names the
+path), and in `apps/web` `router.tsx`, `endpoint.ts` and the generated `route-tree.gen.ts`.
+`worker-bootstrap.ts` and `system-principal.ts` sat loose until someone asked what kind of thing they
+were; they are `bootstrap/` — what the process assembles before it starts working.
 
 ## Every folder has an `index.ts`
 
-That is what lets you move a file within a folder without touching a single import elsewhere. The
-barrel names every symbol it publishes — never `export *` ([Imports and exports](imports.md)).
+So a file can move within a folder without touching an import elsewhere. The barrel names every
+symbol it publishes, never `export *`.
 
-**One exemption: `packages/content/src/message/en/` and `bn/`.** Nothing merges those files; they
-are reached only by string-literal `import()` from `message/catalog.ts`, and that is what splits
-them into one chunk per locale × namespace. A barrel there would be dead weight that anyone could
-accidentally import and collapse the split. See [20](../setup/20-content-package.md).
+**Exempt:** `packages/content/src/message/en/` and `bn/`, reached only by string-literal `import()`
+from `message/catalog.ts` — that is what splits them into one chunk per locale × namespace, and a
+barrel would let anyone collapse it. **And folders holding no modules:** `asset`'s `icon/svg/`,
+`image/file/`, `font/` (`.svg`, `.webp`, `.woff2`, reached via `ImageManifest` and the `exports` map
+entries `./font.css`, `./sprite.svg`, `./style.css`) and `ui`'s `style/` tree.
 
-**A second exemption: directories that hold no modules.** In `packages/asset`, `icon/svg/`,
-`image/file/` and `font/` hold `.svg`, `.webp` and `.woff2`; in `packages/ui`, `style/` and the
-folders under it hold stylesheets only. None of them hold modules. There is nothing for a barrel to
-name, and the surfaces that reach them are `ImageManifest` (which imports the files by path) and the
-`exports` map (which publishes `./font.css`, `./sprite.svg` and `./style.css` directly). The rule is
-about folders of code.
+**`ui` splits code from appearance.** `component/` has one folder per exported component; `theme/`
+holds the TypeScript that chooses and scopes a theme (registries, `ThemeScope`); `style/` holds
+stylesheets only:
 
-**`ui` splits code from appearance.** `component/` holds one folder per exported component.
-`theme/` holds the TypeScript that chooses and scopes a theme: the registries and `ThemeScope`.
-`style/` holds every stylesheet and nothing else, because a folder that mixes `.ts` and `.css`
-answers two questions and gets both wrong. Inside `style/`, each file is a kind of thing appearance
-is made of:
+- **`token.css`** — type scale, spacing, radii, elevation, motion. Theme-invariant, names no colour.
+- **`color/`** — one file per theme, each declaring the same twelve names. Names no component.
+- **`base.css` and `markdown/`** — the page, and the HTML the Markdown renderer writes. They declare
+  no value of their own; every number and colour is a `var()` into the other two.
 
-- **`token.css`** — the sizes. Type scale, spacing, radii, elevation, motion. Theme-invariant: a
-  dark theme is not a different spacing system.
-- **`color/`** — one file per theme, each declaring the same twelve names. The set is the contract.
-- **`base.css` and `markdown/`** — rules for elements no component renders: the page, and the HTML
-  the Markdown renderer writes into stored docs.
-
-The line between them is what each may reference. `token.css` names no colour. A colour file names
-no component. `base.css` and `markdown/` declare no value of their own — every number and every
-colour in them is a `var()` reaching back into the other two. A rule that breaks that direction is
-in the wrong file. Components style themselves with Tailwind utilities, so none of this is per
-component.
+A rule that breaks that direction is in the wrong file. Components style themselves with Tailwind.
 
 ## Every folder under `docs/` has an `index.md`
 
-The same rule one level up, for the same reason. A folder with no index can only be navigated by
-listing it, and a reader who lands in one has to guess which file is the entry point. The index is
-also what lets a page move within a folder without every link *to* the folder breaking.
+Same rule one level up: without an index a reader must guess the entry point, and links to the
+folder break when a page moves.
 
 ```
-docs/index.md                 the four trees and what each is for
+docs/index.md                 the trees and what each is for
 docs/ai/index.md              the task router
 docs/ai/rules/index.md        the rulebook's contents
 docs/ai/skills/index.md       the run books
 docs/opinions/index.md        these pages
-docs/setup/index.md           the build order, 00-30
 ```
 
-**The `reference/` folders are deliberately exempt**, and it is worth saying why rather than leaving
-it to look like an oversight. `packages/<name>/docs/reference/` and `docs/infra/reference/` are
-reached from their parent `index.md`, which names every page in them, and `meta.json` carries the
-ordering. An index inside would restate the parent and rot the first time a page was added to one
-and not the other.
-
-A folder holding no Markdown at all needs no index — there is nothing for it to name.
-
-Enforced by `check-architecture.mjs` §13 ([26](../setup/26-hygiene-and-ci.md)).
+**`reference/` folders are exempt on purpose** — `packages/<name>/docs/reference/` and
+`docs/infra/reference/` are named in full by their parent `index.md` and ordered by `meta.json`; an
+inner index would restate the parent and rot. A folder with no Markdown needs none. Enforced by
+`check-architecture.mjs` §13.
 
 ## A folder is named after its role, and the vocabulary is shared
 
-**The default is a role folder: the folder name says what kind of thing is inside.** The same kind
-gets the same name in every package, so `catalog/` means the same thing in `errors` and in
-`permissions`, and knowing one package teaches you the next.
+**Default: a role folder, named for what kind of thing is inside**, the same name in every package —
+so `catalog/` means the same in `errors` and `permissions`.
 
 | Folder | Holds | Used by |
 |---|---|---|
@@ -155,26 +122,18 @@ gets the same name in every package, so `catalog/` means the same thing in `erro
 | `component/` | one folder per exported React component | `ui` |
 | `style/` | stylesheets only, and every one the package ships | `ui`, `apps/web` |
 
-**Non-plural, always.** `tasks/` and `task/` coexisting in different packages is exactly the
-ambiguity this removes.
+- **Never plural** — `tasks/` beside `task/` is the ambiguity this removes.
+- **`flag/` and `widget/` are role folders in `permissions` and subject folders elsewhere**
+  (`application/src/flag/` holds the flag repository port and `FlagCache`; the widget slice is
+  preferences, `<Widget>` and the inspector). The two meanings never share a package.
+- **Adding a name here is a decision.** A name that already means something else is the wrong name.
 
-**`flag/` and `widget/` are role folders in `permissions` and subject folders everywhere
-else.** In `permissions` each holds one declaration fragment per slice, the way `gate/` does.
-Elsewhere each is a slice. `application/src/flag/` holds the flag repository port and
-`FlagCache`, and the widget slice is preferences, `<Widget>` and the inspector. The two meanings
-never share a package, so a path always says which one it is.
+## Where contents repeat per feature, the folder is the subject
 
-**Adding a name to this table is a decision, not a side effect.** If a new folder wants a name that
-already means something else here, it is the wrong name.
-
-## Where the contents repeat per feature, the folder is the subject instead
-
-A role folder is right when the package has one of each thing. It is wrong when the package has one
-of each thing *per feature* — twenty schemas in one directory next to twenty repositories in another
-means a team owns files in two places and neither place belongs to anyone.
-
-**So: if a folder's contents would repeat once per feature slice, name the folder after the
-subject.**
+A role folder is wrong when the package has one of each thing *per feature*: twenty schemas beside
+twenty repositories means a team owns files in two places. **If contents would repeat per slice,
+name the folder after the subject.** It is singular, and **every file in it is prefixed with its
+name** — the folder is the subject, the suffix the role.
 
 ```
 packages/contracts/src/                not:  packages/contracts/src/
@@ -189,79 +148,46 @@ packages/contracts/src/                not:  packages/contracts/src/
 └── primitive/                                   └── goal.procedures.ts
 ```
 
+Subject folders repeat across packages by design — `contracts/task/`, `application/task/`,
+`query/task/`, `feature/task/`, `web/route/(app)/_authenticated/task/` — so a team's glob is
+`packages/*/src/<slice>/**`.
+
 > [!NOTE]
-> **`packages/infrastructure` deliberately does not follow this**, and it is the clearest place to
-> see the trade. Its tables live in one `pg/schema/` folder — because `drizzle.config.ts` must be
-> pointed at a single barrel that names every table, and `drizzle(pool, { schema })` needs the same
-> namespace at runtime for Better Auth's adapter to find its tables at all. One folder is what those
-> two tools require, so `pg/schema/rbac.schema.ts` and `pg/repository/pg-capability.repository.ts` do
-> sit in two directories. The rule above still describes the default; this is the exception, and it
-> is an exception because a tool demanded it rather than because it read better.
+> **`infrastructure` is the exception, because tools demand it.** `drizzle.config.ts` needs one
+> barrel naming every table, and `drizzle(pool, { schema })` needs that namespace at runtime for
+> Better Auth's adapter. So a slice splits across `pg/schema/task.schema.ts` and
+> `pg/repository/pg-task.repository.ts`.
 
-A subject folder is singular, and **every file inside is prefixed with the folder's name**. The
-folder is the subject; the suffix is the role. A path tells you both without opening anything.
+**Which packages are which:**
+- **Role-organised** (one of each thing): `core`, `errors`, `permissions`, `observability`,
+  `content`, `composition`, `api-client`, `api-server`.
+- **Subject-organised** (one per slice): `application`, `query`, `feature`.
+- **`ui`:** one folder per exported component, under `component/`.
+- **`infrastructure`: by vendor** — `pg/`, `redis/`, `s3/`, `bullmq/`, `openai/`, `clickhouse/`,
+  `loki/`, files named after the technology too, so `rm -r src/clickhouse/` is a complete swap. It
+  once named capabilities (`cache/`, `storage/`, `analytics/`…), which broke at the first second
+  implementation: two `analytics/` folders read as two things when they are two implementations of
+  one port. It holds only vendors the code **imports** — a log platform that only receives stdout has
+  no folder, but reading back over an API is an import, which is why `loki/` holds a reader and no
+  writer.
+- **`contracts` is both**: one each of `primitive/`, `procedure/`, `catalog/`, `registry/` as role
+  folders, and one subject folder per slice. Each folder answered the question on its own.
 
-```
-packages/contracts/src/task/
-├── index.ts
-├── task.contract.ts
-├── task.entity.ts
-└── task.procedures.ts
-```
-
-Subject folders repeat across packages by design: `contracts/task/`, `application/task/`,
-`query/task/`, `feature/task/`, `web/route/(app)/_authenticated/task/`. One glob per team —
-`packages/*/src/<slice>/**`. In `infrastructure` a slice is split across
-`pg/schema/task.schema.ts` and `pg/repository/pg-task.repository.ts`, for the tooling reason above.
-
-**Which packages are which.** `core`, `errors`, `permissions`, `observability`, `content`,
-`composition`, `api-client`, `api-server` are role-organised — they hold one of each thing. `application`, `query`,
-`feature` are subject-organised — they hold one of each thing per slice. `ui` is the third kind: one
-folder per exported component, under `component/`.
-
-**`infrastructure` is a fourth kind, and the axis is the vendor.** One folder per external system —
-`pg/`, `redis/`, `s3/`, `bullmq/`, `openai/`, `clickhouse/`, `loki/` — with the file named after the
-technology too, so `rm -r src/clickhouse/` is the complete answer to a swap.
-
-It used to name the *capability* (`cache/`, `storage/`, `queue/`, `embedding/`, `analytics/`), and
-that broke the first time a port got a second implementation: `analytics/` beside a Postgres
-`analytics/` reads as two different things, when what it is is two implementations of one port. Naming
-the subject twice is what the vendor axis avoids.
-
-It holds only vendors application code **imports**. A log platform that only *receives* stdout has no
-folder here — but the moment something reads back from it over an API, that read adapter is an import
-like any other, which is why `loki/` exists and holds a reader and no writer.
-
-**`contracts` is both, and that is the clearest illustration of the rule.** Its shared vocabulary
-and its two merge points are role folders — `primitive/`, `procedure/`, `catalog/`, `registry/` —
-because there is exactly one of each. Its subjects are subject folders, because there is one per
-slice. Nothing about the package had to choose; each folder answered the question on its own.
-
-**Two things that look like slices and are not.** `PgVectorStore` and `PgActivityReplayReader` are
-infrastructure, which is why they sit in `pg/repository/` beside `PgCapabilityRepository` rather than
-inside a slice. And repository *ports* live in the slice, not in `application/src/port/` — `port/` is
-for capabilities the whole system shares, and putting `TaskRepository` there would make that folder
-grow by one file per feature forever.
-
-**The test for `port/` is what a new feature adds, not what the port is called.**
-`ActivityReplayReader` lives there and looks slice-shaped — `since`, `dailyCounts` — but a second
-feature adds a *method* to it, not a second file beside it. `TaskRepository` is the opposite: every feature
-brings its own. One cross-cutting seam that many subjects ask questions of belongs in `port/`; one
-seam per subject belongs with the subject.
+**Not slices:** `PgVectorStore` and `PgActivityReplayReader` are infrastructure, in `pg/repository/`.
+**Repository ports live in the slice**, not `application/src/port/`. **The test for `port/` is what a
+new feature adds:** `ActivityReplayReader` looks slice-shaped (`since`, `dailyCounts`) but a second
+feature adds a *method*, so it is in `port/`; `TaskRepository` is one per feature, so it lives with
+its subject.
 
 ## Build-time artefacts and runnable scripts sit above `src/`
 
-`drizzle.config.ts`, `migrations/`, `build-sprite.mjs`. They are not shipped code, and `src/` is
-the shipped surface.
+`drizzle.config.ts`, `migrations/`, `build-sprite.mjs` are not shipped code, and `src/` is the
+shipped surface.
 
-**A runnable script belongs there too, and the reason is sharper than tidiness.** A script inside a
-folder makes that folder's barrel *execute it* the moment somebody imports a sibling — which is
-exactly what happened when `PgPersonalOrganizationEnroller` needed `SystemRoleSeed` and the seed
-was `src/pg/seed/index.ts`: importing the class connected to Postgres and called `process.exit`
-in the middle of a sign-in.
-
-So `packages/infrastructure/{migrate,seed,smoke}.ts` and `packages/auth/tables.ts` are files at the
-package root, named after what they do. The classes they use stay in `src/` where they can be
-imported safely. It is also what keeps `dotenv`, `process.env` and `console.log` out of `src/`
-entirely: the three lint exemptions those need are now four filenames rather than four globs over
-directories that also hold library code.
+**Runnable scripts too — because a script inside a folder runs when its barrel is imported.** When
+`PgPersonalOrganizationEnroller` needed `SystemRoleSeed` and the seed was `src/pg/seed/index.ts`,
+importing the class connected to Postgres and called `process.exit` mid-sign-in. So
+`packages/infrastructure/{migrate,seed,smoke}.ts` and `packages/auth/tables.ts` sit at the package
+root, named for what they do, and the classes they use stay importable in `src/`. That also keeps
+`dotenv`, `process.env` and `console.log` out of `src/`: the lint exemptions are four filenames, not
+four globs over library code.

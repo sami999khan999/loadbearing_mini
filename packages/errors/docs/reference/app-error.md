@@ -60,10 +60,9 @@ public constructor(
 }
 ```
 
-`super(code)` makes `Error.message` the code, with nothing to strip and nothing to translate. The first
-draft of this class declared `code` abstract and overrode `message` with a getter — which does not
-typecheck, because `Error.message` is a mutable property and a get-only accessor is not assignable to
-one. Taking the code as a constructor parameter is simpler *and* it means a subclass cannot forget:
+`super(code)` makes `Error.message` the code. A first draft overrode `message` with a getter, which does
+not typecheck (a get-only accessor cannot replace a mutable property); a constructor parameter is
+simpler and a subclass cannot forget it:
 
 ```ts
 export class ForbiddenError extends AppError {
@@ -73,8 +72,8 @@ export class ForbiddenError extends AppError {
 }
 ```
 
-`{ permission, goalId }` is what a log query wants and what `content` interpolates. There is no third
-representation to keep in sync.
+`{ permission, goalId }` is what a log query filters and `content` interpolates — no third
+representation.
 
 ---
 
@@ -88,37 +87,27 @@ type StackTraceCapture = {
 (Error as StackTraceCapture).captureStackTrace?.(this, new.target);
 ```
 
-`captureStackTrace` is a V8 extension, so `lib: ["ES2024"]` does not declare it and a bare
-`Error.captureStackTrace?.(…)` fails with `TS2339` — verified. This is the same situation as `crypto`
-in [`@loadbearing/core`](../../../core/docs/reference/uuid.md), and the same answer: name the one method
-you use, reach it off the value, and stay independent of whether `@types/node` ever lands in the
-program. The optional call keeps it correct where V8 is absent.
-
-> The build listing in [12](../../../../docs/setup/12-application-package.md) originally wrote the bare
-> form. It is corrected there.
+A V8 extension undeclared by `lib: ["ES2024"]`, so a bare call fails `TS2339` — `core`'s `crypto`
+problem ([uuid](../../../core/docs/reference/uuid.md)) with the same answer: name the one method, read it
+off the value, independent of `@types/node`. The optional call is safe without V8.
 
 ---
 
 ## `from()` returns `null`, and callers must handle it
 
-An envelope arrives from the wire, a Redis entry, or a queue payload — all untrusted. So the code is
-checked rather than trusted:
+An envelope from the wire, Redis or a queue is untrusted, so the code is checked:
 
 ```ts
 AppError.from({ code: "MADE_UP", context: {} }); // null
 ```
 
-This is the same boundary `CapabilitySet.from()` enforces, and `isKnownCode` uses `Object.hasOwn` for
-the same reason `PermissionRegistry.isKnown` does: `"constructor" in ERROR_CATALOG` is `true`, and an
-inherited property would resolve to a `retryable` of `undefined`.
+`CapabilitySet.from()`'s boundary; `isKnownCode` uses `Object.hasOwn` as `PermissionRegistry.isKnown`
+does (`"constructor" in ERROR_CATALOG` is `true`). The result is a `TransportError` — code and context
+survive, the class does not, which suffices since callers switch on `code`, never `instanceof`.
 
-What comes back is a `TransportError` — the code and context survive, the original class does not. That
-is deliberate and sufficient: callers switch on `code`, never on `instanceof`.
-
-**The trace id is checked on the same grounds, and used to be adopted verbatim.** It is a string from
-the same untrusted envelope, and once adopted it rides every log line that mentions the error — the
-log-injection primitive `Correlation.sanitise` exists to prevent on the request path, reachable by a
-second door. `from()` now applies the identical rule and drops what fails it:
+**The trace id is checked too** (it was once adopted verbatim): from the same untrusted envelope it would
+ride every related log line — the log-injection hole `Correlation.sanitise` closes on the request path.
+`from()` applies the same rule:
 
 ```ts
 AppError.from({ code: "INTERNAL", context: {}, traceId: 'x" level=error' }); // no traceId
@@ -126,13 +115,9 @@ AppError.from({ code: "INTERNAL", context: {}, traceId: "a".repeat(500) })
   ?.toJSON().traceId?.length;                                               // 128
 ```
 
-Over-long is truncated rather than dropped, because an over-long id is still probably the upstream's
-and half a trace is more use than none; a wrongly *shaped* one is discarded outright, because there
-is nothing in it worth keeping.
-
-**The rule lives in `TraceIds`, in this package, and `Correlation.sanitise` delegates to it.** Two
-copies of a bound-and-charset check is exactly the pair that drifts, and the direction of the
-dependency decides which package holds it: `observability` may import `errors`, never the reverse.
+Over-long is truncated (probably still the upstream's id), wrongly shaped is dropped. **The rule lives
+in `TraceIds` here and `Correlation.sanitise` delegates** — two copies would drift, and `observability`
+may import `errors`, not the reverse.
 
 ---
 
@@ -142,15 +127,14 @@ dependency decides which package holds it: `observability` may import `errors`, 
 new ForbiddenError("x").toJSON(); // { code, context } — no `fields` key
 ```
 
-An absent key and an empty array both mean "no field violations", but only one of them stays absent
-through a JSON round-trip without inviting `fields.length` on a non-validation error.
+Both mean "no violations", but only absence avoids inviting `fields.length` on a non-validation error.
 
 ---
 
 ## The subclasses, and what each carries
 
-A class exists for a code when a use-case needs to **throw** it with context. `RATE_LIMITED` and
-`UNAVAILABLE` have none, because a rate limiter and a health check are adapters.
+A code gets a class when something **throws** it with context. `RateLimitedError` and
+`UnavailableError` are thrown by adapters (a 429'd endpoint, a failed upstream), never by the domain.
 
 | Class | Code | Context |
 | --- | --- | --- |
@@ -161,6 +145,8 @@ A class exists for a code when a use-case needs to **throw** it with context. `R
 | `TwoFactorRequiredError` | `TWO_FACTOR_REQUIRED` | — |
 | `ValidationError` | `BAD_REQUEST` | `{ fieldCount }` + `fields` |
 | `InternalError` | `INTERNAL` | — (the original is held on a non-enumerable `cause`) |
+| `RateLimitedError` | `RATE_LIMITED` | `{ scope }` — the endpoint, never the identity |
+| `UnavailableError` | `UNAVAILABLE` | `{ dependency }`, plus `status` when known |
 | `ServerOnlyError` | `SERVER_ONLY` | `{ package }` |
 | `TransportError` | any | whatever the envelope carried |
 
@@ -171,16 +157,10 @@ A class exists for a code when a use-case needs to **throw** it with context. `R
 throw new ServerOnlyError(packageName);
 ```
 
-`ServerOnly.assert` fires at module load, in a browser, in a build that is already broken. It is the
-hardest case in the repository for "an error carries no message" — a developer-facing string, read
-from a console, that never crosses a wire — and it still carries only a code.
-
-The context key is **`package`**, not `packageName`, because that key *is* the `{package}` placeholder
-in `error.serverOnly` over in `content`. Renaming it breaks nothing except the rendered sentence,
-which is why a test asserts the key list directly.
-
-The full argument, including the case *for* an exception and why it fails, is on
-[core's `ServerOnly` page](../../../core/docs/reference/server-only.md#why-the-hardest-case-for-prose-still-loses).
+It fires at module load in an already-broken browser build — the hardest case for "no message" — and
+still carries only a code. The context key is **`package`** because it is `error.serverOnly`'s
+`{package}` placeholder; a test asserts the key list
+([the argument](../../../core/docs/reference/server-only.md#why-the-hardest-case-for-prose-still-loses)).
 
 ---
 

@@ -5,8 +5,7 @@ description: The four rules that govern the DI root — abstract types on the pu
 
 # `Container`
 
-One class, no decorators, no reflection, no module graph. Four rules make it work, and
-each of them prevents a specific failure.
+One class, no decorators, no reflection, no module graph. Four rules, each preventing a failure.
 
 ## 1. Ports are exposed as their abstract types
 
@@ -14,13 +13,10 @@ each of them prevents a specific failure.
 public readonly vectors: VectorStore;      // not PgVectorStore
 ```
 
-If the concrete type leaks into the public surface, a consumer eventually calls a Postgres-specific
-method and the swap stops being one line. **The annotation is what enforces it** — TypeScript infers
-`PgVectorStore` from the assignment otherwise, and nothing about the file would look wrong.
-
-Two fields are deliberately concrete. `capabilities: CapabilityCache` and
-`principals: PrincipalBuilder` are not adapters over a seam; they *are* the caching decision and the
-credential-collapsing decision, and there is no second implementation to be abstract about.
+A leaked concrete type invites Postgres-specific calls and ends the one-line swap. **The annotation
+enforces it** — TypeScript would infer `PgVectorStore`. `capabilities: CapabilityCache` and
+`principals: PrincipalBuilder` are concrete on purpose: they *are* the caching and credential-collapsing
+decisions.
 
 ## 1b. Swappable ports are chosen by a `driver`, not by a `new`
 
@@ -28,18 +24,10 @@ credential-collapsing decision, and there is no second implementation to be abst
 this.vectors = Container.buildVectorStore(config, this.cluster, this.transactions, this.shards);
 ```
 
-Rule 1 makes the *type* swappable. This makes the *choice* configurable, and the two are not the same
-claim.
-
-**A seam with exactly one implementation is untested by construction.** Abstract types on the public
-surface prove nobody calls a Postgres-specific method; they do not prove a second implementation could
-be dropped in, because until one exists nothing has tried. A discriminated `driver` on
-`ContainerConfig` is exercised the first time somebody flips the value — in an environment file, with
-no code change.
-
-`buildVectorStore` is a `switch` with a `never` default, so a driver added to the union and not to the
-switch is a build error rather than a runtime surprise. `VECTOR_DRIVER` has one legal value today;
-that is the point of writing it as a union rather than as nothing.
+Rule 1 makes the *type* swappable; a `driver` makes the *choice* configurable. **A one-implementation
+seam is untested by construction** — a discriminated `driver` on `ContainerConfig` is exercised by an
+environment change alone. `buildVectorStore` switches with a `never` default, so an unhandled driver fails
+the build; `VECTOR_DRIVER` has one value, written as a union on purpose.
 
 ### The embedding vendor is a `SearchMode`, not an optional field
 
@@ -47,34 +35,22 @@ that is the point of writing it as a union rather than as nothing.
 this.searchMode = Container.buildSearchMode(config.embedding, this.logger);
 ```
 
-`EMBEDDING_PROVIDER` picks one of three cases. `none` gives `{ kind: "lexical" }`, and search runs
-on text alone. `openai` and `gemini` give `{ kind: "semantic", provider }`, with an
-`OpenAiEmbeddingProvider` or a `GeminiEmbeddingProvider` inside.
-
-**A tagged value rather than a provider that might be missing.** A caller cannot reach a provider
-without first reading `kind`, so "no key configured" is a branch the compiler makes you write, not a
-`TypeError` at the first search. It is a `switch` like `buildVectorStore`, so a vendor added to the
-union and not here fails the build. See
+`none` gives `{ kind: "lexical" }`; `openai`/`gemini` give `{ kind: "semantic", provider }`. **A tagged
+value, not a maybe-missing provider** — callers must read `kind`, so "no key" is a compiler-forced branch;
+the same `never`-defaulted `switch`. See
 [`infrastructure/docs/reference/embedding.md`](../../../infrastructure/docs/reference/embedding.md).
 
 ## 2. Never build request-scoped state into the container
 
-The `Principal` is passed as an argument to `execute()`, never held here. **One container per
-process, not per request.**
-
-Letting per-request state into the DI root couples you to a lifecycle model, and both the worker and
-any future NestJS migration become expensive. It also removes the temptation to reach for
-`AsyncLocalStorage` as ambient auth state — the one place this repository does use it is
-`TransactionScope`, where the alternative is a `tx` parameter on every port method
+The `Principal` is an `execute()` argument. **One container per process, not per request** — request
+state couples the root to a lifecycle and makes the worker and a NestJS move expensive. The one
+`AsyncLocalStorage` is `TransactionScope`, where the alternative is a `tx` on every port method
 ([`infrastructure/docs/reference/unit-of-work.md`](../../../infrastructure/docs/reference/unit-of-work.md)).
 
 ## 3. Config arrives as a constructor argument
 
-No `process.env` in this file or in any package. The two `env.ts` files are the boundary, and
-Biome's `noProcessEnv` rule from [05](../../../../docs/setup/05-lint-and-format.md) is what keeps it
-true.
-
-**The logger's `app` and `env` are bound fields, not options.**
+No `process.env` here or in any package (the apps' `env.ts` files are the boundary; Biome's
+`noProcessEnv` holds it). **The logger's `app` and `env` are bound fields, not options:**
 
 ```ts
 this.logger = new JsonLogger({
@@ -84,24 +60,16 @@ this.logger = new JsonLogger({
 });
 ```
 
-`JsonLoggerOptions` declares `level`, `pretty`, `sink`, `bound`, `clock` and `random` — and nothing
-else. Spreading `config.logging` into it would **compile**, because excess-property checking does
-not apply to a variable, and both values would be silently dropped: no error, no label, and a log
-platform that cannot tell `web` from `worker`.
+Spreading `config.logging` into `JsonLoggerOptions` would **compile** (no excess-property check on a
+variable) and silently drop both — no label telling `web` from `worker`.
 
 Binding them puts `app` and `env` on every line, which is what lets a log shipper read all four
-labels out of the JSON body rather than inferring two of them from container metadata that differs
-between Compose, Kubernetes, and a host-run `pnpm dev`
-([11](../../../../docs/setup/11-local-infrastructure.md)). The application knows what it is; the
-orchestrator's name for the process is incidental.
+labels from the body instead of orchestrator metadata that differs across Compose, Kubernetes and
+`pnpm dev`.
 
 > [!NOTE]
-> **`logger` is a shared primitive, not a port.** It sits with `clock` and `authorizer` rather than
-> in the port block, and there is no `Logger` abstract class in `packages/application/src/port/` —
-> the domain layer does not log at all
-> ([`application/docs`](../../../application/docs/index.md)). The seam lives in
-> `@loadbearing/observability`, low enough in the graph that `infrastructure`, `auth`, and both
-> apps can reach it.
+> **`logger` is a shared primitive, not a port** — beside `clock` and `authorizer`; the domain does not
+> log ([`application/docs`](../../../application/docs/index.md)), and the seam lives in `observability`.
 
 ## 4. `dispose()` closes in reverse construction order
 
@@ -112,31 +80,16 @@ await this.emailSender.close();
 await this.cluster.close();
 ```
 
-Queues before the Redis connections before Postgres. Closing Redis while BullMQ still holds blocking
-connections produces a hang on shutdown that looks like a deadlock, because it is one.
+Queues, then Redis, then Postgres — closing Redis under BullMQ's blocking connections is a real deadlock.
 
-**The SMTP transport is held concretely as `emailSender` and exposed as `email`**, the same split as
-`queuePublisher`/`queue`. `EmailSender` is a port and says nothing about a transport's lifetime, so
-the container keeps the implementation to close it — and for a while did not close it at all.
-Nodemailer keeps sockets open between sends, and a process that exits without closing them waits on
-the SMTP server to time each one out. Its position in the order carries no meaning beyond "before
-Postgres": nothing depends on it, which is exactly why it was the one that got forgotten.
-
-`RedisConnection.close()` quits both instances, which is why they sit behind one object rather than
-as two fields on the container. Two fields is two things to remember at every shutdown path, and the
-one that gets forgotten is the queue — where an unclean close means in-flight jobs are redelivered
-rather than completed.
-
-**`cluster.close()` is the one Postgres close, and it is last.** The cluster owns every pool it
-built — node 0's pooled and direct connections included, which are what `database` and
-`directDatabase` point at — so closing it closes them, and closing them separately would close the
-same pool twice. Last because a repository on any node may still be finishing one of the lines
-above it.
-
-**The logger is constructed first and disposed last**, which is the same rule read from both ends.
-Constructed first, because a `Database` that cannot reach Postgres should produce a structured line
-rather than a stack trace on stderr. Disposed last, because everything closing above it may have
-something to say on the way out.
+- **SMTP is held as `emailSender`, exposed as `email`** (like `queuePublisher`/`queue`): the port says
+  nothing of lifetime, and an unclosed Nodemailer waits out every socket. It was once forgotten.
+- **`RedisConnection.close()` quits both instances** — one object, so the queue (whose unclean close
+  redelivers jobs) cannot be forgotten.
+- **`cluster.close()` is the one Postgres close, last** — it owns every pool, node 0's included;
+  closing those separately would double-close.
+- **The logger is built first and disposed last** — a failed `Database` should log structurally, and
+  everything closing may still log.
 
 ## `health()` pings what callers actually hold
 
@@ -157,40 +110,20 @@ return {
 };
 ```
 
-**`database` is keyed by node index, not a boolean.** A single-node deployment reads `{ 0: true }`
-— the same answer the boolean was, and it says which node it is. Two nodes and one down reads
-`{ 0: true, 1: false }`, which is the difference between "restart this pod" and "page whoever owns
-shard 1"; a rolled-up `false` says neither. `pool` stays this process's own node-0 pool, because
-the shards are separate servers and one gauge over all of them would average a saturated pool with
-an idle one.
-
-`ContainerHealthReader` folds the record back to a boolean for `PlatformHealth`, the same narrowing
-it already does to drop `pool`. Which node is down is an operator's question and the readiness
-endpoint answers it; the platform screen is asking whether to worry.
-
-Postgres and **both** Redis instances. A cache that is down degrades; a queue that is down silently
-stops accepting work, which is worth knowing about — and the two are separate servers with different
-eviction policies, so one being up says nothing about the other.
-
-**It returns a breakdown rather than one boolean**, because the only consumer is a readiness probe,
-and the body of a failing probe is what an operator reads at three in the morning. `false` alone says
-the deployment is unhealthy; it does not say whether to restart the pod or page whoever owns Redis.
+- **`database` is keyed by node** — `{ 0: true, 1: false }` says "page shard 1's owner", which a rolled-up
+  `false` cannot. `pool` stays this process's node-0 pool (averaging shards would hide saturation).
+  `ContainerHealthReader` folds it to a boolean for `PlatformHealth`.
+- **Both Redis instances** — a down cache degrades, a down queue silently stops work; one says nothing
+  of the other.
+- **A breakdown, not a boolean** — a failing probe's body is what the operator reads at 3am.
 
 **`analytics` is always `null`.** Lite runs no analytics store, and `null` means "not part of this
 deployment" — not healthy, not degraded. The field stays so the status contract keeps its shape for
 a kit that ports analytics back ([`docs/scale/analytics.md`](../../../../docs/scale/analytics.md)).
 
-**The realtime subscriber follows the same `null` rule, for a different reason.** Analytics is
-absent because the deployment does not run it; the subscriber connection is absent because
-*nothing in this process has opened a stream yet* — which is every worker, always, and a web
-replica until its first signed-in tab. `opened("subscriber")` is what makes that answerable:
-calling `healthy("subscriber")` would **create** the connection, and a worker reporting `true` for
-a socket it opened purely in order to answer the question is reporting on itself.
-
-Once a stream has been opened it is a real dependency and reports like one, which is why the
-roll-up reads `realtime !== false` rather than ignoring it. A web replica whose subscriber
-connection has died serves every request correctly and delivers nothing, and that is exactly the
-failure a readiness probe should catch — the pod looks fine from every other angle.
+**The realtime subscriber is `null` until a stream opens** (every worker; a web replica before its first
+tab): `opened("subscriber")` checks without **creating** it. Once open it is a real dependency —
+`realtime !== false` — since a replica with a dead subscriber serves everything and delivers nothing.
 
 **No log store is on this list.** Lite writes JSON to stdout and reads nothing back, so there is
 nothing to ping. Whatever ships those lines stays off the probe even when you add one: a log
@@ -198,10 +131,8 @@ pipeline being down loses diagnostics and nothing else, and failing readiness ov
 application down to protect its logs — backwards during the incident where the logs matter most.
 See [`docs/scale/logs.md`](../../../../docs/scale/logs.md).
 
-`RedisConnection.healthy(role)` takes the role rather than handing out a client, which is what keeps
-`ioredis` confined to `packages/infrastructure`. It pings the memoised connection the cache store and
-the queue publisher are already using; opening a second connection to answer a health check would
-report green on a socket nothing else uses.
+`RedisConnection.healthy(role)` takes a role (keeping `ioredis` in `infrastructure`) and pings the
+memoised connection actually in use.
 
 ## Enrolment mode is a binding, not a policy
 
@@ -209,10 +140,7 @@ report green on a socket nothing else uses.
 private static enroller(mode, personal, bootstrap, claimer): MembershipEnroller
 ```
 
-Three modes, one env var, one decorator around all of them, and **this method is the only line in
-the system that knows which is which**. Tenancy is the decision a starter kit is most likely to be
-forked over, so it is resolved here rather than baked into an enroller — which is exactly what a DI
-root is for.
+**The only line knowing which mode is which** — tenancy, the likeliest fork, resolved in the DI root.
 
 | `AUTH_ENROLMENT_MODE` | Adapter | Posture |
 |---|---|---|
@@ -220,13 +148,9 @@ root is for.
 | `bootstrap` | `PgBootstrapMembershipEnroller` | The demo and single-tenant posture |
 | `invite` | `NullMembershipEnroller` | Production: the decorator is the only door, and an address nobody invited is refused a session by `MembershipReader` |
 
-Every one of the three is wrapped in `InvitationClaimingEnroller`, so an invited address joins the
-organization that invited it **before** the mode is consulted at all. See
-[`auth/docs/reference/enrolment.md`](../../../auth/docs/reference/enrolment.md).
-
-The enroller block, and everything else gated on `config.auth`, is skipped entirely in a process
-that never authenticates: `apps/worker` builds a `SystemPrincipal` from a named grant list and
-resolves no credential.
+All are wrapped in `InvitationClaimingEnroller`, so invitations win before the mode
+([enrolment](../../../auth/docs/reference/enrolment.md)). Everything gated on `config.auth` is skipped in
+the worker.
 
 ## The one nominal binding in the repository
 
@@ -237,19 +161,13 @@ const membershipReader: MembershipReader = new PgMembershipReader(
 );
 ```
 
-`MembershipReader` is declared in `@loadbearing/auth` and implemented in `@loadbearing/infrastructure`, which
-cannot import it — `auth` already depends on `infrastructure`, so the arrow cannot point back.
-`PgMembershipReader` therefore satisfies it **structurally**, and nothing checks that until the two
-meet. The annotation on this local is that check. Drop it and a signature drift compiles everywhere
-and fails at sign-in.
-
-`PgApiKeyRepository` → `ApiKeyRepository` is the same arrangement one line down, checked by the
-`ApiKeyResolver` constructor rather than by an annotation.
+`MembershipReader` is declared in `auth`, which depends on `infrastructure`, so `PgMembershipReader`
+satisfies it **structurally** — this annotation is the only check (drop it and drift fails at sign-in).
+`PgApiKeyRepository` → `ApiKeyRepository` is checked by the `ApiKeyResolver` constructor instead.
 
 ## Where use-cases go
 
-A container with fifty use-cases as fields is unwieldy but it is honest, and it is still simpler than
-a module graph. Group by slice — one private method per module, returning a small object:
+Fifty use-case fields is unwieldy but honest, and simpler than a module graph. Group by slice:
 
 ```ts
 public readonly task: TaskUseCases;
@@ -266,20 +184,13 @@ private buildTaskUseCases(): TaskUseCases {
 }
 ```
 
-The oRPC router then reads `context.container.task.reactivate.execute(...)`, which mirrors the
-contract path exactly.
-
-**Do not add lazy instantiation.** The temptation is a `get reactivateTask()` that constructs on
-first access. It saves microseconds at boot and costs you the property that a container which
-constructs successfully is a container where every dependency resolved. Eager construction means a
-wiring mistake is a **startup crash** rather than a request-time surprise at 3am.
+Routers read `context.container.task.reactivate.execute(...)`, mirroring the contract path. **No lazy
+getters** — eager construction makes a wiring mistake a **startup crash**, not a 3am request failure.
 
 ## `ContainerHealthReader` is the one place the container implements a port
 
-`Container` builds adapters; it does not usually *be* one. `PlatformHealthReader` is the exception,
-and the reason is the layering rather than a design preference: the platform status use-case
-reports what `health()` already answers, `health()` lives here, and `application` may not name this
-package. The seam is forced.
+The platform status use-case reports what `health()` answers, and `application` cannot name this
+package — so the seam is forced:
 
 ```ts
 this.platformAdmin = {
@@ -291,22 +202,13 @@ this.platformAdmin = {
 };
 ```
 
-Two things about that `this`. It is the **last** block the constructor runs, so every field it
-could reach is assigned; and `report()` is called on a request, never during the build — the reader
-holds the container, it does not read it. Both are why this is not the lazy instantiation the
-section above bans: nothing here is deferred, only the *call*.
-
-`PlatformHealth` narrows `HealthReport` by dropping `pool`. A screen showing a pool gauge would be
-showing one process's, which is not the deployment's.
+It is the constructor's **last** block, and `report()` runs per request — nothing is deferred but the
+call, so it is not lazy instantiation. `PlatformHealth` drops `pool` (one process's gauge).
 
 ## The mail block is outside the `auth` branch, and that was a bug
 
-`ContentAuthMailer` and `ContentInvitationMailer` used to be constructed inline inside
-`if (config.auth)`. The worker parses no auth configuration, so the process that is *supposed* to
-send mail had no mailer at all — the wiring read as though mail belonged to authentication when in
-fact only two of its callers did.
-
-Now `mailPublisher`, `mailRenderer` and `mail.send` are built unconditionally, beside `email`:
+The mailers once lived inside `if (config.auth)`, so the worker — the sender — had none. Now
+`mailPublisher`, `mailRenderer` and `mail.send` are unconditional:
 
 ```ts
 this.mailPublisher = new QueuedMailPublisher(this.queue);
@@ -314,15 +216,10 @@ this.mailRenderer = new ContentMailRenderer(this.content);
 this.mail = { send: new SendMailUseCase(this.mailRenderer, this.email) };
 ```
 
-`mailPublisher` is public because Phase 3's notification subscriber holds one. `mailRenderer` stays
-private: `mail.send` is the only thing with any business calling it, and a second caller would be a
-second place that decides what a message looks like.
-
-The two mailers still live in the `auth` branch, and that is correct — `QueuedAuthMailer` is passed
-to `AuthFactory`, and `QueuedInvitationMailer` to `InviteMemberUseCase`. What changed is that both
-now take a `MailPublisher` instead of an `EmailSender`, so neither renders anything and neither
-needs a `ContentSource`. `QueuedInvitationMailer` takes its origin from `config.email.baseUrl` rather
-than `config.auth.baseUrl`, which is the other half of what kept mail trapped in that branch.
+`mailPublisher` is public (the notification subscriber holds one); `mailRenderer` is private, so only
+`mail.send` decides what a message looks like. `QueuedAuthMailer` (→ `AuthFactory`) and
+`QueuedInvitationMailer` (→ `InviteMemberUseCase`) stay in the `auth` branch but take a `MailPublisher`,
+rendering nothing; the invitation origin is `config.email.baseUrl`, not `config.auth.baseUrl`.
 
 ## Smells
 

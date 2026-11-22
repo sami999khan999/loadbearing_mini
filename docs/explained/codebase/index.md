@@ -8,7 +8,7 @@ description: Every package and app in the repository, what each one is for, and 
 > Part of [the plain-language guide](../index.md). For how the parts work together, read
 > [How everything works](../architecture.md) first.
 
-This guide covers all 1640 tracked files in the small kit (loadbearing lite).
+This guide covers every tracked file in the small kit (loadbearing lite).
 There is one page per package or app, in the order the layers depend on each other: each package
 may only use the ones above it in this list. Each page starts with what the package is for, then
 lists every file, folder by folder, with one or two plain sentences on what it does.
@@ -18,7 +18,7 @@ lists every file, folder by folder, with one or two plain sentences on what it d
 | Page | Folder | Files | What it is |
 |---|---|---|---|
 | [The repository root](root.md) | the top level | 26 | Settings files at the top, CI, git hooks, the Docker stack in `infra/`. |
-| [The docs folder](docs.md) | `docs/` | 97 | The written rules, the arguments behind them, the build order, the running stack, the plans and the way back to the big kit. |
+| [The docs folder](docs.md) | `docs/` | 88 | The written rules, the arguments behind them, the running stack, the plans and the way back to the big kit. |
 | [Tooling](tooling.md) | `tooling/` | 81 | Shared TypeScript, Biome and ESLint settings, and the repository's own check scripts. |
 | [Errors](errors.md) | `packages/errors/` | 35 | One error shape for the whole system: a code and details, never a sentence. |
 | [Core](core.md) | `packages/core/` | 25 | Tiny shared building blocks: clock, Result, IDs, tokens, and the server-only tripwire. |
@@ -39,6 +39,21 @@ lists every file, folder by folder, with one or two plain sentences on what it d
 | [The web app](app-web.md) | `apps/web/` | 109 | The website and API server: every page, the API, sign-in and the public docs. |
 | [The worker](app-worker.md) | `apps/worker/` | 39 | The background process: queues, email, notifications, indexing and scheduled housekeeping. |
 | [The realtime app](app-realtime.md) | `apps/realtime/` | 18 | The process that holds every open live stream and forwards events from Redis. |
+
+## Standard files
+
+Files every package has are described in one or two words on the package pages:
+
+| Short form | File | What it means |
+|---|---|---|
+| Package manifest. | `package.json` | Name, build, test and type-check scripts, dependencies. Versions come from the workspace catalog. |
+| TypeScript settings. | `tsconfig.json` | Extends a shared preset from `tooling/tsconfig`, and type-checks the tests too. |
+| Build settings. | `tsup.config.ts` | Bundles `src/` into `dist/` as ES modules with type declarations. |
+| Test settings. | `vitest.config.ts` | Resolves sibling packages to their source, so tests never run against a stale build. |
+| Public entry point. | `src/index.ts` | Re-exports what other packages may use, and contains no logic. |
+| Outside-import surface. | `src/import.ts` | Every import from outside the package, written once and re-exported, so the rest of `src/` imports from one place. |
+| Folder barrel. | `index.ts` in a folder | Re-exports the files beside it, so other folders import the folder rather than its files. |
+| Sidebar order. | `meta.json` | Sidebar title, description and page order for a docs folder. |
 
 ## How a package is laid out
 

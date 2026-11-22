@@ -41,27 +41,15 @@ export class FixedClock extends Clock {
 >
 > Formatting a timestamp for display is not a decision. Comparing one to a deadline is.
 
-The single exception in the whole codebase is `Uuid.v7()`, which reads `Date.now()` to build the
-time-ordered prefix of an identifier. It lives one file over, inside `core` itself, and it is not
-making a business decision.
+The one exception is `Uuid.v7()`, inside `core`, reading `Date.now()` to build an id prefix — no decision.
 
 ---
 
 ## Why this is not over-engineering
 
-`new Date()` is three characters shorter, so the abstraction has to pay for itself. It does, by
-volume: count what in a real product is time-dependent.
-
-- deadlines and overdue detection
-- SLA thresholds and escalation windows
-- review-integrity windows
-- token expiry and refresh
-- cache TTLs
-- rate-limit buckets
-
-Every one of those is a rule, every rule needs a test, and testing a rule against the real system
-clock leaves two options: sleep in the test, or accept that it is flaky. `FixedClock` makes
-"does this task go overdue at exactly midnight" a synchronous assertion with no timers involved.
+It pays for itself by volume — deadlines, SLA and escalation windows, token expiry, cache TTLs,
+rate-limit buckets are all rules needing tests, and the real clock means sleeping or flakiness.
+`FixedClock` makes "overdue at exactly midnight?" a synchronous assertion:
 
 ```ts
 const clock = new FixedClock(new Date("2026-01-01T00:00:00.000Z"));
@@ -81,31 +69,16 @@ public advance(ms: number): FixedClock {
 }
 ```
 
-Not `this.fixed = …`. A mutable clock shared between two assertions in the same test is its own
-source of confusion — the second assertion depends on whether the first one ran, and a reordered
-or `.only`-ed test starts failing for reasons that have nothing to do with the rule under test.
-
-Returning a new instance also reads better at the call site, because the two clocks can sit in the
-same expression:
-
-```ts
-expect(task.isOverdue(clock)).toBe(false);
-expect(task.isOverdue(clock.advance(2))).toBe(true);
-```
+Not `this.fixed = …` — a mutable shared clock makes assertions order-dependent, failing a reordered or
+`.only`-ed test for unrelated reasons; immutability also lets both clocks sit in one expression (above).
 
 ---
 
 ## Why an abstract class and not an interface
 
-Every *port* in this codebase is an abstract class. ([`Result`](result.md) is a union, but it is a
-return value, never an injected dependency — the reasoning below does not apply to it.) The reason is
-[`verbatimModuleSyntax`](../../../../tooling/tsconfig/docs/reference/base.md): an interface is
-erased at compile time and cannot be a constructor-injection token, so it would need a separate
-runtime symbol to bind against. An abstract class is one declaration that is both the type and the
-token.
-
-The ESLint OOP rules in [`@loadbearing/eslint-config`](../../../../tooling/eslint-config/docs/index.md)
-enforce the same shape across the packages that follow this pattern.
+Every *port* is an abstract class ([`Result`](result.md) is a union, but a return value, not an injected
+dependency): under [`verbatimModuleSyntax`](../../../../tooling/tsconfig/docs/reference/base.md) an
+interface is erased and cannot be an injection token, while an abstract class is both type and token.
 
 ---
 
@@ -113,18 +86,16 @@ enforce the same shape across the packages that follow this pattern.
 
 | | Where it is constructed |
 | --- | --- |
-| `SystemClock` | once, in the composition root — see [17 · composition](../../../../docs/setup/17-composition-container.md) |
+| `SystemClock` | once, in the composition root — see `composition` |
 | `FixedClock` | in tests, per test |
 
-Nothing else constructs a clock. A use-case that reaches for `new SystemClock()` has just
-undone the abstraction.
+Nothing else constructs one; a use-case calling `new SystemClock()` undoes the abstraction.
 
 ---
 
 ## Tests
 
-`tests/clock.spec.ts` asserts the two properties that matter — that `now()` is fixed, and that
-`advance()` does not mutate:
+`tests/primitive/clock.spec.ts` asserts `now()` is fixed and `advance()` does not mutate:
 
 ```ts
 it("advances without mutating", () => {

@@ -22,17 +22,17 @@ The server half of the API transport, shared by the web app and the realtime app
 
 | File | What it does |
 |---|---|
-| `package.json` | The package manifest: its name, its build, test and type-check scripts, and its dependencies. Versions come from the workspace catalog. |
-| `tsconfig.json` | TypeScript settings. Extends a shared preset from `tooling/tsconfig` and type-checks the tests too. |
-| `tsup.config.ts` | Build settings: bundles `src/` into `dist/` as ES modules with type declarations. |
-| `vitest.config.ts` | Test runner settings. Resolves sibling packages to their source, so tests never run against a stale build. |
+| `package.json` | Package manifest. |
+| `tsconfig.json` | TypeScript settings. |
+| `tsup.config.ts` | Build settings. |
+| `vitest.config.ts` | Test settings. |
 
 ### `packages/api-server/src/`
 
 | File | What it does |
 |---|---|
-| `import.ts` | Every import from outside this package, written once and re-exported, so the rest of `src/` imports from one place. |
-| `index.ts` | The package's public entry point. Re-exports what other packages may use, and contains no logic. |
+| `import.ts` | Outside-import surface. |
+| `index.ts` | Public entry point. |
 
 ### `packages/api-server/src/router/`
 
@@ -40,7 +40,7 @@ The server half of the API transport, shared by the web app and the realtime app
 |---|---|
 | `base.ts` | The middleware chain every API call passes through, in order: attach a trace ID, build the principal from the request, apply rate limits, place the request on the organization's database node, and turn any error into the standard error envelope. `authed` is the chain endpoints are built on. |
 | `error.interceptor.ts` | `ErrorInterceptor`: the one place every server error passes: it is normalised, logged at its severity, and sent to the browser as an error code envelope with the trace ID (never a stack or database text). |
-| `index.ts` | Folder index: re-exports the files beside it, so other folders import the folder rather than its files. |
+| `index.ts` | Folder barrel. |
 | `rate-limit.policy.ts` | `RateLimitPolicy`: the per-endpoint limits for calls that cost something (sending or resending an invitation email, a paid AI search, rendering a big doc preview). |
 | `realtime.router.ts` | `RealtimeRouter`: the live-stream endpoint (one stream per signed-in tab). Streams events from Redis to the browser and tells the client how long to wait before reconnecting. |
 | `stream-revalidation.ts` | `StreamRevalidation`: an open live stream re-checks every minute that the person may still hold it, and ends it if not. A database blip keeps the stream open. |
@@ -58,11 +58,11 @@ The server half of the API transport, shared by the web app and the realtime app
 | File | What it does |
 |---|---|
 | `index.md` | The router half of the transport — the authed middleware chain, the error interceptor and the stream router — shared by every app that serves procedures. |
-| `meta.json` | Sidebar title, description and page order for this docs folder. |
+| `meta.json` | Sidebar order. |
 
 ### `packages/api-server/docs/reference/`
 
 | File | What it does |
 |---|---|
-| `meta.json` | Sidebar title, description and page order for this docs folder. |
+| `meta.json` | Sidebar order. |
 | `router.md` | The authed chain's order, why a stream is wrapped once for the shard scope and once for errors, and why every stream lives under one namespace. |

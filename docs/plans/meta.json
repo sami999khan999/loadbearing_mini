@@ -1,5 +1,5 @@
 {
   "title": "Plans",
-  "description": "What is left in the lite kit, and every finished plan",
-  "pages": ["index", "BACKLOG", "HANDOFF", "archive"]
+  "description": "What is left in the lite kit",
+  "pages": ["index", "BACKLOG", "HANDOFF"]
 }

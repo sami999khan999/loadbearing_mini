@@ -5,20 +5,23 @@ description: The closed MessageKey union derived from type-only imports — how 
 
 # `namespace.ts`
 
-The type layer. Nothing in this file emits a single byte of JavaScript, and that is the entire trick.
+The type layer — it emits no JavaScript, which is the trick.
 
 ```ts
 import type { common } from "./en/common.js";
 import type { error } from "./en/error.js";
+// … one type-only import per namespace
 
 interface NamespaceShape {
   readonly common: typeof common;
   readonly error: typeof error;
+  // … one member per namespace
 }
 
 export type ShellNamespace = "common" | "error";
-export type ClientNamespace = ShellNamespace;
-export type Namespace = ClientNamespace;
+export type ClientNamespace = ShellNamespace | "nav" | "auth" | /* … */;
+export type ServerNamespace = "email";
+export type Namespace = ClientNamespace | ServerNamespace;
 
 export type NamespaceKeys = { [K in Namespace]: keyof NamespaceShape[K] & string };
 
@@ -30,33 +33,18 @@ export type MessageBundle = Partial<Record<MessageKey, string>>;
 export type MessageParams = Readonly<Record<string, string | number | boolean>>;
 
 export const SHELL_NAMESPACES: readonly ShellNamespace[] = ["common", "error"];
-export const CLIENT_NAMESPACES: readonly ClientNamespace[] = ["common", "error"];
+export const CLIENT_NAMESPACES: readonly ClientNamespace[] = ["common", "error", /* … */];
 ```
-
-> [!NOTE]
-> **Two namespaces today, five when the package is finished.** `nav`, `auth` and the server-only
-> `email` join `NamespaceShape` and the unions at their own build steps. Nothing else in this file
-> changes, and no consumer changes — see [the second pass](#what-widening-namespace-changes).
->
-> The shipped repository has more than five, and one of them — `account` — exists because `auth`
-> grew past what a single chunk should carry. See
-> [the split](#auth-and-account-are-two-namespaces-and-the-split-is-about-the-chunk).
 
 ---
 
 ## Types are erased; runtime data is not
 
-`verbatimModuleSyntax` guarantees an `import type` emits nothing. So this module can name every
-English catalog file in the package and still, at runtime, be an empty object with two arrays in it.
-
-That is what lets `MessageKey` stay one closed union while the actual copy lives in chunks that only
-[`CLIENT_CATALOG`](../index.md) reaches, by dynamic import, one locale × namespace at a time.
-
-An earlier design merged the namespaces into a single frozen `en` object and took
-`keyof typeof en`. It produced the same union and a much worse runtime: `Translator` needed all of
-English resident, `StaticContentSource` had to import every locale statically, and the consequence
-was a browser downloading Bengali it would never read plus the worker's email copy it could never
-render. **The merge was the bug**, not the union.
+`verbatimModuleSyntax` erases `import type`, so this module names every English file yet is, at
+runtime, two arrays. `MessageKey` stays one closed union while copy lives in chunks only
+[`CLIENT_CATALOG`](../index.md) reaches by dynamic import, one locale × namespace at a time. An earlier
+merged `en` object gave the same union and a worse runtime — all English resident, every locale imported
+statically, browsers downloading Bengali and email copy. **The merge was the bug**, not the union.
 
 ---
 
@@ -69,13 +57,10 @@ declare function t<N extends string>(ns: N, key: Extract<MessageKey, `${N}.${str
 t("auth", "error.forbidden");   // compiles — the constraint is decorative
 ```
 
-It fails because the key position is *also* an inference site, so `N` widens to satisfy both
-arguments. `NamespaceKeys[N]` — an indexed access into a mapped type — is not an inference site, and
-rejects the same call. Verified both ways against this repo's compiler flags.
-
-Deriving from the module type rather than a string prefix also handles `common`, whose keys are
-`action.save` and `state.loading`. **Its prefix is not its namespace name**, and any template-literal
-scheme breaks on it.
+The key position is also an inference site, so `N` widens; `NamespaceKeys[N]` (indexed access into a
+mapped type) is not, and rejects it — verified both ways
+([message narrowing](../../../feature/docs/reference/message-narrowing.md)). Deriving from the module
+type also handles `common`, whose keys (`action.save`, `state.loading`) **do not start with its name**.
 
 ---
 
@@ -86,13 +71,10 @@ scheme breaks on it.
 | `MessageKey` | any key in any namespace | `t()`, `MessageBundle` |
 | `ShellMessageKey` | only keys guaranteed present in every snapshot | `ERROR_COPY`, `FIELD_RULE_COPY` |
 
-`common` and `error` arrive in every snapshot from every `ContentSource`; everything else is loaded
-because a route asked for it. A key from an unloaded namespace renders as the key itself, which is
-the right failure for feature copy and the wrong one for an error page.
-
-Typing [`ERROR_COPY`](error-copy.md#the-value-type-is-shellmessagekey-and-that-is-load-bearing)
-against the shell makes "an error code cannot point at lazy copy" a compile error rather than a rule
-somebody remembers.
+Shell namespaces are in every snapshot; others load on request, and an unloaded key renders as itself —
+fine for feature copy, wrong on an error page. Typing
+[`ERROR_COPY`](error-copy.md#the-value-type-is-shellmessagekey-and-that-is-load-bearing) against the shell
+makes that a compile error.
 
 ---
 
@@ -108,24 +90,17 @@ export const error: NamespaceBundle<"error"> = {
 
 Two properties at once:
 
-- **Total** — a key added to `en` without a translation fails `tsc` in every other locale, rather
-  than rendering an English sentence in the middle of a Bengali page. It was `Partial` until
-  `P5.9`, on the argument that translations arrive incrementally; what actually arrived was
-  fifteen keys nobody noticed were missing, including four in `common` that six components render.
-  **`tsup`'s DTS build does not catch this — only `pnpm typecheck` does**, which is why the
-  package's `typecheck` script is the gate rather than the build.
-- **Per namespace** — a key from another namespace in this file is a compile error, which is what
-  stops `bn/nav.ts` from quietly shipping auth copy inside the nav chunk. **The chunk boundary and
-  the type boundary are the same boundary.**
+- **Total** — an untranslated `en` key fails `tsc` in every locale. It was `Partial` until `P5.9`; what
+  "incremental translation" actually produced was fifteen unnoticed gaps, four in `common` rendered by
+  six components. **`tsup`'s DTS build misses this; only `pnpm typecheck` catches it**, so typecheck is
+  the gate.
+- **Per namespace** — another namespace's key is a compile error, so `bn/nav.ts` cannot ship auth copy in
+  the nav chunk. **The chunk boundary is the type boundary.**
 
-The cost is that a new locale cannot land half-finished, and the English fallback layer beneath it
-was unreachable for anything that compiles. `23.15` in `plans/BACKLOG.md` settled that trade-off by
-dropping the layer rather than keeping a safety net nothing could reach: `StaticContentSource`
-leaves `base` empty, and English arrives in `overrides` like every other locale.
-
-English files are `as const` rather than `NamespaceBundle<N>`: they are the source the union is
-derived *from*, so they cannot be checked against it. Every other locale is — which makes English's
-own completeness the one thing nothing checks and everything depends on.
+The cost: a locale cannot land half-finished, and an English fallback beneath it became unreachable —
+so `23.15` dropped it; `StaticContentSource` leaves `base` empty and English arrives in `overrides` like
+any locale. English files are `as const`, the source the union derives *from*, so English's own
+completeness is the one thing nothing checks and everything depends on.
 
 ---
 
@@ -135,54 +110,26 @@ own completeness the one thing nothing checks and everything depends on.
 export type MessageParams = Readonly<Record<string, string | number | boolean>>;
 ```
 
-`boolean` is here because `ErrorContext` in `@loadbearing/errors` allows it. That makes
-`ErrorCopy.message` able to hand an envelope's context straight to `t()` with no mapping step, and
-`String(value)` renders a boolean fine. Narrowing this to `string | number` breaks the most important
-call site in the package, and the fix people reach for is a cast.
+`boolean` because `ErrorContext` allows it, so `ErrorCopy.message` passes context straight to `t()`;
+narrowing it breaks the key call site and invites a cast.
 
 ---
 
-## What widening `Namespace` changes
+## Adding a namespace
 
-```ts
-import type { auth } from "./en/auth.js";     // + 3 type-only imports
-import type { email } from "./en/email.js";
-import type { nav } from "./en/nav.js";
-
-interface NamespaceShape {
-  readonly common: typeof common;
-  readonly nav: typeof nav;                    // +
-  readonly auth: typeof auth;                  // +
-  readonly error: typeof error;
-  readonly email: typeof email;                // +
-}
-
-export type ClientNamespace = ShellNamespace | "nav" | "auth";
-export type ServerNamespace = "email";
-export type Namespace = ClientNamespace | ServerNamespace;
-
-export const CLIENT_NAMESPACES: readonly ClientNamespace[] = ["common", "error", "nav", "auth"];
-```
-
-`ShellNamespace`, `NamespaceKeys`, `MessageKey`, `ShellMessageKey`, `NamespaceBundle`,
-`MessageBundle` and `MessageParams` are untouched. `CLIENT_CATALOG` gains two cells per namespace and
-fails to compile until it has them — which is the reason the union and the catalog are separate
-declarations.
-
-**This is why building the error slice early was safe.** `MessageKey` is a closed union over two
-namespaces exactly as rigorously as over five, and `ERROR_COPY` is total today.
+One type-only import, one `NamespaceShape` member, the union (`ClientNamespace` or `ServerNamespace`),
+and `CLIENT_NAMESPACES` if client-side. `ShellNamespace`, `NamespaceKeys`, `MessageKey`,
+`ShellMessageKey`, `NamespaceBundle`, `MessageBundle` and `MessageParams` are untouched, and no consumer
+changes. `CLIENT_CATALOG` then fails to compile until it has the new cells — why the union and the catalog
+are separate declarations.
 
 ---
 
 ## `auth` and `account` are two namespaces, and the split is about the chunk
 
-`auth` grew to 82 keys covering both halves of the same subject: the flows that run before there is
-a session, and the settings a signed-in person changes afterwards. Nobody is ever in both. Because a
-namespace is a chunk, `/forgot-password` — three visible strings — downloaded the two-factor
-enrolment copy, the backup-code warning, the linked-accounts list and the session table, in whatever
-language the visitor reads.
-
-The line is the session, not the feature area:
+`auth` grew to 82 keys spanning before and after a session — nobody is in both — and since a namespace
+is a chunk, `/forgot-password` (three strings) downloaded enrolment copy, backup-code warnings, linked
+accounts and the session table. The line is the session, not the feature area:
 
 | Namespace | Loaded by | Holds |
 |---|---|---|
@@ -190,16 +137,11 @@ The line is the session, not the feature area:
 | `account` | `settings/*` | profile, password, email, two-factor *enrolment*, backup codes, linked accounts, sessions |
 | `nav` | the signed-in layout | the chrome both halves render: sign-out, the settings links, the organization switcher |
 
-**Five strings appear in both, and that is the intended cost.** `name`, `resetNewPassword`,
-`twoFactorCode`, `twoFactorFailed` and `socialFailed` are the same English words on either side of
-the session boundary. A shared namespace to hold five short strings would be loaded by every page
-that loads either half, which is the thing being fixed; and the words being identical in English is
-not a promise that they are identical in a language that inflects for context.
-
-**The shell keys went to `nav` rather than to either half.** The header and the settings sidebar
-render on every signed-in page, and `nav` is the namespace that layout already loads — so
-`sign-out.button.tsx` reads `nav`, despite living in `feature/src/auth/`. The folder groups by
-feature; the namespace groups by *when it is downloaded*, and those are different questions.
+**Five strings appear in both, by design** (`name`, `resetNewPassword`, `twoFactorCode`,
+`twoFactorFailed`, `socialFailed`): a shared namespace would load with either half, the thing being fixed,
+and identical English is no promise in an inflecting language. **Chrome keys went to `nav`**, which every
+signed-in layout loads — so `sign-out.button.tsx` reads `nav` though it lives in `feature/src/auth/`.
+Folders group by feature; namespaces by *when they download*.
 
 ---
 

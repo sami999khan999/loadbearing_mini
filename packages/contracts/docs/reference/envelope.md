@@ -29,17 +29,10 @@ export class Pagination {
 
 ## Decide the list shape once
 
-Every list procedure in the product returns `{ items, total, limit, offset }`. Not because that
-shape is uniquely correct, but because *one* shape is worth far more than the best shape:
-
-- `@loadbearing/query` writes one `useList` and one cache-invalidation rule instead of one per
-  feature.
-- `@loadbearing/ui` writes one empty state, one "showing 25 of 340", one pager.
-- A partner integrating over REST learns the pagination protocol once.
-
-Left to each feature, one returns `{ data, meta }`, the next `{ results, nextCursor }`, and the
-third an array. Now the query layer has a special case per feature and the UI has a different empty
-state per feature, forever.
+Every list procedure returns `{ items, total, limit, offset }` — *one* shape beats the best shape: one
+`useList` and invalidation rule in `query`, one empty state, counter and pager in `ui`, one protocol for
+REST partners. Left to features you get `{ data, meta }`, `{ results, nextCursor }` and bare arrays, and
+special cases forever. (Keyset lists carry their cursor in page data instead.)
 
 ## `max(100)` is a denial-of-service guard in a schema
 
@@ -47,21 +40,14 @@ state per feature, forever.
 limit: z.number().int().positive().max(100).default(25),
 ```
 
-Putting the cap here rather than in a handler means it also applies to the worker, to the desktop
-app's offline queue, and to any future NestJS implementation of the same contract — every consumer
-of the contract, not just the one HTTP route someone remembered to guard.
-
-`.default(25)` means a caller may omit both fields entirely and still get a bounded query. The
-common case needs no ceremony; the dangerous case is impossible.
+In the schema, the cap binds every contract consumer — the worker, a desktop offline queue, a future
+NestJS implementation — not one remembered route. `.default(25)` bounds a caller omitting both fields.
 
 ## `paginated` is a function, not a schema
 
-It takes the item schema and returns the envelope around it, so `total` / `limit` / `offset` are
-declared once and the item type flows through to the inferred output. The alternative — a
-hand-written envelope per resource — drifts the moment someone adds a `hasMore` to one of them.
-
-The generic is `T extends z.ZodType`, Zod 4's base schema type. `z.ZodTypeAny` is the Zod 3 spelling
-and is deprecated; it still resolves, which is exactly why it is worth not writing.
+It wraps the item schema, declaring `total`/`limit`/`offset` once with the item type flowing through;
+per-resource envelopes drift at the first `hasMore`. `T extends z.ZodType` is Zod 4's base type;
+`z.ZodTypeAny` is the deprecated Zod 3 spelling that still resolves.
 
 ## `acknowledged` is a closed literal
 
@@ -69,6 +55,5 @@ and is deprecated; it still resolves, which is exactly why it is worth not writi
 z.object({ ok: z.literal(true) })
 ```
 
-`z.literal(true)`, not `z.boolean()`. A procedure that returns this returns success or it throws —
-there is no `{ ok: false }` to branch on, because a failure is an `AppError` with a code, not a
-falsy field a caller can forget to check. See [errors](../../../errors/docs/index.md).
+`z.literal(true)`, not `z.boolean()`: success or a throw, never an `{ ok: false }` a caller can forget —
+failure is an `AppError` with a code ([errors](../../../errors/docs/index.md)).

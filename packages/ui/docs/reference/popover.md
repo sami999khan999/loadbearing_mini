@@ -11,39 +11,26 @@ description: A panel anchored to the control that opened it, on Base UI — what
 </Popover>
 ```
 
-One string names both the button and the panel, because a popover whose control and dialog are
-named differently reads as two things to anyone who cannot see that they are one.
-
-The trigger is a `ghost` button by default, right for an icon in a bar. Pass
-`variant="secondary"` when it sits in a row of bordered buttons, as the doc reader's Open menu does
-beside Copy Markdown.
-
-It is Base UI's `Popover` with the kit's styles. Base UI owns the parts that are easy to get
-subtly wrong: Escape, dismissal on a press outside, focus in and back out, and `aria-expanded`
-and `aria-controls` on the trigger. The props did not change when it moved.
+One string names button and panel, so assistive tech hears one thing. The trigger is `ghost` by default
+(an icon in a bar); `variant="secondary"` suits a row of bordered buttons (the doc reader's Open menu).
+It is Base UI's `Popover` with kit styles; Base UI owns Escape, outside-press dismissal, focus in and
+out, and `aria-expanded`/`aria-controls`.
 
 ## The panel is unmounted, not hidden
 
-Every real caller's panel is a query. A hidden one would fetch on every page that renders the
-trigger, which for a header bar is every page there is. Closed means it is not in the document, so
-`aria-controls` is absent too, because pointing at an id that is not there is worse than not
-pointing. That is Base UI's default, so it holds as long as nobody passes `keepMounted`.
+Every real panel is a query; hidden, a header-bar panel would fetch on every page. Closed means absent,
+so `aria-controls` is too (pointing at a missing id is worse). Base UI's default — never pass
+`keepMounted`.
 
 ## What changed with Base UI
 
-- **Focus moves into the panel on open**, and Escape returns it to the trigger a tick after the
-  panel closes. The spec waits for it. Without the return, dismissing with the keyboard leaves
-  focus on `body`, and the next Tab starts from the top of the page.
-- **It renders in a portal on `body`.** An ancestor with `overflow: hidden` no longer clips it,
-  and it is positioned beside its trigger by Base UI's positioner rather than by a wrapper with
-  `position: relative`. A portal also leaves any nested `data-theme` scope, so a popover opened
-  inside the doc reader's scoped theme would paint in the page's theme. None does today.
-- **A press outside dismisses on the click that ends it**, not on `pointerdown`. A spec drives a
-  whole press, because that is what a pointer produces.
+- **Focus moves into the panel**, and Escape returns it to the trigger a tick after close (the spec
+  waits) — otherwise focus lands on `body` and Tab restarts at the top.
+- **It portals to `body`** — no `overflow: hidden` clipping, positioned by Base UI. It also leaves any
+  nested `data-theme`, so one inside the doc reader's scoped theme would paint the page theme (none does).
+- **An outside press dismisses on click**, not `pointerdown`; a spec drives a whole press.
 
 ## What it is not
 
-- **Not a menu.** There is no roving focus, no arrow-key navigation and no `role="menu"`. The
-  panel is a `dialog` holding ordinary content, and its contents keep their own semantics.
-- **Not modal.** Tab moves out of the panel. A trap belongs to a modal `Dialog`, and the page
-  behind this one stays live.
+- **Not a menu** — no roving focus, arrow keys or `role="menu"`; a `dialog` of ordinary content.
+- **Not modal** — Tab leaves the panel and the page stays live; traps belong to `Dialog`.
