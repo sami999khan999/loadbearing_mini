@@ -1,5 +1,5 @@
 ---
-title: app-error
+title: AppError
 description: AppError — why the message is the code, how the envelope round-trips, and why from() can return null.
 ---
 

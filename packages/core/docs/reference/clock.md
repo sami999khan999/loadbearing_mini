@@ -1,5 +1,5 @@
 ---
-title: clock
+title: Clock
 description: Clock, SystemClock and FixedClock — why time is an injected dependency, and the one rule that makes every time-dependent business rule synchronously testable.
 ---
 

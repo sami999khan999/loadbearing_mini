@@ -1,5 +1,5 @@
 ---
-title: rules
+title: Rules
 description: The blocks in the config — ignores, typed rules, the OOP shape assertions, the two bans that need type-import nuance, and the lazy() ban.
 ---
 

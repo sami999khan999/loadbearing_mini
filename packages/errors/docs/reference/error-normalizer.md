@@ -1,5 +1,5 @@
 ---
-title: error-normalizer
+title: ErrorNormalizer
 description: ErrorNormalizer — why detection is structural rather than instanceof, and how the original error is kept for logs while staying out of the envelope.
 ---
 

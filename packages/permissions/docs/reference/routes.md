@@ -1,5 +1,5 @@
 ---
-title: routes
+title: ROUTES
 description: ROUTES — one human-readable table of destinations, why a generated route tree cannot be the source, and how web, desktop, and the Nest API each resolve against it.
 ---
 

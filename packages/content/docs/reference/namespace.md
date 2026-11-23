@@ -1,5 +1,5 @@
 ---
-title: namespace
+title: namespace.ts
 description: The closed MessageKey union derived from type-only imports — how the key guarantee survives splitting the runtime data into one chunk per locale and namespace.
 ---
 

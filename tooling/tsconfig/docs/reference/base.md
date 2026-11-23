@@ -1,5 +1,5 @@
 ---
-title: base
+title: base.json
 description: Every compiler option in the shared base, grouped by what it does — and the five that carry real architectural weight.
 ---
 

@@ -1,5 +1,5 @@
 ---
-title: deployment
+title: Deployment
 description: One VPS now, managed services later — what changes, what never changes, and the order to move things in when it stops fitting on one box.
 ---
 

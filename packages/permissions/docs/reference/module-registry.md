@@ -1,5 +1,5 @@
 ---
-title: module-registry
+title: ModuleRegistry
 description: ModuleRegistry — nav gates as a second registry, why content may name a module but never a permission, and the gate barrel that mirrors the catalog.
 ---
 

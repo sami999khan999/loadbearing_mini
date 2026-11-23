@@ -1,3 +1,8 @@
+---
+title: Explaining
+description: Answering a person: what to lead with, whose words to use, and verifying before explaining.
+---
+
 # Explaining
 
 > **The reader's new model is the deliverable, not the accuracy of the sentence.**

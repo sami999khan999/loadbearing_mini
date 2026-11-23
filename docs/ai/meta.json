@@ -1,0 +1,5 @@
+{
+  "title": "AI",
+  "description": "Everything written for coding agents: the task router, the rules and the skill run books",
+  "pages": ["index", "rules", "skills"]
+}

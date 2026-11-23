@@ -1,0 +1,21 @@
+{
+  "title": "Repository rules",
+  "description": "The rules an agent must know unprompted, one file per topic",
+  "pages": [
+    "index",
+    "layering",
+    "files",
+    "folders",
+    "imports",
+    "classes",
+    "comments",
+    "color",
+    "dependencies",
+    "vocabulary",
+    "data",
+    "visibility",
+    "simplicity",
+    "workflow",
+    "explaining"
+  ]
+}

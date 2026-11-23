@@ -1,5 +1,5 @@
 ---
-title: capability-set
+title: CapabilitySet
 description: CapabilitySet — deny-by-default permission resolution, the five rules, and why intersect() is the method an RBAC model gets quietly defeated through.
 ---
 

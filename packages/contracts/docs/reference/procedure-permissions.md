@@ -1,5 +1,5 @@
 ---
-title: procedure-permissions
+title: ProcedurePermissions
 description: The map that guarantees no procedure ships ungated, the test that enforces it, and why the walker uses oRPC's own predicate.
 ---
 

@@ -1,5 +1,5 @@
 ---
-title: server-only
+title: ServerOnly
 description: ServerOnly.assert — the runtime tripwire that catches database or credential code reaching a client bundle, the ServerOnlyError it throws, and the two other defences it sits between.
 ---
 

@@ -1,5 +1,5 @@
 ---
-title: correlation
+title: Correlation
 description: One id per request, adopted from upstream where there is one, stamped onto the error envelope so a user can read it back.
 ---
 

@@ -1,0 +1,5 @@
+{
+  "title": "Skills",
+  "description": "Run books for procedures that touch many packages in a fixed order",
+  "pages": ["index", "add-slice", "add-docs"]
+}

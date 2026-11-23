@@ -1,5 +1,5 @@
 ---
-title: infra
+title: infra/
 description: Five containers the application dials and nothing imports — what this directory holds, what each service publishes, and the two conditions a new one has to clear.
 ---
 

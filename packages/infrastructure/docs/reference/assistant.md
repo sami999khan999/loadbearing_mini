@@ -1,5 +1,5 @@
 ---
-title: assistant
+title: Assistant models
 description: The chat models behind AssistantModel — OpenAI, OpenRouter, Gemini and the canned fake — how they stream, time out, fail and are chosen, for the AI assistant (AI.1).
 ---
 

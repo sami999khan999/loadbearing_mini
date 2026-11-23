@@ -1,5 +1,5 @@
 ---
-title: flag-registry
+title: FlagRegistry
 description: FlagRegistry — flags declared in code with an owner and an expiry, switched in Postgres, none declared in lite, and a client-gating set that is empty until widgets are ported back.
 ---
 

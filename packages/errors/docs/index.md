@@ -1,5 +1,5 @@
 ---
-title: errors
+title: "@loadbearing/errors"
 description: One failure shape every runtime throws, serialises and reconstructs — carrying structured context and no prose, because content owns every word a user reads.
 ---
 

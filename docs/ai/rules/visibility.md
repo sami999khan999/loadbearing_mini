@@ -1,3 +1,8 @@
+---
+title: Visibility
+description: Flag, entitlement, permission: which hides what, and in what order.
+---
+
 # Visibility
 
 Three independent reasons something is missing from a screen in lite. Each only narrows the one

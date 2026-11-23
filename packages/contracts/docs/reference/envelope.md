@@ -1,5 +1,5 @@
 ---
-title: envelope
+title: Envelope and Pagination
 description: One list shape for the whole product, and why the pagination cap lives in the schema.
 ---
 

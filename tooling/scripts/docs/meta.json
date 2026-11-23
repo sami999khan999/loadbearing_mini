@@ -1,0 +1,5 @@
+{
+  "title": "scripts",
+  "description": "The repository's gate scripts, and every place lite's check-architecture differs from the big kit's",
+  "pages": ["index"]
+}

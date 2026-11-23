@@ -1,5 +1,5 @@
 ---
-title: error-copy
+title: "ERROR_COPY, FIELD_RULE_COPY, ErrorCopy"
 description: ERROR_COPY, FIELD_RULE_COPY and ErrorCopy — the only place in the repository where a failure gets words, and the reason @loadbearing/errors has no message field.
 ---
 

@@ -33,6 +33,7 @@ This page covers 102 files.
 | File | What it does |
 |---|---|
 | `index.md` | Everything written for coding agents rather than for people. The task router — one row per thing you might be about to do — plus the rules and the skill run books it points at. |
+| `meta.json` | Sidebar order. |
 
 ### `docs/ai/rules/`
 
@@ -49,6 +50,7 @@ This page covers 102 files.
 | `imports.md` | One entrypoint, barrels that name every export, the three import rules, and the one outside surface. |
 | `index.md` | The rules an agent must know unprompted, one file per topic. A digest of docs/opinions/ — that directory holds the argument, these files hold the rule. |
 | `layering.md` | The one-way dependency graph, the server-only boundary, and where a concrete adapter may be named. |
+| `meta.json` | Sidebar order. |
 | `simplicity.md` | The tie-breaker when two designs satisfy every other rule: the least structure that achieves the goal. |
 | `visibility.md` | Rule: the reasons something can be missing from a screen (flag, entitlement, permission), who controls each, and what the API answers. |
 | `vocabulary.md` | Four grammars that look alike and mean different things, plus the naming rules whose violation is silent. |
@@ -61,6 +63,7 @@ This page covers 102 files.
 | `add-docs.md` | The run book for writing docs/ inside a package — what index.md must answer, when a reference page earns its place, and the meta.json that orders them. |
 | `add-slice.md` | The twelve-step path a feature takes through the packages, as an executable checklist. Setup 27.4 is the reasoning; this is the run book. |
 | `index.md` | Run books — the executable checklist form of a procedure that touches many packages in a fixed order. |
+| `meta.json` | Sidebar order. |
 
 ### `docs/infra/`
 

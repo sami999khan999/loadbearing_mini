@@ -1,5 +1,5 @@
 ---
-title: presets
+title: Presets
 description: The three thin presets — library, node-esm, react — what each changes and which packages pick it.
 ---
 

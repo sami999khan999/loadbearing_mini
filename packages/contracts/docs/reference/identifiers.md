@@ -1,5 +1,5 @@
 ---
-title: identifiers
+title: Identifiers
 description: Why every UUID is branded, what branding costs, and where the parse boundary belongs.
 ---
 

@@ -1,5 +1,5 @@
 ---
-title: entitlement-mask
+title: EntitlementMask
 description: EntitlementMask — what an org's plan allows, as a filter over role grants rather than a deletion of them, and the four rules for which key survives.
 ---
 

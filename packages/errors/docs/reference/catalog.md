@@ -1,5 +1,5 @@
 ---
-title: catalog
+title: "ERROR_CATALOG"
 description: ERROR_CATALOG and HTTP_STATUS — a closed code union, why the metadata is transport-agnostic, and why the status map is quarantined from the domain layer.
 ---
 

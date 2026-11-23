@@ -1,5 +1,5 @@
 ---
-title: uuid
+title: Uuid
 description: UUIDv7 generation and validation — why time-ordered keys beat random ones, what they leak, and why crypto is not a global this package can see.
 ---
 

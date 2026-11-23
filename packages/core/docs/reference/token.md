@@ -1,5 +1,5 @@
 ---
-title: token
+title: Token
 description: Token — an opaque random string and the digest of one, in core because both application and infrastructure need it and neither can reach auth.
 ---
 

@@ -1,5 +1,5 @@
 ---
-title: boundary
+title: The server-only boundary
 description: The server-only import boundary — the three overrides blocks that keep database code out of the browser, and the two ways this config can fail silently.
 ---
 

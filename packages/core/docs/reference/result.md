@@ -1,5 +1,5 @@
 ---
-title: result
+title: "Result<T, E>"
 description: Result, Ok, Err and Results — a discriminated union that narrows in every position, and the decision table for when a failure is a return value and when it is a thrown domain error.
 ---
 

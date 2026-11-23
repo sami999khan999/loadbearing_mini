@@ -1,5 +1,5 @@
 ---
-title: embedding
+title: Embedding providers and lexical search
 description: The three ways lite searches documents — lexical with no provider, OpenAI, or Gemini — how the container picks one, what switching providers does to the corpus, and the trade-offs.
 ---
 

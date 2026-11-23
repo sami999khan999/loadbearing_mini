@@ -1,5 +1,5 @@
 ---
-title: catalog
+title: "EVENT_CATALOG and EventShape"
 description: Why a log line has a code, why the level lives in the catalog rather than the call site, and how sampling becomes a per-code dial.
 ---
 

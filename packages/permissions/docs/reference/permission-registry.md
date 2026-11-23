@@ -1,5 +1,5 @@
 ---
-title: permission-registry
+title: PermissionRegistry
 description: PermissionRegistry — the permission vocabulary, the fragmented catalog behind it, and why isKnown() uses Object.hasOwn rather than the `in` operator.
 ---
 

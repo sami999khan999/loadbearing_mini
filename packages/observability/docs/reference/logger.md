@@ -1,5 +1,5 @@
 ---
-title: logger
+title: Logger
 description: The seam, why it returns void rather than a promise, what failure() reads off an AppError, and where the redaction line sits.
 ---
 
