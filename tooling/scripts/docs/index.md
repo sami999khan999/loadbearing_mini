@@ -10,13 +10,8 @@ The scripts CI runs and a developer runs before claiming a change is done: `chec
 `check-architecture` assertion greps for, and the failure that put it there, is in
 `check-architecture.mjs`.
 
-`guide-publish.mjs` is not a gate. `pnpm guide:publish` publishes the super admin guide, the
-Markdown pages and manifest in `tooling/scripts/guide/`, into a running app's docs through its own
-API. It creates, moves, saves and publishes what changed, and with `--prune` removes pages the
-manifest no longer names.
-
-`explained-publish.mjs` does the same for the plain-language guide in `docs/explained/`, as one
-space in any organization: `pnpm explained:publish <base-url> <credentials-file>
+`explained-publish.mjs` is not a gate. It publishes the plain-language guide in `docs/explained/`
+into a running app's docs, as one space in any organization: `pnpm explained:publish <base-url> <credentials-file>
 <organization-id> [--audience members|owner|public|granted] [--slug explained] [--prune]`. The
 folder's `meta.json` files give the page order, and a folder's `index.md` becomes a page with the
 folder's other pages under it. Links between guide pages become doc routes; links to other files in

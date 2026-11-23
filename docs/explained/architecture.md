@@ -407,9 +407,6 @@ platform's public docs.
 - **For agents.** `/llms.txt` lists every public page, and `/api/doc/<space>/<path>` serves a public
   page's Markdown.
 
-The **super admin guide** (`tooling/scripts/guide/`) is written as Markdown in the repository and
-published into the app's docs with `pnpm guide:publish`, through the normal API.
-
 ## AI document search
 
 Documents can be indexed and searched by meaning.
