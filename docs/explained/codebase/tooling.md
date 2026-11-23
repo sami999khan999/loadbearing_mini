@@ -88,7 +88,8 @@ This page covers 81 files.
 | `comment-density.mjs` | `pnpm check:comments`: reports how much of each package is comments and how many comment blocks run past two lines. Reports only; never fails. |
 | `compose-wait.mjs` | Waits until every container in the Docker stack is healthy, treating the one-shot bucket setup container finishing as success. |
 | `compose.mjs` | The one place `docker compose` is called, so the containers read the same root `.env` the apps do. |
-| `explained-publish.mjs` | `pnpm explained:publish`: publishes this plain-language guide (`docs/explained/`) into a running app's docs as one space, in any organization. It signs in, creates or updates the space, then creates, reorders, saves and publishes only the pages that changed, in `meta.json` order. Links between guide pages become doc routes and links to other repository files point at the git origin. `--audience` sets who may read it, `--prune` removes pages the folder no longer has. |
+| `docs-publish.mjs` | `pnpm docs:publish`: publishes every docs tree in the repository into a running app's docs, one space per area: the overview, this guide, the AI rulebook, the opinions, the scale-up guide, the infrastructure, the packages, the apps, the tooling and the plans. It signs in, creates or updates each space, then creates, reorders, saves and publishes only the pages that changed, and finally reads every page back to check it is live and that every link between pages lands. `--space` publishes one area, `--audience` sets who may read them, `--prune` removes pages the trees no longer have, and `--dry-run` prints the whole tree without sending anything. |
+| `docs-tree.mjs` | Reads the docs trees into those spaces, in `meta.json` order, refusing a page that `meta.json` leaves out or names but cannot find. Rewrites each link to another docs page into that page's route, and a link to any other file into its address on the git origin. No network, so it is unit-tested. |
 | `package.json` | Manifest for the repository's own scripts, so they are type-checked and tested like any package. |
 | `source-text.mjs` | Small text parsers the architecture check is built from: finding imports, stripping comments, reading SQL columns and indexes, skipping fenced code in Markdown. Pure functions, so they are unit-tested. |
 | `tsconfig.json` | TypeScript settings that type-check the `.mjs` scripts and their tests as JavaScript. |
@@ -99,6 +100,7 @@ This page covers 81 files.
 | File | What it does |
 |---|---|
 | `index.md` | What the scripts in this folder are, and every place the small kit's architecture check differs from the big kit's. |
+| `meta.json` | Sidebar order. |
 
 
 ### `tooling/scripts/tests/`
@@ -108,6 +110,7 @@ This page covers 81 files.
 | `check-architecture.spec.mjs` | Tests every architecture check twice: once against a temporary file tree that breaks the rule, once against one that obeys it. |
 | `compose-wait.spec.mjs` | Tests how the wait script reads each container state Docker can report. |
 | `compose.spec.mjs` | Tests that the compose wrapper passes the root `.env` to Docker. |
+| `docs-tree.spec.mjs` | Tests the docs reader on a temporary file tree: the page order, sections adding no URL segment, refused pages, generated overview pages, and which links are rewritten and which are left as written. |
 | `source-text.spec.mjs` | Tests the text parsers against inputs that once fooled them, such as `//` inside a string. |
 
 ### `tooling/tsconfig/`

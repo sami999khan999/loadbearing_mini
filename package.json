@@ -51,7 +51,7 @@
     "queue:status": "pnpm --filter @loadbearing/infrastructure run queue:status",
     "queue:pause": "pnpm --filter @loadbearing/infrastructure run queue:pause",
     "queue:resume": "pnpm --filter @loadbearing/infrastructure run queue:resume",
-    "explained:publish": "node tooling/scripts/explained-publish.mjs",
+    "docs:publish": "node tooling/scripts/docs-publish.mjs",
     "ai:reindex": "pnpm --filter @loadbearing/infrastructure run ai:reindex",
     "bench": "node tooling/scripts/bench.mjs",
     "doc:bench": "pnpm --filter @loadbearing/infrastructure run doc:bench",

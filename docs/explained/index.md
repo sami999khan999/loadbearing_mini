@@ -30,14 +30,17 @@ file in the repository appears on exactly one of them.
 
 ## Reading it inside the app
 
-These pages can also be published into the app's own docs system, as one space:
+These pages can also be published into the app's own docs system, together with every other docs
+tree in the repository, one space per area. This guide becomes the `explained` space:
 
 ```bash
-pnpm explained:publish <base-url> <credentials-file> <organization-id> [--audience members]
+pnpm docs:publish <base-url> <credentials-file> <organization-id> [--audience members]
+pnpm docs:publish <base-url> <credentials-file> <organization-id> --space explained
 ```
 
 The credentials file holds two lines, `email=` and `password=`, for someone allowed to manage doc
-spaces in that organization. The default audience, `members`, makes the space readable by that
-organization's members at `/doc/explained`. In the platform organization, `--audience public` puts it
-at `/docs/explained` for anyone. Running it again only changes the pages that changed, and `--prune`
-removes pages this folder no longer has.
+spaces in that organization. The default audience, `members`, makes the spaces readable by that
+organization's members, this one at `/doc/explained`. In the platform organization,
+`--audience public` puts them at `/docs/...` for anyone. Running it again only changes the pages
+that changed, `--prune` removes pages the trees no longer have, and `--dry-run` prints what would be
+published without sending anything.
