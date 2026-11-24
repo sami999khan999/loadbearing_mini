@@ -15,10 +15,9 @@ running scale stores removed and every seam kept — see [`docs/scale/`](../scal
 
 ## Open the row that matches what you are about to do
 
-**In Claude Code you already have all of these** — `CLAUDE.md` `@`-imports every rule file, so the
-table below is a map of what is in your context, not a list of things to go and fetch. It is the
-entry point for any agent that reads `AGENTS.md` and not `CLAUDE.md`; the longest file
-is ~1,200 tokens and all fourteen are ~8,200, so read the one or two a task needs.
+**If you started from `AGENTS.md` you already hold every rule file** — it lists all of them, and
+Claude Code inlines them (`CLAUDE.md` is `@AGENTS.md`). This table is then a map of
+what is in your context. An agent that did not load them reads the row a task needs.
 
 | About to | Read |
 |---|---|
@@ -53,60 +52,45 @@ convention you infer will be wrong in the ways that matter.
   knowing it causes a *silent* violation: code that compiles, lints, and passes review while being
   wrong. Everything you would naturally look up is a reference instead.
 - **[`skills/`](skills/index.md)** — run books, the executable checklist form of a procedure.
-  Reached by name: `/add-slice`, `/add-docs` in Claude Code, or the file directly.
+  Agents load one when a task matches its `description`; `/add-slice` and `/add-docs` run one by
+  hand in Claude Code.
 
 ## How an agent reaches this
 
 ```
-CLAUDE.md                       ← Claude Code: loaded unprompted, ~9,000 tok
-  ├── @AGENTS.md                ← the brief (~340 tok)
-  └── @docs/ai/rules/*.md       ← all fourteen rule files, inlined at session start
+AGENTS.md                         ← the one brief; every agent loads it unprompted
+  ├── @docs/ai/rules/*.md         ← every rule file, inlined by Claude Code, read by the rest
+  └── docs/ai/index.md            ← this file: routes by task
+CLAUDE.md                         ← `@AGENTS.md` and nothing else: Claude Code reads the same brief
 
-AGENTS.md                       ← every other tool: the only file loaded unprompted (~340 tok)
-  └── docs/ai/index.md          ← this file: routes by task (~1,700 tok)
-        ├── rules/<topic>.md    ← open the one or two a task needs (~410–890 tok each)
-        └── skills/<name>.md    ← the run book for a procedure
-
-.claude/skills/<name>/          ← Claude Code only; user-invoked, points at skills/<name>.md
+docs/ai/skills/<name>.md          ← the run book, loaded when a task matches its description
+  ├── .claude/skills/<name>/SKILL.md ← name + description, then `@` the run book: Claude Code
+  └── .agents/skills/<name>/SKILL.md ← the same file: Codex and other Agent Skills readers
 ```
 
-**The rulebook loads whole, and that is a deliberate reversal.** This file used to argue the
-opposite — nothing loads that a task does not need, under 300 tokens unprompted, ~470 for a task
-that adds a dependency. The argument was sound while context was scarce and it stopped being sound
-when the window reached seven figures: fourteen rule files is **~8,200 tokens**, and a session that
-needs *any* rule was already paying ~1,700 for this router plus 300–1,200 for the file it names, so
-the true saving was never the headline number.
+**The rulebook loads whole; run books load on demand.** Every file in `rules/` is there because
+**not knowing it causes a silent violation**, and that is the class of rule an agent cannot know
+to go and look for — nothing in the task signals the gap. A rule that loads only when someone
+thinks to load it holds by luck, and the whole rulebook costs less than one large source file.
+A run book is a procedure executed on request; its `description` is enough to know when.
 
-What lazy loading actually cost is the thing the rulebook exists to prevent. Every file here is in
-`rules/` because **not knowing it causes a silent violation** — code that compiles, lints and passes
-review while being wrong. That is exactly the class of rule an agent cannot know to go and look for,
-because nothing in the task signals the gap. A rule that loads only when someone thinks to load it
-is a rule that holds by luck.
-
-Skill run books stay on demand. They are procedures you execute on request, not rules you must hold,
-and `skills/` is another ~4,800 tokens for something a task either invokes by name or does not need
-at all.
-
-**One copy of every document, and the rest are pointers.** `skills/<name>.md` is the run book;
-`.claude/skills/<name>/SKILL.md` exists so Claude Code can surface it as `/<name>` without a second
-copy drifting from the first. `CLAUDE.md` imports rather than restates for the same reason — an
-`@` line inlines the rule file itself, so there is nothing to keep in sync.
+**One copy of every document, and the rest are `@` pointers.** A second copy in a tool's own
+format drifts, and each agent obeys its own copy while both look followed. Claude Code inlines an
+`@` line, so it gets the whole file at once; an agent that does not reads the path and opens it.
+The only text written twice is a skill's `description`, because an agent reads it before loading
+anything.
 
 ## What keeps it honest
 
-`rules/` is a digest of `docs/opinions/`, which means it is a second copy of every rule it states.
-`check-architecture.mjs` §12 closes that loop. It fails when an opinions page exists that no rule
-file cites, when a rule file is routed to from none of `AGENTS.md`, this file, or `rules/index.md`,
-when `CLAUDE.md` does not `@`-import a rule file, and when any route or import points at a path that
-does not exist — backticked, as a Markdown link, or as an `@` line. A tenth opinions page cannot land
-while the digest silently omits it, and a rule file cannot be orphaned, deleted, or left out of the
-session load without the build noticing.
+`check-architecture.mjs` holds the shape in place:
 
-That last one is the failure this reversal would otherwise introduce. Loading the rulebook from a
-hand-written list of imports means the next rule added is one someone forgot to list — routed to
-correctly, read by nobody, and indistinguishable from a rule that is simply being ignored.
-`explaining.md` was the thirteenth, and it is the worked example: the file, its two routes, and the
-`@` line are one change because §12 fails on any of them alone.
+- **§12** — every `docs/opinions/` page is cited by a rule file, every rule file is routed to and
+  `@`-imported by `AGENTS.md`, and every route and import names a file that exists. A new opinions
+  page cannot land while the digest omits it, and a rule file cannot be orphaned or left out of the
+  session load.
+- **§33** — `CLAUDE.md` is exactly `@AGENTS.md`, and every run book has a `SKILL.md` in both
+  `.claude/skills/` and `.agents/skills/` whose `name` matches its folder, whose `description`
+  matches the run book's, and whose body is the one `@` line.
 
-It does **not** check that a rule file's summary of its page is still *accurate*. That is why every
-file in `rules/` ends with the line saying `docs/opinions/` wins any disagreement.
+Neither checks that a rule file's summary of its page is still *accurate*. That is why every file
+in `rules/` ends by citing the page that wins any disagreement.

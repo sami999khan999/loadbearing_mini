@@ -1,6 +1,6 @@
 ---
 title: Adding a package's docs
-description: The run book for writing docs/ inside a package — what index.md must answer, when a reference page earns its place, and the meta.json that orders them.
+description: The run book for writing or extending a package's docs/ — what index.md must answer, when an export earns a reference page, and the meta.json that orders them. Use when documenting a package, an export, or a decision inside packages/<name>/docs/.
 ---
 
 # Adding a package's docs

@@ -5,10 +5,10 @@ description: The rules an agent must know unprompted, one file per topic. A dige
 
 # Repository rules
 
-Fourteen files, ~8,200 tokens in all; the longest is `workflow.md` at ~1,200. **In Claude Code all of
-them are already loaded** (`CLAUDE.md` `@`-imports them). Other agents start at
-[`AGENTS.md`](../../../AGENTS.md) and route through [`docs/ai/index.md`](../index.md). Multi-file
-procedures are run books in [`../skills/`](../skills/index.md).
+One file per topic. **`AGENTS.md` `@`-imports all of them**, so every agent that starts there holds
+the whole rulebook — Claude Code inlines the imports, the rest read the files. The task router
+in [`docs/ai/index.md`](../index.md) maps a task to the file that answers it. Multi-file procedures
+are run books in [`../skills/`](../skills/index.md).
 
 | File | Decides |
 |---|---|
@@ -39,5 +39,6 @@ folder and class name without looking anything up; given a fact the system produ
 which store owns it.
 
 **Checked** by `check-architecture.mjs` §12: every opinions page is cited by a rule file, every rule
-file is routed to from `AGENTS.md`, [`docs/ai/index.md`](../index.md) or here, `CLAUDE.md`
-`@`-imports every rule file, and every route and import exists.
+file is routed to from `AGENTS.md`, [`docs/ai/index.md`](../index.md) or here, `AGENTS.md`
+`@`-imports every rule file, and every route and import exists. A new rule file is one change:
+the file, its row here and in the router, and its `@` line in `AGENTS.md`.

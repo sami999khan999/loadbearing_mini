@@ -1,6 +1,6 @@
 ---
 title: Adding a feature slice
-description: The twelve-step path a feature takes through the packages, as an executable checklist. Setup 27.4 is the reasoning; this is the run book.
+description: The twelve-step run book for adding a feature slice end to end — permissions, contracts, schema, use-cases, queries, copy, components, router and route. Use before writing any code for a new feature, domain entity, CRUD page, use case, API procedure or route.
 ---
 
 # Adding a feature slice

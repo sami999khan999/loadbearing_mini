@@ -42,19 +42,9 @@ scripts live in each package's `script/`, never at its root (§26).
    unverified, not a pass.**
 3. `pnpm typecheck && pnpm lint && pnpm test`.
 
-The assertions catch what typecheck, lint and tests miss: framework in the domain, domain logging,
-`process.env` outside `env.ts`, `@orpc/*` skew, block comments, comment runs over two lines,
-top-level `await` in a barrel, stray `"use client"`, server code in the client bundle, a table
-missing `organization_id`, the audit port renamed, a schema file missing from the drizzle barrel,
-rule files drifting from `docs/opinions/`, a `docs/` folder with no `index.md`, a docs path that
-names nothing on disk, the two pnpm version declarations disagreeing, a tenant unique index not
-leading with `organization_id`, a foreign key with no leading index, a partitioned table missing
-from `PartitionedTable`, a repository spanning placements, a second pool opener, a catalog event
-nothing emits, `.env.example` drift, a script loose at a package root or untypechecked, a host port
-stated twice and disagreeing, a permission no procedure asserts, the four `DATABASE_SHARD_<n>_URL`
-readers disagreeing, a flag expired or unread, and a colour outside the twelve.
-
-`.claude/` is excluded from every `check-architecture` grep (it has held full worktree checkouts).
+The assertions catch what typecheck, lint and tests miss; each one's comment in
+`tooling/scripts/check-architecture.mjs` says what it greps for. `.claude/` and `.agents/` are
+excluded from every walk (they hold skill pointers into `docs/`).
 
 No green build catches four things: the client bundle staying clean, a concrete adapter escaping
 `infrastructure` + `composition`, naming drift, and a repository query missing its tenant scope.
@@ -73,7 +63,8 @@ authored by the person who asked (`git config user.name`), because `git log --au
 ## Adding a feature
 
 Every feature touches the same twelve places in a fixed order, each compiling against the last.
-**Follow [`docs/ai/skills/add-slice.md`](../skills/add-slice.md)**, not memory.
+**Load the `add-slice` skill** ([`docs/ai/skills/add-slice.md`](../skills/add-slice.md)) before
+writing any of it, and follow it rather than memory.
 
 Argument: `tooling/scripts/check-architecture.mjs` — each assertion is commented with what it greps
 for and the failure that put it there.

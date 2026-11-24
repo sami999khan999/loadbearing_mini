@@ -22,8 +22,8 @@ release/
 # icon addition produces a merge conflict in a file nobody reads.
 packages/asset/src/icon/sprite.svg
 
-# Agent config. `.claude/skills/` is committed — it is shared project instruction, and
-# every file in it is a pointer into `docs/ai/`.
+# Agent config. `.claude/skills/` and `.agents/skills/` are committed — shared project
+# instruction, every SKILL.md an `@` pointer into `docs/ai/skills/`.
 # The rest is per-developer: local permission overrides and Claude Code's worktree checkouts.
 .claude/settings.local.json
 .claude/worktrees/

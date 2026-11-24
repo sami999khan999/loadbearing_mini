@@ -161,8 +161,8 @@ its page in [`docs/scale/`](docs/scale/index.md).
 
 | Where | What it is |
 |---|---|
-| **[`AGENTS.md`](AGENTS.md)** | What a coding agent reads first; `CLAUDE.md` imports it. |
-| **[`docs/ai/`](docs/ai/index.md)** | For agents: a task router, the [rulebook](docs/ai/rules/index.md) (fourteen files, ~8,200 tokens) and [run books](docs/ai/skills/add-slice.md). |
+| **[`AGENTS.md`](AGENTS.md)** | The brief every coding agent reads first, with the whole rulebook; `CLAUDE.md` imports it. |
+| **[`docs/ai/`](docs/ai/index.md)** | For agents: a task router, the [rulebook](docs/ai/rules/index.md) and the [run books](docs/ai/skills/index.md) agents load as skills. |
 | **[`docs/opinions/`](docs/opinions/index.md)** | The reference: what to call a thing, where it goes, which store owns it. |
 | **`packages/*/docs/`** | Per package: what it is for, and why each export is shaped as it is. |
 | **[`docs/infra/`](docs/infra/index.md)** | The running stack and what to check when it is wrong. |
