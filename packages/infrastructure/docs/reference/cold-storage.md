@@ -117,7 +117,7 @@ something.
 thirty days is not the answer:
 
 ```bash
-pnpm db:partitions --sweep <organization_id>
+pnpm db partitions --sweep <organization_id>
 ```
 
 ## An export is the same writer, pointed at live rows

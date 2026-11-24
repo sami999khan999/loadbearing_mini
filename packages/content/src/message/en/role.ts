@@ -12,7 +12,7 @@ export const role = {
   "role.hint.readOnly": "You can see these grants but not change them.",
   // The grant is kept, so moving back to a plan that includes it restores it.
   "role.blocked": "Not included in your plan",
-  "role.empty": "No roles yet. Run `pnpm db:seed` to create the built-in four.",
+  "role.empty": "No roles yet. Run `pnpm seed:dev` to create the built-in four.",
   "role.create.title": "New role",
   "role.create.key": "Key",
   "role.create.keyHint": "Lowercase letters, digits, dashes. Permanent once created.",

@@ -19,7 +19,7 @@ class RecoveryProbe extends BaseRepository {
   }
 }
 
-// `24.3`: node 0's streaming standby, under `pnpm infra:up:replica`.
+// `24.3`: node 0's streaming standby, under `pnpm infra up replica`.
 describe.skipIf(!standby)("a read replica for node 0", () => {
   // `skipIf` skips the tests, not this body, so the guard keeps a skipped run from
   // opening pools nothing will close.

@@ -21,7 +21,7 @@ export interface AuthConfig {
   // client id is rejected at the consent screen, where no log line explains it.
   readonly google?: { readonly clientId: string; readonly clientSecret: string };
   // Required when `enrolmentMode` is `bootstrap` and ignored otherwise. The same slug
-  // `pnpm db:seed` creates, which is what stops the two drifting.
+  // `pnpm seed:dev` creates, which is what stops the two drifting.
   readonly bootstrapOrganizationSlug?: string;
   // How many tenants one person may found. A rate limit bounds the rate and not the
   // total — see docs/reference/organization-plugin.md.

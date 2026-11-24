@@ -34,7 +34,7 @@ const memberOf = async (organizationId: OrganizationId, userId: UserId, roleKey:
     .select({ id: roles.id })
     .from(roles)
     .where(and(eq(roles.organizationId, organizationId), eq(roles.key, roleKey)));
-  if (!role) throw new Error(`no ${roleKey} role — run \`pnpm db:seed\``);
+  if (!role) throw new Error(`no ${roleKey} role — run \`pnpm seed:dev\``);
 
   await database.client
     .insert(memberships)
@@ -58,7 +58,7 @@ beforeAll(async () => {
   scope = new TransactionScope();
   platformOrganization = await seedOrganizationId(database);
 
-  // The seeds are idempotent and `pnpm db:seed` has already run them; running them here
+  // The seeds are idempotent and `pnpm seed:dev` has already run them; running them here
   // means this spec passes against a database seeded before the tier existed too.
   await new SystemRoleSeed(DatabaseCluster.single(database), scope, shards).run(
     platformOrganization,

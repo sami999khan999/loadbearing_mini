@@ -25,7 +25,7 @@ worker runs** (`pnpm dev` starts both; `.env.example` says so). **Gain:** one se
 duplicate suppression and rate limit — an inline send learns of an outage from users. Auth mail instead
 publishes at `high` (priority 1, ten attempts ≈ forty minutes from five seconds doubling; `normal`'s eight
 ≈ ten), so a short outage delays rather than loses. Exhausted jobs stay failed a week for
-`pnpm queue:replay mail`.
+`pnpm ops queue-replay mail`.
 
 - **Credential mail is kept an hour, not a week** (`RW.2`): verification, reset and email-change links,
   2FA codes and invitation links are live in `params`, so those mailers set `credential: true` — removed
@@ -36,7 +36,7 @@ publishes at `high` (priority 1, ten attempts ≈ forty minutes from five second
 - **A `dedupeKey` holds a day** (`onceWithin`, a TTL key), not the job's lifetime — as a job id, BullMQ's
   thousand-job cap let a retried digest re-send earlier pages (`RV.5`). A day covers every automatic
   re-send (digest keys name their day; outbox gives up after ~three hours); only a deliberate
-  `queue:replay` of an older failure passes it.
+  `ops queue-replay` of an older failure passes it.
 
 ## There is no delivery table, and that is a decision
 

@@ -106,17 +106,17 @@ every cache key carries a TTL ([redis](reference/redis.md)).
 ## Running it
 
 ```bash
-pnpm infra:up              # all five services   ← the normal command
-pnpm infra:core            # the same thing — kept as an alias
-pnpm infra:down            # stop everything, keep volumes
-pnpm infra:reset           # stop everything, destroy volumes
-pnpm infra:logs            # tail every service
+pnpm infra up              # all five services   ← the normal command
+pnpm infra up core            # the same thing — kept as an alias
+pnpm infra down            # stop everything, keep volumes
+pnpm infra reset           # stop everything, destroy volumes
+pnpm infra logs            # tail every service
 ```
 
 No profiles; `down`, `reset` and `logs` still pass `--profile "*"` for any profiled service added later.
 **Credentials are `ratchet` / `ratchet`, MinIO `ratchet` / `ratchetsecret`**, hard-coded on purpose (a
 scratch database behind a secret is one nobody can debug). **A database migrated before the lite
-squash needs `pnpm infra:reset`** — migrations are one baseline plus two small ones.
+squash needs `pnpm infra reset`** — migrations are one baseline plus two small ones.
 
 ---
 
@@ -132,7 +132,7 @@ docker compose -f infra/docker-compose.yml ps
 |---|---|
 | `connection refused` from inside a container | Used the host port instead of the container port |
 | `NoSuchBucket` on first upload | `minio-init` did not finish — `docker compose logs minio-init` |
-| Migrations fail on an old volume | The volume predates the squash — `pnpm infra:reset` |
+| Migrations fail on an old volume | The volume predates the squash — `pnpm infra reset` |
 | Port already allocated | Something else owns it — [compose](reference/compose.md#host-ports) |
 
 Per-service checks are on each reference page.

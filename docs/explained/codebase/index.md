@@ -69,8 +69,8 @@ Every package and app follows the same shape:
 | `docs/` | The package's own reference pages: why each export is shaped the way it is. |
 | `package.json`, `tsconfig.json`, `tsup.config.ts`, `vitest.config.ts` | The manifest, TypeScript settings, build settings and test settings. |
 
-Scripts you run by hand (such as `migrate.ts` and `seed.ts`) sit above `src/`, so importing a folder
-can never run them by accident.
+Scripts you run by hand (such as `migrate.ts` and `seed-dev.ts`) sit in `script/`, above `src/`, so
+importing a folder can never run them by accident.
 
 ## How to read a file name
 

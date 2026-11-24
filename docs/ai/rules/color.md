@@ -35,7 +35,7 @@ description: Every colour is one of the twelve custom properties, read as var().
 - **`--success` and `--warning` are fills, not text** (3.5:1 and 2.6:1 on `--bg`); tint them into
   `--surface` as `StatusBadge` does. `--danger` is the only status colour that passes AA as text.
 
-**Checked twice:** `pnpm check:contrast` (WCAG AA over 154 pairings, sRGB gamut, missing names) and
+**Checked twice:** `pnpm check contrast` (WCAG AA over 154 pairings, sRGB gamut, missing names) and
 `check-architecture` §32 (a colour outside the twelve in a class, `style` prop or stylesheet).
 Neither sees a colour built at runtime.
 

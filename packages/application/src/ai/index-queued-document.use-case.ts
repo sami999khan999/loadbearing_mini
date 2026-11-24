@@ -4,7 +4,7 @@ import type { IndexDocumentResult, IndexDocumentUseCase } from "./index-document
 import type { IndexTextStage } from "./index-text-stage.js";
 
 // The embedding consumer's unit of work: the staged text out of the bucket, the index,
-// then the object deleted. A throw leaves it, so a retry or `queue:replay` still reads it.
+// then the object deleted. A throw leaves it, so a retry or `ops queue-replay` still reads it.
 export class IndexQueuedDocumentUseCase {
   public constructor(
     private readonly index: IndexDocumentUseCase,

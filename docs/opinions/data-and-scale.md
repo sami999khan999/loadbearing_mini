@@ -326,7 +326,7 @@ holds for every later key.
 **The index must *lead* with the key column.** `goal_members_user_idx` is
 `(organization_id, user_id)` — right for the resolver, useless to a user-delete cascade, which is not
 tenant-scoped and table-scans under a lock. Four tables were in that state, which is why it is
-assertion 18 in `check:architecture`. **Add a second index rather than reorder** (reordering trades a
+assertion 18 in `check architecture`. **Add a second index rather than reorder** (reordering trades a
 per-request read for a rare write); name cascade-only ones `<table>_<subject>_fk_idx`.
 
 **Add query-count assertions to integration tests now.** N+1 bites at 50 users and no database
@@ -387,7 +387,7 @@ trigger is observable: `database.pool.saturated` on this side, `SHOW POOLS` on t
 
 The write path replays `activity_log`, so adopting it only changes where rows land:
 
-1. `pnpm infra:up:analytics` — the container starts; nothing writes.
+1. `pnpm infra up analytics` — the container starts; nothing writes.
 2. `CLICKHOUSE_URL=…` — the projection fills it and reconciliation reports.
 3. Write the reader the dashboard needs, against a store that has been filling for days.
 

@@ -119,7 +119,7 @@ The adapter implements the port from step 7 and is scoped by tenant in every met
 > `infrastructure` is the documented exception to subject folders — a slice splits across
 > `pg/schema/` and `pg/repository/` because `drizzle.config.ts` needs one barrel naming every table.
 
-Then `pnpm db:generate`, and review the SQL before `pnpm db:migrate`.
+Then `pnpm db generate`, and review the SQL before `pnpm db migrate`.
 
 ### 7 — Domain (`packages/application`)
 
@@ -219,7 +219,7 @@ working, not a bug.
 ```bash
 pnpm build:packages
 pnpm --filter @loadbearing/web build
-pnpm check:architecture      # a "○ skipped" line is unverified, not passed
+pnpm check architecture      # a "○ skipped" line is unverified, not passed
 pnpm typecheck && pnpm lint && pnpm test
 ```
 

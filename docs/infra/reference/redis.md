@@ -53,7 +53,7 @@ redis:
   failed request; a silently evicted job is a customer asking why nothing happened.
 
 **So both job sets are capped:** completed jobs kept an hour, max 1,000 per queue; failed jobs a week,
-max 10,000. The failed set is the dead letter (`pnpm queue:replay <queue>`), and the cap stops a
+max 10,000. The failed set is the dead letter (`pnpm ops queue-replay <queue>`), and the cap stops a
 failure storm filling a `noeviction` instance that would then refuse every enqueue. Likewise an
 embedding job carries its text's bucket key, never the text (up to 100 KB).
 

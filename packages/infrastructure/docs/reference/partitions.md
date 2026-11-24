@@ -101,7 +101,7 @@ ordinary `pgTable`s and the clause is appended to the generated DDL.
 1. **The schema**, with a composite primary key: `primaryKey({ columns })` naming every partition
    key. Drizzle emits the composite form only when the schema declares it.
 2. **One allowlist line** in `PartitionedTable.ALL`, listed ahead of any table that references it.
-3. **`pnpm db:generate`.**
+3. **`pnpm db generate`.**
 
 That is `drizzle-kit generate && tsx partition-ddl.ts`: the second opens only the journal's newest
 migration (never an applied one — the migrator hashes whole files) and appends
@@ -169,7 +169,7 @@ sends unnamed statements, pruned at plan time. What still would:
 The setting stays 1 024; past ~1 800 tenants raise it or add a node
 ([Shard nodes](../../../../docs/scale/shard-nodes.md)).
 
-**`pnpm db:partitions` is the same routine from a shell**, for the operator whose worker was down on
+**`pnpm db partitions` is the same routine from a shell**, for the operator whose worker was down on
 the first of the month. It prints a row per table per tenant:
 
 ```

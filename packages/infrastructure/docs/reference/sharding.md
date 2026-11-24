@@ -227,7 +227,7 @@ standby; adding one is [Read replica](../../../../docs/scale/read-replica.md).
 ## Rehearsing the split
 
 Lite's compose file starts one Postgres. Start a second one yourself, set `DATABASE_SHARD_1_URL`,
-and `pnpm db:migrate` applies the same schema to both. `tests/smoke/sharded.smoke.spec.ts` is what runs against it — gated on
+and `pnpm db migrate` applies the same schema to both. `tests/smoke/sharded.smoke.spec.ts` is what runs against it — gated on
 `Stack.shard1`, provided by `vitest.smoke.config.ts`, because `check-architecture` §3 walks
 `tests/` for `process.env` and that injection is the only door.
 
@@ -255,5 +255,5 @@ what [Simplicity](../../../../docs/opinions/simplicity.md) names as ceremony. It
 at the split.
 
 **No second node in the default stack.** `DATABASE_SHARD_<n>_URL` is read and the cluster indexes
-what it finds, but `pnpm infra:up` starts one Postgres. A second is a rehearsal rather than a
+what it finds, but `pnpm infra up` starts one Postgres. A second is a rehearsal rather than a
 deployment — see above, and [Shard nodes](../../../../docs/scale/shard-nodes.md) for the real move.

@@ -41,7 +41,7 @@ export const seedOrganizationId = async (database: Database) => {
     .limit(1);
 
   const id = rows[0]?.id;
-  if (!id) throw new Error("run `pnpm db:seed` first");
+  if (!id) throw new Error("run `pnpm seed:dev` first");
   return id;
 };
 

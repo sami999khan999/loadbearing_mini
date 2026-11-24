@@ -155,7 +155,7 @@ export class PgVectorStore extends BaseRepository implements VectorStore {
           PgVectorStore.scope(goalIds),
           PgVectorStore.filtered(filter),
           // Another model's vector is a point in another space, and a distance to it
-          // would rank noise. After a switch those chunks wait for `ai:reindex`.
+          // would rank noise. After a switch those chunks wait for `ops ai-reindex`.
           eq(documentChunks.embeddingModel, model),
           lt(distance, PgVectorStore.MAX_DISTANCE),
         ),

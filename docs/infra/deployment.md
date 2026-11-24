@@ -242,7 +242,7 @@ which reads `process.env` in exactly two files.
 ```bash
 git pull
 docker compose -f docker-compose.yml -f docker-compose.prod.yml build web worker
-docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm web pnpm db:migrate
+docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm web pnpm db migrate
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 ```
 
@@ -377,7 +377,7 @@ same rule). R2 takes the same JSON in the bucket settings. Local MinIO has no bu
 Lite's one Redis holds the cache and the queue. The cache alone would be trivial; the queue holds
 jobs that exist nowhere else and sets the procedure:
 
-1. Stop consumption with `pnpm queue:pause all`; publishers keep enqueueing to the old instance.
+1. Stop consumption with `pnpm ops queue-pause all`; publishers keep enqueueing to the old instance.
 2. Wait for depth zero.
 3. Flip `REDIS_CACHE_URL` and `REDIS_QUEUE_URL`, restart everything.
 4. Confirm the old instance is empty before deleting it.

@@ -9,12 +9,12 @@ description: The real adapters (Postgres, Redis, S3, BullMQ, SMTP, AI providers)
 
 The real implementations of the ports, organised by vendor: `pg/` (Postgres through Drizzle: schema, repositories, transactions, seeds), `redis/`, `s3/`, `bullmq/`, `smtp/`, `openai/`, `gemini/`, and `unified/` (the Markdown renderer). Swapping a vendor means replacing one folder.
 
-It also owns the database: the schema files, the migrations, and the scripts above `src/` that you run by hand (`migrate.ts`, `seed.ts`, `platform-grant.ts`, `partitions.ts` and others). Its tests run against a real Postgres, Redis and MinIO.
+It also owns the database: the schema files, the migrations, and the scripts in `script/` that you run by hand (`migrate.ts`, `seed-dev.ts`, `seed-prod.ts`, `platform-grant.ts`, `partitions.ts` and others). Its tests run against a real Postgres, Redis and MinIO.
 
 | | |
 |---|---|
 | Folder | `packages/infrastructure/` |
-| Files | 185 |
+| Files | 197 |
 | Uses | [Application (the business logic)](application.md), [Content](content.md), [Contracts](contracts.md), [Core](core.md), [Errors](errors.md), [Observability](observability.md), [Permissions](permissions.md) |
 | Used by | [Auth](auth.md), [Composition (the wiring)](composition.md), [The worker](app-worker.md) |
 
@@ -24,24 +24,33 @@ It also owns the database: the schema files, the migrations, and the scripts abo
 
 | File | What it does |
 |---|---|
-| `ai-reindex.ts` | `pnpm ai:reindex`: after the AI provider or model changes, queues one re-embed job per organization. The worker re-embeds that organization's out-of-date chunks. |
-| `doc-bench.ts` | `pnpm doc:bench`: creates a 2,000-page public doc space and measures how fast a running web server serves it, against fixed time budgets. |
-| `doc-rerender.ts` | `pnpm doc:rerender`: after the Markdown renderer changes, queues one job per organization to re-render its published pages. |
 | `drizzle.config.ts` | Settings for drizzle-kit, the tool that generates database migrations from the schema files and opens Drizzle Studio. Reads the database URL from `.env`. |
 | `highlight-js.d.ts` | A small type stand-in for the code highlighting library, so its browser types do not leak into this server package. |
-| `migrate.ts` | `pnpm db:migrate`: applies every pending migration to every database node (catalog first), then creates each organization's table partitions. |
 | `package.json` | Package manifest. |
-| `partition-ddl.ts` | The second half of `pnpm db:generate`. Drizzle cannot write `PARTITION BY`, so this rewrites the generated migration to add it. |
-| `partitions.ts` | `pnpm db:partitions`: creates the current and next two months' partitions by hand, for when the worker's monthly job did not run. `--sweep` cleans up a deleted organization's cold storage. |
-| `platform-grant.ts` | `pnpm platform:grant <email>`: makes an existing user the first super admin by adding them to the platform organization with the `platform_admin` role. Later admins are invited from the app. |
-| `queue-control.ts` | `pnpm queue:status`, `queue:pause <queue\|all>` and `queue:resume <queue\|all>`: shows each queue's depth, and pauses or resumes it for every worker. The pause survives restarts. |
-| `queue-replay.ts` | `pnpm queue:replay <queue> [job]`: puts failed jobs back on their queue. Failed jobs are kept for a week. |
-| `seed.ts` | `pnpm db:seed`: creates the starting data: the `loadbearing` organization (marked as the platform organization), its partitions, the system roles and the platform admin role. Safe to run again. |
-| `shard-env.ts` | Reads the database node URLs (`DATABASE_SHARD_<n>_URL`) for the command-line scripts. With none set there is one node. |
-| `tsconfig.json` | TypeScript settings, including the scripts that sit above `src/` so they are type-checked too. |
+| `tsconfig.json` | TypeScript settings, including `script/` so the scripts are type-checked too. |
 | `tsup.config.ts` | Build settings. |
 | `vitest.config.ts` | Test runner settings. Loads the root `.env`, resolves sibling packages to their source, and leaves out the smoke tests. |
 | `vitest.smoke.config.ts` | Settings for `pnpm smoke`: runs the smoke tests serially against the live Docker stack, passing them its connection details. |
+
+### `packages/infrastructure/script/`
+
+The commands you run by hand. Each reads the environment, calls a class in `src/`, and prints the result.
+
+| File | What it does |
+|---|---|
+| `ai-reindex.ts` | `pnpm ops ai-reindex`: after the AI provider or model changes, queues one re-embed job per organization. The worker re-embeds that organization's out-of-date chunks. |
+| `doc-bench.ts` | `pnpm ops doc-bench`: creates a 2,000-page public doc space and measures how fast a running web server serves it, against fixed time budgets. |
+| `doc-rerender.ts` | `pnpm ops doc-rerender`: after the Markdown renderer changes, queues one job per organization to re-render its published pages. |
+| `migrate.ts` | `pnpm db migrate`: applies every pending migration to every database node (catalog first), then creates each organization's table partitions. |
+| `partition-ddl.ts` | The second half of `pnpm db generate`. Drizzle cannot write `PARTITION BY`, so this rewrites the generated migration to add it. |
+| `partitions.ts` | `pnpm db partitions`: creates the current and next two months' partitions by hand, for when the worker's monthly job did not run. `--sweep` cleans up a deleted organization's cold storage. |
+| `platform-grant.ts` | `pnpm ops platform-grant <email>`: makes an existing user the first super admin by adding them to the platform organization with the `platform_admin` role. Later admins are invited from the app. |
+| `queue-control.ts` | `pnpm ops queue-status`, `ops queue-pause <queue\|all>` and `ops queue-resume <queue\|all>`: shows each queue's depth, and pauses or resumes it for every worker. The pause survives restarts. |
+| `queue-replay.ts` | `pnpm ops queue-replay <queue> [job]`: puts failed jobs back on their queue. Failed jobs are kept for a week. |
+| `seed-dev.ts` | `pnpm seed:dev`: everything `seed:prod` does, then a verified platform admin to sign in as (`admin@loadbearing.test`; `ADMIN_EMAIL`, `ADMIN_NAME`, `ADMIN_PASSWORD` override it). Prints a generated password once. Local databases only. |
+| `seed-env.ts` | What the two seed scripts share: opens every database node, builds `DatabaseSeed` over them with the repository's docs, and prints the report. Fails the command if a docs page or link did not land. |
+| `seed-prod.ts` | `pnpm seed:prod`: what every deploy may run after `pnpm db migrate`. The platform organization, its partitions and roles, and every docs tree in the repository as a space platform staff read at `/doc`. Safe to run again. |
+| `shard-env.ts` | Reads the database node URLs (`DATABASE_SHARD_<n>_URL`) for the command-line scripts. With none set there is one node. |
 
 ### `packages/infrastructure/src/`
 
@@ -151,9 +160,44 @@ It also owns the database: the schema files, the migrations, and the scripts abo
 
 | File | What it does |
 |---|---|
+| `database.seed.ts` | `DatabaseSeed`: where every seed step meets. `prod()` creates the platform organization, its partitions and roles in one transaction, then seeds the docs; `dev()` does the same and adds a local admin. |
+| `index.ts` | Folder barrel: `DatabaseSeed` and every step, which the sign-up code also uses. |
+
+### `packages/infrastructure/src/pg/seed/admin/`
+
+| File | What it does |
+|---|---|
+| `admin-account.seed.ts` | `AdminAccountSeed`: a verified user with a password, made `platform_admin` in the platform organization. Keeps an existing password unless asked to replace it, and refuses a suspended account. |
 | `index.ts` | Folder barrel. |
+
+### `packages/infrastructure/src/pg/seed/doc/`
+
+| File | What it does |
+|---|---|
+| `doc-space.seed.ts` | `DocSpaceSeed`: makes the platform organization's docs spaces match the repository, one transaction per space: creates, reorders, saves and publishes only what changed, removes pages the repository no longer has, then reads every page back to check it and every link between pages. |
+| `doc-tree.reader.ts` | `DocTreeReader`: reads every docs tree in the repository into spaces, in `meta.json` order, refusing a page `meta.json` leaves out or names but cannot find. Rewrites links to other docs pages into their routes, and links to other files into their address on the git origin. |
+| `index.ts` | Folder barrel. |
+
+### `packages/infrastructure/src/pg/seed/platform/`
+
+| File | What it does |
+|---|---|
+| `index.ts` | Folder barrel. |
+| `platform-organization.seed.ts` | `PlatformOrganizationSeed`: finds or creates the platform organization by slug, marks it as the platform, and places it on node 0. |
 | `platform-role.seed.ts` | `PlatformRoleSeed`: creates or updates the `platform_admin` role in the platform organization, holding every platform and organization permission. |
+
+### `packages/infrastructure/src/pg/seed/system/`
+
+| File | What it does |
+|---|---|
+| `index.ts` | Folder barrel. |
 | `system-role.seed.ts` | `SystemRoleSeed`: creates or updates the four built-in roles every organization gets (owner, admin, member, guest) and their permissions. |
+
+### `packages/infrastructure/src/pg/seed/tenant/`
+
+| File | What it does |
+|---|---|
+| `index.ts` | Folder barrel. |
 | `tenant-partition.seed.ts` | `TenantPartitionSeed`: creates (or drops) an organization's partitions in every partitioned table, with the current and next two months. |
 
 ### `packages/infrastructure/src/pg/transaction/`
@@ -214,6 +258,7 @@ It also owns the database: the schema files, the migrations, and the scripts abo
 | File | What it does |
 |---|---|
 | `doc-query-plan.spec.ts` | Tests that every docs reader query uses an index, by checking Postgres's query plans. |
+| `doc-tree.reader.spec.ts` | Tests the docs-tree reader on a temporary file tree: page order, sections adding no URL segment, refused pages, generated overview pages, and which links are rewritten. |
 | `pg-doc-page.repository.spec.ts` | Tests the doc page repository against a real database. |
 | `unified-markdown.renderer.spec.ts` | Tests the Markdown renderer, especially that unsafe HTML never gets through. |
 

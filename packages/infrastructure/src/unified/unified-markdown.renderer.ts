@@ -104,7 +104,7 @@ interface DirectiveNode {
 // Markdown to sanitised HTML with unified. Sanitising runs before the slugger and the
 // highlighter, so the ids and classes those two add are the only ones that skip it.
 export class UnifiedMarkdownRenderer extends MarkdownRenderer {
-  // Bump when the HTML or the search text changes, then run `pnpm doc:rerender`. 2: tabs,
+  // Bump when the HTML or the search text changes, then run `pnpm ops doc-rerender`. 2: tabs,
   // steps, accordions, card icons. 3: section text keeps blocks apart.
   public readonly version = 3;
 

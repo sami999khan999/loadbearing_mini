@@ -18,7 +18,7 @@ containers, not in-process fakes — a filesystem S3 means the S3 path first run
 | **Depends on** | Docker, and the `.env` at the repository root |
 | **Used by** | `pnpm dev`, `apps/web`, `apps/worker` — over TCP, never by import |
 | **Environment** | development only; the production analogue is [deployment](../../docs/infra/deployment.md) |
-| **Build** | none — `pnpm infra:up` pulls images and starts them |
+| **Build** | none — `pnpm infra up` pulls images and starts them |
 
 ```
 infra/
@@ -61,10 +61,10 @@ success** — without it the first upload fails `NoSuchBucket`.
 ## Running it
 
 ```bash
-pnpm infra:up              # all five services   ← the normal command
-pnpm infra:core            # the same thing — kept as an alias
-pnpm infra:down            # stop everything, keep volumes
-pnpm infra:reset           # stop everything, destroy volumes
+pnpm infra up              # all five services   ← the normal command
+pnpm infra up core            # the same thing — kept as an alias
+pnpm infra down            # stop everything, keep volumes
+pnpm infra reset           # stop everything, destroy volumes
 ```
 
 No profiles; `down`, `reset` and `logs` still pass `--profile "*"` for any added later.

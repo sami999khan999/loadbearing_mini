@@ -138,7 +138,7 @@ Here is what happens, start to finish, when an admin invites a teammate.
 
 8. **The worker sends the email.** It renders the invitation from its template, in the recipient's
    language, as text and HTML, and sends it over SMTP. A failed send is retried with growing delays;
-   a job that keeps failing is kept for a week and can be replayed with `pnpm queue:replay`.
+   a job that keeps failing is kept for a week and can be replayed with `pnpm ops queue-replay`.
 9. **Within a second, the worker drains the outbox.** It claims unsent rows with a short lease,
    puts one job per interested subscriber on the event queue, and marks the rows sent. If the
    worker dies mid-way, the lease expires and another run picks the rows up. Every subscriber is
@@ -235,7 +235,7 @@ cannot be removed or demoted.
 
 The people who run the deployment are not a special kind of user. They are members of one ordinary
 organization marked as the **platform organization** (`organizations.is_platform`; at most one exists,
-and `pnpm db:seed` creates it as `loadbearing`).
+and `pnpm seed:dev` creates it as `loadbearing`).
 
 - Its top role, `platform_admin`, holds every **platform** permission (`platform.*`) plus every normal
   permission, so the platform organization is run like any other: it invites staff, builds roles and
@@ -245,7 +245,7 @@ and `pnpm db:seed` creates it as `loadbearing`).
 - A platform admin who switches into a customer organization is still a platform admin, but holds
   only the role that organization gave them there.
 - The first admin cannot be created through the API (nobody holds the permission to grant it yet), so
-  it comes from a command: `pnpm platform:grant <email>`. Every later admin is invited normally.
+  it comes from a command: `pnpm ops platform-grant <email>`. Every later admin is invited normally.
 
 The platform pages live under `/platform`: accounts (find, suspend, deny, export and delete
 an organization), entitlements and plans, feature flags, and system status. Each page needs its own permission, so a staff role
@@ -297,8 +297,8 @@ join the same transaction automatically, nested calls share it, and the audit ro
 always commit with the change they describe.
 
 **Migrations.** The schema is written in TypeScript with Drizzle (`packages/infrastructure/src/pg/schema/`).
-`pnpm db:generate` writes a migration, adding the partitioning Drizzle cannot express, and
-`pnpm db:migrate` applies pending migrations to every node, then makes sure every organization has
+`pnpm db generate` writes a migration, adding the partitioning Drizzle cannot express, and
+`pnpm db migrate` applies pending migrations to every node, then makes sure every organization has
 its partitions. The small kit starts from one squashed baseline migration plus three small ones.
 
 ## Old data: retention
@@ -421,7 +421,7 @@ Documents can be indexed and searched by meaning.
 
 The provider is chosen with `EMBEDDING_PROVIDER`: `none` (the default: plain full-text search,
 no AI key, no outside calls), `openai` or `gemini`. Each chunk records which model made its vector, and
-after switching provider `pnpm ai:reindex` re-embeds the old ones.
+after switching provider `pnpm ops ai-reindex` re-embeds the old ones.
 
 ## Errors and logging
 
@@ -474,14 +474,14 @@ projects:
 ```bash
 pnpm install
 cp .env.example .env
-pnpm infra:up                 # start the Docker services
+pnpm infra up                 # start the Docker services
 pnpm build:packages           # build the packages once
-pnpm db:migrate && pnpm db:seed
+pnpm db migrate && pnpm seed:dev
 pnpm dev                      # web, worker and realtime together
 ```
 
 Then sign up at `/sign-up`, confirm the email in Mailpit, and, to become super admin, run
-`pnpm platform:grant <your email>`.
+`pnpm ops platform-grant <your email>`.
 
 ## How it is checked
 
@@ -490,8 +490,8 @@ Then sign up at `/sign-up`, confirm the email in Mailpit, and, to become super a
 | Unit tests | Use-cases run against in-memory fakes from `TestContainer`: permission checks, business rules, that every write is audited. |
 | Integration tests | Repositories run against a real Postgres, Redis and MinIO: queries, transactions, partitions, query counts. |
 | Smoke tests (`pnpm smoke`) | Against the running Docker stack: storage, Redis, live streams, and a real sign-up through to a live message. |
-| `pnpm check:architecture` | About thirty rules no linter expresses, such as the business layer importing a framework, server code in the browser bundle, a table without `organization_id`, a docs path that names a missing file, a colour outside the twelve. |
-| `pnpm check:contrast` | Every colour pair in every theme is readable. |
+| `pnpm check architecture` | About thirty rules no linter expresses, such as the business layer importing a framework, server code in the browser bundle, a table without `organization_id`, a docs path that names a missing file, a colour outside the twelve. |
+| `pnpm check contrast` | Every colour pair in every theme is readable. |
 | Type-check and lint | TypeScript strict mode, Biome and ESLint, including the import boundaries. |
 
 CI runs all of these on every push, boots each built app once to catch start-up failures, and runs

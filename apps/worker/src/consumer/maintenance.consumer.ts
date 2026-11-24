@@ -190,7 +190,7 @@ export class MaintenanceConsumer {
     });
   }
 
-  // Off `pnpm doc:rerender`, one job per organization, placed on the tenant's node.
+  // Off `pnpm ops doc-rerender`, one job per organization, placed on the tenant's node.
   private async rerender(data: RerenderJob): Promise<void> {
     const pages = await withShard(this.container, data.organizationId, () =>
       this.container.doc.rerender.run(data.organizationId),
@@ -250,7 +250,7 @@ export class MaintenanceConsumer {
     });
   }
 
-  // Index text whose job failed stays for `queue:replay`; once the failed job itself is
+  // Index text whose job failed stays for `ops queue-replay`; once the failed job itself is
   // gone (a week, `FAILED_KEEP`) nothing can read it. Not shard-routed: it is the bucket.
   private async sweepIndexText(): Promise<void> {
     const before = new Date(

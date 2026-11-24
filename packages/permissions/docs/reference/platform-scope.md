@@ -10,7 +10,7 @@ above every tenant, and it is the only one a tenant owner cannot reach.
 
 ## The tier is an organization
 
-`organizations.is_platform` marks it (a partial unique index allows one; `pnpm db:seed` marks
+`organizations.is_platform` marks it (a partial unique index allows one; `pnpm seed:dev` marks
 `loadbearing`). Platform permissions are held like every other — **through a membership and a role** —
 resolved once per user and merged into every principal they get in any tenant, so a platform admin in a
 customer tenant is still a platform admin. Why not an env list of admin emails:
@@ -83,7 +83,7 @@ throw on every request until the cache expired.
 first `platform.*` key through the API**.
 
 ```bash
-pnpm platform:grant alice@example.test
+pnpm ops platform-grant alice@example.test
 ```
 
 It creates one platform membership under `platform_admin` (moving an existing member onto it, losing
@@ -95,11 +95,11 @@ role via **Change role**.
 `users.suspended_at` locks an account in every tenant at once (`/platform/accounts`,
 `platform.account.manage`); a suspended platform admin holds nothing, tier included. Guards: no suspend
 or platform deny may take `platform.account.manage` from its last live holder, and nobody may suspend
-themselves. For what they miss — two admins suspending each other in one second — `platform:grant`
+themselves. For what they miss — two admins suspending each other in one second — `ops platform-grant`
 refuses a suspended account and prints the way back:
 
 ```bash
-pnpm platform:grant alice@example.test
+pnpm ops platform-grant alice@example.test
 # alice@example.test is suspended by the platform (since …).
 # Reinstate them at /platform/accounts. With no platform admin left to do that, by hand:
 #   UPDATE users SET suspended_at = NULL WHERE email = 'alice@example.test';
@@ -122,7 +122,7 @@ platform axis.
 ## Adding a platform key
 
 1. A line in `catalog/platform.permissions.ts`, `scope: "platform"`, `module: "platform"`.
-2. `PlatformRoleSeed` grants it to `platform_admin` on the next `pnpm db:seed` (resolving the whole
+2. `PlatformRoleSeed` grants it to `platform_admin` on the next `pnpm seed:dev` (resolving the whole
    catalog, and stripping platform keys from other organizations' roles).
 3. An entry in `PLATFORM_ROUTE_PERMISSION` if the key opens a new platform page, so its guard
    and the platform menu agree.

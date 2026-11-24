@@ -15,9 +15,9 @@ tree and what lives nowhere else. Git history has the commit-by-commit record of
 cd loadbearing_mini                       # wherever the clone lives
 cp .env.example .env
 pnpm install
-pnpm infra:up
-pnpm build:packages                       # before db:migrate — it imports dist/
-pnpm db:migrate && pnpm db:seed
+pnpm infra up
+pnpm build:packages                       # before db migrate — it imports dist/
+pnpm db migrate && pnpm seed:dev
 pnpm --filter @loadbearing/web build      # generates the route tree typecheck needs
 pnpm -r --no-bail run typecheck
 CI= node tooling/scripts/check-architecture.mjs
@@ -32,12 +32,12 @@ pnpm install
 node tooling/scripts/compose.mjs up -d --remove-orphans   # five containers
 pnpm build:packages
 pnpm --filter @loadbearing/web build
-pnpm db:migrate && pnpm db:seed
+pnpm db migrate && pnpm seed:dev
 pnpm -r --no-bail run typecheck
 pnpm lint
 pnpm -r --no-bail run test          # not `pnpm test`: that stops at the first red package
 CI= node tooling/scripts/check-architecture.mjs
-pnpm check:contrast && pnpm deps:check && pnpm repo:check
+pnpm check contrast && pnpm check deps && pnpm check repo
 pnpm smoke                          # needs the containers
 pnpm --filter @loadbearing/worker build && pnpm --filter @loadbearing/realtime build
 for app in worker web realtime; do node --env-file=.env tooling/scripts/boot-smoke.mjs $app; done
@@ -50,7 +50,7 @@ on 28025, worker running.
 ## Decisions behind the cut
 
 - **Keep the seams:** tables stay partitioned, shard placement stays, one node.
-- **The build runs typecheck and `check:architecture` only** (owner's call, 2026-10-01); every owed
+- **The build runs typecheck and `check architecture` only** (owner's call, 2026-10-01); every owed
   test run goes in [`BACKLOG.md`](BACKLOG.md) for the owner to run in one pass.
 - **Flags stay server-side only.** `widget.dismissal` left with widgets, so `FLAGS` is empty and none
   reaches the browser until widgets return; `flags.assertOn` still gates procedures with `NOT_FOUND`.
@@ -85,7 +85,7 @@ on 28025, worker running.
 ## Traps that cost time
 
 - **A database migrated before the squash cannot take the baseline** — its drizzle journal names the
-  old 52 migrations. `pnpm infra:reset`, then `pnpm infra:up && pnpm db:migrate && pnpm db:seed`.
+  old 52 migrations. `pnpm infra reset`, then `pnpm infra up && pnpm db migrate && pnpm seed:dev`.
 - **`.env.example` ships `AUTH_SECRET=change-me`**, which the schema refuses (32 characters), so `/`
   answers 500.
 - **`boot-smoke.mjs` reads no `.env`** (CI passes the environment); locally
@@ -95,7 +95,7 @@ on 28025, worker running.
   `node tooling/scripts/compose.mjs up -d --remove-orphans`.
 - **Docker Desktop can hang mid-run** — `docker ps` never returns and Postgres accepts connections
   without answering, surfacing as timeouts everywhere (composition health specs included). Restart
-  Docker, `pnpm infra:up`, rerun.
+  Docker, `pnpm infra up`, rerun.
 - **The partition DDL generator validates table names against the allowlist**, so a removed table fails
   its specs even as a string; `partition-ddl.spec.ts` uses `notifications` (two-level) and
   `doc_spaces` (tenant only).

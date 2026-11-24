@@ -29,5 +29,5 @@ The five that cost the most when broken:
 - **Never name yourself as author, co-author, or contributor** — not in a commit message, a pull
   request, or a branch name.
 
-Run `pnpm check:architecture` before claiming a change is done: the assertions that typecheck, lint
+Run `pnpm check architecture` before claiming a change is done: the assertions that typecheck, lint
 and tests all miss.

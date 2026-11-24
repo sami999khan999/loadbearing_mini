@@ -79,7 +79,7 @@ It is **3**:
 | 2 | Tabs, steps, accordions and card icons |
 | 3 | Section text keeps blocks apart, so a card's title and description stay two words |
 
-Then **`pnpm doc:rerender`** with the worker up: one `doc-rerender` job per organization on the
+Then **`pnpm ops doc-rerender`** with the worker up: one `doc-rerender` job per organization on the
 maintenance queue; `DocRerender` re-renders older pages 50 at a time — HTML, outline, `renderer_version`
 and search sections (title first) change; **revision, draft and publish time do not**; the cached page
 is forgotten explicitly (its revision key did not change). Rendering runs outside the transaction (CPU

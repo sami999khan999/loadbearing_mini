@@ -65,7 +65,7 @@ const Schema = z
     // A ceiling on the total, which the 5/min rate limit on `/organization/create` does
     // not give: each tenant seeds four roles and every permission the registry defines.
     AUTH_MAX_OWNED_ORGANIZATIONS: z.coerce.number().int().positive().default(10),
-    // The same slug `pnpm db:seed` creates. Unset means no enrolment at all, which is
+    // The same slug `pnpm seed:dev` creates. Unset means no enrolment at all, which is
     // the production posture and why there is no default.
     BOOTSTRAP_ORGANIZATION_SLUG: z.string().min(1).optional(),
 

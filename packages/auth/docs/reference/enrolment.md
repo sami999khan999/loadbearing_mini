@@ -47,7 +47,7 @@ organization (swapping the two calls is the other model). Tenancy is what a star
 forked over, hence a binding, not adapter policy: a fourth mode is a class and one `Container.enroller`
 line.
 
-- **`personal`** is the default, the only mode working on an empty database (no `db:seed` needed), and
+- **`personal`** is the default, the only mode working on an empty database (no `seed:prod` needed), and
   each new person gets their own tenant.
 - **`bootstrap`** suits a demo or single-tenant install and is **wrong for anything internet-reachable** —
   sign-up hands out membership of your organization.
@@ -99,15 +99,15 @@ Both enrollers re-check membership *inside* the lock, so Better Auth's retries r
 
 `PgOrganizationFounder.found()` creates a tenant (row, four system roles, `owner` membership,
 `organization.created` audit) for exactly two callers: the personal enroller and "New organization".
-Both must match a seeded tenant, so it calls `pnpm db:seed`'s `SystemRoleSeed`, resolving `owner`'s
+Both must match a seeded tenant, so it calls `pnpm seed:dev`'s `SystemRoleSeed`, resolving `owner`'s
 wildcard via `PermissionRegistry.instance.all()` — a second copy would be a second permission model. Its
 transaction opens on `this.db`, so inside the enroller's locked transaction it is a savepoint still
 covered by the lock.
 
 **The port carries an optional `slug`** (the enroller passes `u-<userId>`; absent, it derives from the new
 id). Before, `Container` held the concrete founder to reach past a port that could not express it — a
-bypassed port erodes the concrete-adapter ban. Reuse is also why the seed script is
-`packages/infrastructure/seed.ts` above `src/`: as a folder barrel, importing `SystemRoleSeed` once
+bypassed port erodes the concrete-adapter ban. Reuse is also why the seed scripts are in
+`packages/infrastructure/script/`, above `src/`: as a folder barrel, importing `SystemRoleSeed` once
 connected to Postgres and called `process.exit` mid-sign-in.
 
 ## Which organization a sign-in lands in

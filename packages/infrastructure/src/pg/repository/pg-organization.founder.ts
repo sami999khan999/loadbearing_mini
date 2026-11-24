@@ -79,7 +79,7 @@ export class PgOrganizationFounder extends BaseRepository {
         await this.partitions.run(organizationId);
 
         // Reused, not reimplemented, so an organization created here holds exactly the
-        // grants `pnpm db:seed` would have given it.
+        // grants `pnpm seed:dev` would have given it.
         await this.systemRoles.run(organizationId);
 
         const [role] = await this.db

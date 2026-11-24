@@ -58,7 +58,7 @@ docker compose -f infra/docker-compose.yml exec postgres \
   psql -U ratchet -d ratchet -c "CREATE EXTENSION IF NOT EXISTS pg_trgm;"
 
 # or start over
-pnpm infra:reset
+pnpm infra reset
 ```
 
 > Address the container by **service name** (`postgres`), not a substituted container ID — the
@@ -71,7 +71,7 @@ pnpm infra:reset
 | Consumer | Reaches it at | For |
 |---|---|---|
 | `apps/web`, `apps/worker` (host) | `localhost:25432` | everything, via `DATABASE_URL` |
-| `migrate.ts`, `seed.ts`, `drizzle-kit` (host) | `localhost:25432` | DDL, via `DATABASE_DIRECT_URL` |
+| `script/migrate.ts`, `script/seed-*.ts`, `drizzle-kit` (host) | `localhost:25432` | DDL, via `DATABASE_DIRECT_URL` |
 | `PgPartitionArchiveGateway` | `localhost:25432` | `DETACH … CONCURRENTLY` and a month-long stream |
 
 **Two hostnames for one database**, by which side of the bridge the client is on — a container using
@@ -89,7 +89,7 @@ pnpm infra:reset
   `max_locks_per_transaction=1024` — raised because every tenant is partitions, and an unprunable
   statement locks every leaf ([partitions](../../../packages/infrastructure/docs/reference/partitions.md)).
 
-**A volume migrated before the lite squash needs `pnpm infra:reset`** — migrations are now
+**A volume migrated before the lite squash needs `pnpm infra reset`** — migrations are now
 `packages/infrastructure/migrations/0000_lite_baseline.sql` plus two small ones.
 
 ---

@@ -9,7 +9,7 @@ description: The three patterns that fail before the database does, measured aga
 fixes. This measures them.
 
 ```bash
-pnpm infra:up
+pnpm infra up
 FAN_OUT_SCALE=1000,10000,25000 pnpm smoke
 ```
 

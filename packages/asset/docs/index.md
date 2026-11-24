@@ -19,7 +19,7 @@ per-tenant asset store later is one resolver, not a hunt for every `<img src>`.
 
 ```
 packages/asset/
-├── build-sprite.mjs                ← prebuild. Fails on a hardcoded fill or stroke
+├── script/build-sprite.mjs         ← prebuild. Fails on a hardcoded fill or stroke
 ├── asset.d.ts                      ← what the bundler turns a binary import into
 └── src/
     ├── index.ts

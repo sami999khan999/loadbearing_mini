@@ -15,7 +15,7 @@ mailpit:
     test: ["CMD", "/mailpit", "readyz"]
 ```
 
-No config file or volume; the inbox is in memory, so `pnpm infra:down` empties it — right for a
+No config file or volume; the inbox is in memory, so `pnpm infra down` empties it — right for a
 scratch mailbox.
 
 ## What it is for
@@ -63,7 +63,7 @@ leaves a working container `unhealthy` forever. `/mailpit readyz` is the documen
 
 | Symptom | Usually |
 |---|---|
-| Worker logs `ECONNREFUSED :21025` | Container not up — `pnpm infra:up` |
+| Worker logs `ECONNREFUSED :21025` | Container not up — `pnpm infra up` |
 | Worker logs `ECONNREFUSED :1025` | `SMTP_URL` points at the container port from the host — use `21025` |
 | Mail sends, UI is empty | Two Mailpits — check nothing else owns 21025 |
 | `unhealthy`, but mail arrives | The healthcheck was changed to `curl`; see above |

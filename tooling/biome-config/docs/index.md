@@ -115,7 +115,7 @@ install.
 ```
 
 `.gitignore` is honoured (no `.prettierignore` equivalent needed). `migrations` is excluded — Drizzle
-generates it, and reformatting would diff on every `db:generate`.
+generates it, and reformatting would diff on every `db generate`.
 
 ---
 

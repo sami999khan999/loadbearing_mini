@@ -10,7 +10,7 @@ export interface ReindexDocsResult {
 }
 
 // Queues every published page of one tenant into the semantic index: the backfill for pages
-// published before `DC.2`, run by `pnpm ai:reindex --docs`. Later publishes index themselves.
+// published before `DC.2`, run by `pnpm ops ai-reindex --docs`. Later publishes index themselves.
 export class ReindexDocsUseCase {
   public constructor(
     private readonly authorizer: Authorizer,

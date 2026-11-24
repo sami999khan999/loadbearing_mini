@@ -31,7 +31,7 @@ upstream:packages/composition/src/fake/in-memory-log.reader.ts
    with `LOKI_URL` and `LOKI_TENANT_ID` in each `env.ts`, the `logs` block of `ContainerConfig`,
    `container.logs` / `hasLogs`, the `dependency.request.failed` event code, and the
    `LOKI_PORT` / `LOKI_URL` pair in `check-architecture.mjs`'s port list.
-3. **What else lite removed in `LT2.4`:** the `observability` profile in `infra:up`,
+3. **What else lite removed in `LT2.4`:** the `observability` profile in `infra up`,
    `infra:up:replica` and `compose-wait.mjs`; the `loki` bucket `minio-init` created; the
    `upstream:infra/logs/` folder Alloy tailed; and `LOKI_URL` in the CI `compose` job.
 

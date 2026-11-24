@@ -51,7 +51,7 @@ abstract class PlatformReader {
 
 `organizationId` is read on **every RBAC write** (`CapabilityCache` decides whether to flush the platform
 axis); `organization` adds slug and name for the screen. Both throw on a miss — `organizations_platform_uq`
-allows at most one and `db:seed` makes one, so a miss is an unseeded, broken deployment.
+allows at most one and `seed:prod` makes one, so a miss is an unseeded, broken deployment.
 
 ## `PlatformHealthReader` — a slice port, not a cross-cutting one
 

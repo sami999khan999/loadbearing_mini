@@ -85,7 +85,7 @@ describe("PgPersonalOrganizationEnroller", () => {
   };
 
   // The whole `personal` mode in one assertion: an account with nothing behind it ends
-  // up owning a tenant with the same four system roles `pnpm db:seed` would have made.
+  // up owning a tenant with the same four system roles `pnpm seed:dev` would have made.
   it("gives a new user an organization of their own, as its owner", async () => {
     const userId = await makeUser();
 

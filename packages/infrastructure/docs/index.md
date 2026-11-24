@@ -24,11 +24,13 @@ a package called `db` would be a lie, but Postgres genuinely is infrastructure.
 ```
 packages/infrastructure/
 ├── drizzle.config.ts                      ← build-time artefacts, above src/
-├── migrate.ts                             ← the migration runner
-├── seed.ts                                ← system roles, idempotent
-├── partitions.ts, partition-ddl.ts        ← the partition runway by hand, and the DDL rewrite
-├── platform-grant.ts, queue-replay.ts     ← the first platform admin, and failed jobs back on a queue
-├── ai-reindex.ts                          ← queues a re-embed after a provider or model change
+├── script/                                ← runnable, above src/; each calls one class
+│   ├── migrate.ts                         ← the migration runner
+│   ├── seed-dev.ts, seed-prod.ts          ← DatabaseSeed.dev() / .prod(); seed-env.ts is their shared half
+│   ├── partitions.ts, partition-ddl.ts    ← the partition runway by hand, and the DDL rewrite
+│   ├── platform-grant.ts, queue-replay.ts ← the first platform admin, and failed jobs back on a queue
+│   ├── queue-control.ts                   ← queue status, pause and resume
+│   └── ai-reindex.ts                      ← queues a re-embed after a provider or model change
 ├── vitest.smoke.config.ts                 ← the wiring check, run against live containers
 └── src/
     ├── index.ts
@@ -39,7 +41,7 @@ packages/infrastructure/
     │   ├── schema/      *.schema.ts       ← drizzle tables + the barrel drizzle-kit reads
     │   ├── repository/  pg-*.ts           → every adapter, one file each, flat
     │   ├── transaction/ pg-unit-of-work.ts → PgUnitOfWork, TransactionScope
-    │   └── seed/        system-role.seed.ts → SystemRoleSeed
+    │   └── seed/        database.seed.ts → DatabaseSeed, over platform/ tenant/ system/ doc/ admin/
     ├── redis/     redis.connection.ts      → RedisConnection, RedisConfig
     │              redis-cache.store.ts     → RedisCacheStore
     │              redis-realtime.*.ts      → RedisRealtimePublisher, RedisRealtimeSubscriber
@@ -60,9 +62,10 @@ packages/infrastructure/
                    openai-assistant.model.ts → OpenAiAssistantModel
 ```
 
-**The runnable scripts sit above `src/`.** A script inside a folder makes that folder's barrel
-execute it on import — the failure that moved `seed.ts` out when `PgPersonalOrganizationEnroller`
-needed `SystemRoleSeed`. `src/pg/seed/` keeps the class; `seed.ts` is the thing you run.
+**The runnable scripts sit in `script/`, above `src/`.** A script inside a folder makes that
+folder's barrel execute it on import — the failure that moved the seed out when
+`PgPersonalOrganizationEnroller` needed `SystemRoleSeed`. `src/pg/seed/` keeps the classes;
+`script/seed-dev.ts` and `script/seed-prod.ts` are the things you run.
 
 **One folder per external system**, so `ls src/` lists the dependencies, and filenames lead with the
 technology ([Files](../../../docs/opinions/files.md)).

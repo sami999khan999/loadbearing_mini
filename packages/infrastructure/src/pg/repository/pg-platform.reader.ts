@@ -17,7 +17,7 @@ export class PgPlatformReader extends BaseRepository implements PlatformReader {
   // platform docs read asks for it several times. A failed lookup is not remembered.
   private remembered: Promise<PlatformOrganization> | null = null;
 
-  // `organizations_platform_uq` guarantees at most one, and `pnpm db:seed` guarantees at
+  // `organizations_platform_uq` guarantees at most one, and `pnpm seed:dev` guarantees at
   // least one — so a miss here is a database nobody seeded, not a case to branch on.
   public async organizationId(): Promise<OrganizationId> {
     return (await this.organization()).id;

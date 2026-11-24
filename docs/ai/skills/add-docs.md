@@ -133,7 +133,7 @@ than explaining it again. That is the pattern: name the owner, link it, move on.
 ## Verify
 
 ```bash
-pnpm check:architecture      # §13 — every folder under docs/ has an index.md
+pnpm check architecture      # §13 — every folder under docs/ has an index.md
 ```
 
 Then by hand, because nothing checks these:

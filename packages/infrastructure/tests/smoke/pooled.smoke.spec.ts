@@ -156,7 +156,7 @@ describe("the pooled connection path", () => {
         sql`select id from organizations limit 1`,
       )
     ).rows;
-    if (!org) throw new Error("run `pnpm db:seed` first");
+    if (!org) throw new Error("run `pnpm seed:dev` first");
 
     const name = `probe.pooled.${Date.now()}`;
     for (let index = 0; index < 20; index += 1) {

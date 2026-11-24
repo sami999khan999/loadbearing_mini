@@ -12,7 +12,7 @@ import {
 import { organizations } from "./rbac.schema.js";
 
 // **The export names and property keys are load-bearing**: the Drizzle adapter resolves a
-// column by `schema[modelName][fieldName]`. Re-derive after an upgrade with `pnpm auth:tables`.
+// column by `schema[modelName][fieldName]`. Re-derive after an upgrade with `pnpm ops auth-tables`.
 
 export const users = pgTable(
   "users",

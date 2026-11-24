@@ -66,7 +66,7 @@ under `oklab` both mix identically, but write greys as `none` — honest, and re
 
 ## Contrast is checked, not reviewed
 
-`pnpm check:contrast` runs in CI after `check:architecture`, asserting WCAG AA over the 154 pairings
+`pnpm check contrast` runs in CI after `check architecture`, asserting WCAG AA over the 154 pairings
 components produce across six themes. Before authoring one:
 
 - **`--fg-muted` is bounded by `--muted`, not `--bg`** — a placeholder sits in an input, the tightest
@@ -88,7 +88,7 @@ Four steps, no component touched:
 4. **`tests/theme/theme-registry.spec.ts`** — its `all()` assertion names every key and fails until
    yours is added: the one check of CSS against registry.
 
-Then run `pnpm check:contrast`, and open `/kitchen-sink` in `apps/web` to look at it.
+Then run `pnpm check contrast`, and open `/kitchen-sink` in `apps/web` to look at it.
 
 ## Cost
 
@@ -103,5 +103,5 @@ only. Revisit past forty themes.
 [the colour rule](../../../../docs/ai/rules/color.md) — because **mail clients resolve no custom
 property** (`var(--primary)` renders nothing) and most strip `<style>`, so values are inline. They are
 slate-light in sRGB, not derived from `slate.css` at build time: a recipient has no theme or mode to
-read. `check:contrast` reads only `packages/ui/src/style/color/*.css`, so mail's pairings (white on
+read. `check contrast` reads only `packages/ui/src/style/color/*.css`, so mail's pairings (white on
 primary, `--fg` on `--surface`, both AA) are a review item, not a gate.

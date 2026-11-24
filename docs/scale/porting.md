@@ -45,7 +45,7 @@ the big kit's numbered migrations cannot be applied as they are.
 
 1. Copy the feature's **schema file** into `packages/infrastructure/src/pg/schema/` and register it
    in that folder's barrel.
-2. Run `pnpm db:generate`. It runs drizzle-kit and then writes the `PARTITION BY` clauses, and it
+2. Run `pnpm db generate`. It runs drizzle-kit and then writes the `PARTITION BY` clauses, and it
    produces a new, correctly numbered migration from the schema's *final* shape.
 3. **Hand-port what drizzle cannot generate** from the big kit's migrations that the page lists:
    permission rows and grants to system roles, triggers, role defaults, data backfills. Append them
@@ -67,8 +67,8 @@ the big kit's numbered migrations cannot be applied as they are.
 
 ```bash
 pnpm build:packages && pnpm typecheck && pnpm lint && pnpm test
-pnpm check:architecture
-pnpm db:migrate && pnpm db:seed
+pnpm check architecture
+pnpm db migrate && pnpm seed:dev
 node tooling/scripts/boot-smoke.mjs
 ```
 

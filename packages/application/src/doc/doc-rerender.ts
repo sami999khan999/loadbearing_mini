@@ -4,7 +4,7 @@ import type { DocCache } from "./doc.cache.js";
 import type { DocPageRepository } from "./doc-page.repository.js";
 
 // Renders again every published page an older renderer wrote, for one organization. Run
-// by the worker, placed on the tenant's node; queued by `pnpm doc:rerender`.
+// by the worker, placed on the tenant's node; queued by `pnpm ops doc-rerender`.
 export class DocRerender {
   private static readonly BATCH = 50;
 

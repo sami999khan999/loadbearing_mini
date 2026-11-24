@@ -50,7 +50,7 @@ handling and nothing routes by slug.
 ## `bootstrap`, and what it is not for
 
 Every sign-up joins one named organization — first as `owner`, then `member`. For demos, single-tenant
-installs and local work against `db:seed`; **wrong for anything internet-reachable**. An undefined slug
+installs and local work against `seed:prod`; **wrong for anything internet-reachable**. An undefined slug
 (the default) enrols nobody, so the session is refused. Both roles come from `SystemRoleSeed`; if either
 is missing **enrolment declines rather than guesses** — inventing a role invents a permission set.
 

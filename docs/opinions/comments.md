@@ -150,5 +150,5 @@ is skipped (`route-tree.gen.ts` asks to be). Anchoring to the start of a trimmed
 safe — Biome always puts a block comment on its own line, so `"**/dist/**"` in a string never
 matches — and no inline comment can silence either assertion.
 
-**`pnpm check:comments` reports and never fails:** per-package density, block count, and the
+**`pnpm check comments` reports and never fails:** per-package density, block count, and the
 twenty-five files with the most comment lines, so drift shows before a file trips §14.

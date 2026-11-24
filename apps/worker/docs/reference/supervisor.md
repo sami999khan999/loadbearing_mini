@@ -45,13 +45,13 @@ Both refuse before any lane starts (halfway would consume some queues, then exit
 ## Pausing a queue everywhere
 
 ```bash
-pnpm queue:status              # waiting, active, delayed and failed per queue, and paused or not
-pnpm queue:pause mail          # every worker stops taking mail jobs; running ones finish
-pnpm queue:resume mail
-pnpm queue:pause all           # every queue, e.g. before moving the queue Redis
+pnpm ops queue-status              # waiting, active, delayed and failed per queue, and paused or not
+pnpm ops queue-pause mail          # every worker stops taking mail jobs; running ones finish
+pnpm ops queue-resume mail
+pnpm ops queue-pause all           # every queue, e.g. before moving the queue Redis
 ```
 
 BullMQ's own pause, in the queue's Redis keys: every worker obeys it, later ones too, across restarts;
-publishers keep enqueueing. A bare `queue:pause` is refused, not read as `all`. The big kit adds a
+publishers keep enqueueing. A bare `ops queue-pause` is refused, not read as `all`. The big kit adds a
 process registry, per-process pause and moves, and autoscaling from a platform **Workers** page
 ([Worker control](../../../../docs/scale/worker-control.md)).

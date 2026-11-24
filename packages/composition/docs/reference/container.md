@@ -144,7 +144,7 @@ private static enroller(mode, personal, bootstrap, claimer): MembershipEnroller
 
 | `AUTH_ENROLMENT_MODE` | Adapter | Posture |
 |---|---|---|
-| `personal` | `PgPersonalOrganizationEnroller` | The default: the only mode that works against an empty database, so a fresh clone can sign up and be signed in without `pnpm db:seed` having run |
+| `personal` | `PgPersonalOrganizationEnroller` | The default: the only mode that works against an empty database, so a fresh clone can sign up and be signed in without `pnpm seed:dev` having run |
 | `bootstrap` | `PgBootstrapMembershipEnroller` | The demo and single-tenant posture |
 | `invite` | `NullMembershipEnroller` | Production: the decorator is the only door, and an address nobody invited is refused a session by `MembershipReader` |
 

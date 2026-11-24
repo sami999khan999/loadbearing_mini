@@ -25,10 +25,15 @@ Its main job is turning any credential (a browser cookie, a desktop bearer token
 | File | What it does |
 |---|---|
 | `package.json` | Package manifest. |
-| `tables.ts` | `pnpm auth:tables`: prints the database tables Better Auth expects for the installed version, to compare against the schema after an upgrade. Changes nothing. |
 | `tsconfig.json` | TypeScript settings. |
 | `tsup.config.ts` | Build settings. |
 | `vitest.config.ts` | Test settings. |
+
+### `packages/auth/script/`
+
+| File | What it does |
+|---|---|
+| `tables.ts` | `pnpm ops auth-tables`: prints the database tables Better Auth expects for the installed version, to compare against the schema after an upgrade. Changes nothing. |
 
 ### `packages/auth/src/`
 

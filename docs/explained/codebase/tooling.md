@@ -83,15 +83,14 @@ This page covers 81 files.
 | `bench.mjs` | `pnpm bench`: measures requests per second and response times for the app's main pages against a running server. |
 | `boot-app.mjs` | Starts a built app on a free port and waits until its own output says it is listening. Shared by the boot check and the web smoke tests. |
 | `boot-smoke.mjs` | Starts each built app (web, worker, realtime) once, waits until it says it is up, then stops it. Catches a missing setting that only fails at start-up, which tests run against source never see. |
-| `check-architecture.mjs` | `pnpm check:architecture`: about thirty checks that type-checking, linting and tests do not catch. Examples: the business layer importing a framework or logging, `process.env` read outside `env.ts`, block comments, server code in the browser bundle, a table missing its tenant column, a docs path that names a missing file, a colour that is not one of the twelve theme colours. |
-| `check-contrast.mjs` | `pnpm check:contrast`: checks that every text and background colour pair in every theme, light and dark, is readable (WCAG AA) and stays inside the sRGB colour range. |
-| `comment-density.mjs` | `pnpm check:comments`: reports how much of each package is comments and how many comment blocks run past two lines. Reports only; never fails. |
+| `check-architecture.mjs` | `pnpm check architecture`: about thirty checks that type-checking, linting and tests do not catch. Examples: the business layer importing a framework or logging, `process.env` read outside `env.ts`, block comments, server code in the browser bundle, a table missing its tenant column, a docs path that names a missing file, a colour that is not one of the twelve theme colours. |
+| `check-contrast.mjs` | `pnpm check contrast`: checks that every text and background colour pair in every theme, light and dark, is readable (WCAG AA) and stays inside the sRGB colour range. |
+| `comment-density.mjs` | `pnpm check comments`: reports how much of each package is comments and how many comment blocks run past two lines. Reports only; never fails. |
 | `compose-wait.mjs` | Waits until every container in the Docker stack is healthy, treating the one-shot bucket setup container finishing as success. |
 | `compose.mjs` | The one place `docker compose` is called, so the containers read the same root `.env` the apps do. |
-| `docs-publish.mjs` | `pnpm docs:publish`: publishes every docs tree in the repository into a running app's docs, one space per area: the overview, this guide, the AI rulebook, the opinions, the scale-up guide, the infrastructure, the packages, the apps, the tooling and the plans. It signs in, creates or updates each space, then creates, reorders, saves and publishes only the pages that changed, and finally reads every page back to check it is live and that every link between pages lands. `--space` publishes one area, `--audience` sets who may read them, `--prune` removes pages the trees no longer have, and `--dry-run` prints the whole tree without sending anything. |
-| `docs-tree.mjs` | Reads the docs trees into those spaces, in `meta.json` order, refusing a page that `meta.json` leaves out or names but cannot find. Rewrites each link to another docs page into that page's route, and a link to any other file into its address on the git origin. No network, so it is unit-tested. |
 | `package.json` | Manifest for the repository's own scripts, so they are type-checked and tested like any package. |
 | `source-text.mjs` | Small text parsers the architecture check is built from: finding imports, stripping comments, reading SQL columns and indexes, skipping fenced code in Markdown. Pure functions, so they are unit-tested. |
+| `task.mjs` | `pnpm dev`, `check`, `infra`, `db`, `ops` and `smoke`: one root command per area. Looks the task up in one table and runs its commands in order; an unknown task prints the list. |
 | `tsconfig.json` | TypeScript settings that type-check the `.mjs` scripts and their tests as JavaScript. |
 | `vitest.config.ts` | Test runner settings for the scripts, with a longer timeout because each architecture-check test spawns the script over a temporary file tree. |
 
@@ -110,7 +109,7 @@ This page covers 81 files.
 | `check-architecture.spec.mjs` | Tests every architecture check twice: once against a temporary file tree that breaks the rule, once against one that obeys it. |
 | `compose-wait.spec.mjs` | Tests how the wait script reads each container state Docker can report. |
 | `compose.spec.mjs` | Tests that the compose wrapper passes the root `.env` to Docker. |
-| `docs-tree.spec.mjs` | Tests the docs reader on a temporary file tree: the page order, sections adding no URL segment, refused pages, generated overview pages, and which links are rewritten and which are left as written. |
+| `task.spec.mjs` | Tests what each root command runs: the build before `dev`, every gate for a bare `check`, the stack coming up and down, and arguments passed through. |
 | `source-text.spec.mjs` | Tests the text parsers against inputs that once fooled them, such as `//` inside a string. |
 
 ### `tooling/tsconfig/`

@@ -62,8 +62,8 @@ Loki and Alloy, ClickHouse and a cold MinIO tier. The seams stay, so each is a p
 
 ## Profiles
 
-None — every service starts on every `up` (`docker compose ... up -d` runs 5); `pnpm infra:up` and
-`pnpm infra:core` both run exactly that.
+None — every service starts on every `up` (`docker compose ... up -d` runs 5); `pnpm infra up` and
+`pnpm infra up core` both run exactly that.
 
 > **`down`, `reset` and `logs` still pass `--profile "*"`.** It changes nothing today, and keeps a
 > profiled service added later — a ported pooler, say — from surviving a reset or missing from
@@ -80,10 +80,10 @@ None — every service starts on every `up` (`docker compose ... up -d` runs 5);
 | `miniodata` | minio | **nothing** — uploads are a second source of truth |
 
 **Redis has a volume because the queue shares it** — a cache alone would not earn one. `pnpm
-infra:reset` destroys all three, fine locally; anywhere with real pending work, flushing Redis here
+infra reset` destroys all three, fine locally; anywhere with real pending work, flushing Redis here
 flushes the queue too — clearing only the cache needs [split-redis](../../scale/split-redis.md).
 
-**A volume migrated before the lite squash needs `pnpm infra:reset`**: migrations are now
+**A volume migrated before the lite squash needs `pnpm infra reset`**: migrations are now
 `packages/infrastructure/migrations/0000_lite_baseline.sql` plus two small ones.
 
 ### Bind mounts
@@ -115,7 +115,7 @@ the well-known one with a prefix, readable as its service — lite uses `2xxxx`,
 
 **They live in the root `.env`, the only env file.** With `-f infra/docker-compose.yml` Compose's
 project directory is `infra/`, so it once read `infra/.env` and the stack and apps disagreed about
-where Postgres was. `pnpm infra:up` now goes through `tooling/scripts/compose.mjs`, which passes
+where Postgres was. `pnpm infra up` now goes through `tooling/scripts/compose.mjs`, which passes
 `--env-file <root>/.env` only when it exists (the flag errors on a missing file, and CI has no `.env`).
 
 | Variable | Default | Variable | Default |
@@ -124,7 +124,7 @@ where Postgres was. `pnpm infra:up` now goes through `tooling/scripts/compose.mj
 | `REDIS_PORT` | 26379 | `MAILPIT_UI_PORT` | 28025 |
 | `S3_PORT` | 29000 | `MINIO_CONSOLE_PORT` | 29001 |
 
-CI gets these defaults, so `check:architecture` §27 asserts each equals `.env.example`, and pairs each
+CI gets these defaults, so `check architecture` §27 asserts each equals `.env.example`, and pairs each
 `*_PORT` with the URLs dialling it (`POSTGRES_PORT` ↔ `DATABASE_URL` and `DATABASE_DIRECT_URL`,
 `REDIS_PORT` ↔ both Redis URLs). `MINIO_CONSOLE_PORT` and `MAILPIT_UI_PORT` have no counterpart — you
 dial them. **Overriding one changes nothing inside the network**: `minio-init` still says

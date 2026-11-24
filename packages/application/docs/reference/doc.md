@@ -157,7 +157,7 @@ ancestors' children; other branches are `folded: true`. The full tree follows fr
 (organization) or `/api/doc-nav/<space>?v=<version>` (platform, versioned so `immutable` for signed-out
 readers and CDNs). Only open branches and near-viewport sections render.
 
-`pnpm doc:bench`: a public 2,000-page space, its 20 largest at the 200,000-character cap, queries from
+`pnpm ops doc-bench`: a public 2,000-page space, its 20 largest at the 200,000-character cap, queries from
 `pg_stat_statements`. 2026-10-01, one web process, load 11–15 on 4 cores:
 
 | Path | Before | After |
@@ -231,7 +231,7 @@ chunk text, then runs the tree check.
 **Cost:** one embedding call per search; a failing provider falls back to full text. Platform search
 (`/docs`) stays full text — another tenant's index on the requester's node. **Doc chunks never reach
 shared document search** (`SearchDocumentsUseCase` excludes guarded types; `QueueDocumentIndexUseCase`
-refuses `doc` and page ids). Pre-`DC.2` pages: `pnpm ai:reindex --docs`.
+refuses `doc` and page ids). Pre-`DC.2` pages: `pnpm ops ai-reindex --docs`.
 
 ## Images
 

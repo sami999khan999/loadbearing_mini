@@ -53,7 +53,7 @@ packages/auth/
 │   │   ├── organization.founder.ts       → OrganizationFounder               (port)
 │   │   ├── invitation-claiming.enroller.ts → InvitationClaimingEnroller      (decorator)
 │   │   └── null-membership.enroller.ts   → NullMembershipEnroller
-├── tables.ts                             ← a script, above src/. Never exported, never built
+├── script/tables.ts                      ← a script, above src/. Never exported, never built
 └── tests/
     ├── support/doubles.ts
     ├── apikey/{api-key.hasher,api-key.resolver}.spec.ts

@@ -39,6 +39,7 @@ from the right place.
 | 2026-11-12 | `WK.3`, `WK.5`, `WK.6` and the `Select` placeholder | big kit `dev`, `718592db`, `0af8dd19`, `6edd4fec` |
 | 2026-11-12 | `WK.7`, the sidebar shell | big kit `dev`, `48e1e311..54b269f8` |
 | 2026-11-12 | Messaging, at the big kit's parity: threads, reactions, files, presence, typing, mentions and grouped notifications. Not `26.4`: lite keeps every message month | big kit `dev`, as of `fe7382e8` |
+| 2026-11-24 | The seed in `src/pg/seed/` (`seed:dev` / `seed:prod`, the repository's docs in both), `script/` folders with §26 guarding package roots, and one root command per area. `pnpm infra up` takes no profile: lite's stack has none | big kit working tree, same day |
 
 ## Added in lite, owed to the big kit
 

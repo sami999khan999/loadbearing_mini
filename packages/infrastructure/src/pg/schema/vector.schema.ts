@@ -41,7 +41,7 @@ export const documentChunks = pgTable(
     // the whole corpus, which is why the value is in `.env.example`. Null with no provider.
     embedding: vector("embedding", { dimensions: 1536 }),
     // The model that wrote `embedding`. A search compares only its own model's vectors,
-    // and `pnpm ai:reindex` re-embeds the rest after a switch.
+    // and `pnpm ops ai-reindex` re-embeds the rest after a switch.
     embeddingModel: text("embedding_model"),
     // What `EMBEDDING_PROVIDER=none` searches. `simple`, not a language: the corpus has
     // no one language, and a stemmer for the wrong one is worse than none.

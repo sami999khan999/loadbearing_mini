@@ -8,7 +8,7 @@ import {
   Worker,
 } from "../import.js";
 
-// A `reembed` or `doc-reindex` job names only the tenant, and `pnpm ai:reindex` queues
+// A `reembed` or `doc-reindex` job names only the tenant, and `pnpm ops ai-reindex` queues
 // both; an index job is an `IndexDocumentJob`.
 type EmbeddingJobData = Pick<IndexDocumentJob, "organizationId"> & Partial<IndexDocumentJob>;
 

@@ -37,7 +37,7 @@ const memberOf = async (userId: UserId, roleKey: string) => {
     .select({ id: roles.id })
     .from(roles)
     .where(and(eq(roles.organizationId, tier), eq(roles.key, roleKey)));
-  if (!role) throw new Error(`no ${roleKey} role — run \`pnpm db:seed\``);
+  if (!role) throw new Error(`no ${roleKey} role — run \`pnpm seed:dev\``);
   await database.client
     .insert(memberships)
     .values({ id: crypto.randomUUID(), organizationId: tier, userId, roleId: role.id });

@@ -36,8 +36,8 @@ one Redis (cache + queue) · S3 · logs to stdout
   per-plan entitlements and feature flags, all enforced on the server.
 - **📬 One send path** — every mail is a BullMQ job the worker renders and sends with retries,
   backoff and a rate limiter; never from inside a request.
-- **🎨 Six themes, twelve colours** — `pnpm check:contrast` checks 154 pairings against WCAG AA.
-- **🛡️ 31 architecture assertions** — `pnpm check:architecture` catches what typecheck, lint and tests
+- **🎨 Six themes, twelve colours** — `pnpm check contrast` checks 154 pairings against WCAG AA.
+- **🛡️ 31 architecture assertions** — `pnpm check architecture` catches what typecheck, lint and tests
   miss.
 
 | Layer | Choice |
@@ -75,8 +75,8 @@ only place an adapter is named; `apps/*` are thin and deletable. Full rules:
 ```bash
 pnpm install
 node -e "require('fs').copyFileSync('.env.example', '.env')"   # then set AUTH_SECRET
-pnpm infra:up                                                  # the whole local stack
-pnpm db:migrate && pnpm db:seed
+pnpm infra up                                                  # the whole local stack
+pnpm db migrate && pnpm seed:dev
 pnpm dev                                                       # web + worker + realtime
 ```
 
@@ -89,13 +89,15 @@ Open **http://localhost:23000/sign-up**; the verification mail lands in Mailpit 
   switch to embeddings ([reference/embedding](packages/infrastructure/docs/reference/embedding.md)).
 - **Ports** are the well-known ones with a `2` in front (`POSTGRES_PORT` `REDIS_PORT` `S3_PORT`
   `MINIO_CONSOLE_PORT` `SMTP_PORT` `MAILPIT_UI_PORT` `WEB_PORT`), all in the root `.env`. Change a
-  `*_PORT` and the URL dialling it together — `check:architecture` §27 fails if they disagree. For the
+  `*_PORT` and the URL dialling it together — `check architecture` §27 fails if they disagree. For the
   web app change `WEB_PORT`, and `APP_BASE_URL`, `AUTH_URL` and `AUTH_TRUSTED_ORIGINS` with it.
 - **Infrastructure:** five containers — Postgres + pgvector, one Redis (`noeviction`, since it holds
   the queue), MinIO with its one-shot bucket init, Mailpit. Wait for `node tooling/scripts/compose.mjs
   ps` to show healthy. See [`docs/infra/`](docs/infra/index.md).
-- **`db:seed`** creates the `loadbearing` organization and four system roles, no user. `pnpm
-  auth:tables` prints Better Auth's expected schema for diffing after an upgrade.
+- **`seed:prod`** creates the `loadbearing` platform organization, its roles, and a docs space per
+  docs tree (read by platform staff at `/doc`). **`seed:dev`** adds a verified platform admin,
+  `admin@loadbearing.test`, and prints its password once (`ADMIN_PASSWORD` sets one). Every other
+  task is `pnpm ops <task>`; `pnpm ops` alone lists them.
 
 | Service | Address |
 |---|---|
@@ -103,7 +105,7 @@ Open **http://localhost:23000/sign-up**; the verification mail lands in Mailpit 
 | 📬 Mailpit | http://localhost:28025 |
 | 🪣 MinIO console | http://localhost:29001 |
 | 💓 Readiness probe | http://localhost:23000/api/health |
-| 🗃️ Drizzle Studio | `pnpm db:studio` |
+| 🗃️ Drizzle Studio | `pnpm db studio` |
 
 > [!IMPORTANT]
 > Every message is a job on `QueueName.MAIL`, so **nothing reaches Mailpit unless the worker runs**
@@ -125,7 +127,7 @@ and accept in another browser profile — that `member` is sent to `/forbidden` 
 ## ✦ Before committing
 
 ```bash
-pnpm check:architecture   # needs pnpm build:packages + a web build, or two assertions skip
+pnpm check architecture   # needs pnpm build:packages + a web build, or two assertions skip
 pnpm typecheck && pnpm lint && pnpm test
 ```
 
@@ -133,7 +135,7 @@ pnpm typecheck && pnpm lint && pnpm test
 |---|---|
 | 500 on the first request, `ZodError` naming env keys | `.env` missing or incomplete |
 | `/api/health` returns 503 | A container is down, or a `.env` URL names the wrong host port |
-| `ECONNREFUSED` from `db:migrate` | Postgres not healthy yet, or the port is taken |
+| `ECONNREFUSED` from `db migrate` | Postgres not healthy yet, or the port is taken |
 | Signed up, still signed-out | No membership — `bootstrap` without seed/slug, or `invite` with no invitation |
 
 ## ✦ Big kit vs lite

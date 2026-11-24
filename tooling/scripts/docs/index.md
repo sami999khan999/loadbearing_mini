@@ -10,13 +10,9 @@ The scripts CI runs and a developer runs before claiming a change is done: `chec
 `check-architecture` assertion greps for, and the failure that put it there, is in
 `check-architecture.mjs`.
 
-`docs-publish.mjs` is not a gate. `pnpm docs:publish <base-url> <credentials-file>
-<organization-id>` publishes every docs tree in the repository into a running app's docs, one space
-per area, through the app's own API (`--space`, `--audience`, `--prune`, `--dry-run`; the script's
-usage line lists them). `docs-tree.mjs` is the half that reads the trees: `meta.json` gives the page
-order, a folder's `index.md` becomes a page with the folder's other pages under it, and a folder
-without one becomes a sidebar section. Links between docs pages become doc routes; links to other
-files point at them on the git origin (`--repo` and `--branch` override it).
+The docs trees are not published from here: `pnpm seed:dev` and `pnpm seed:prod` seed them
+(`packages/infrastructure/src/pg/seed/doc/`). `task.mjs` is the root commands' one table
+(`pnpm dev`, `check`, `infra`, `db`, `ops`, `smoke`).
 
 ## How lite's `check-architecture` differs from the big kit's
 

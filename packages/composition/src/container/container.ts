@@ -605,11 +605,11 @@ export class Container {
     // Like `readPlatform`, it takes no principal of the image's organization, and the
     // caller places it at that organization's node.
     readonly openImage: OpenDocImageUseCase;
-    // The worker's, off `pnpm doc:rerender`: every published page an older renderer wrote.
+    // The worker's, off `pnpm ops doc-rerender`: every published page an older renderer wrote.
     readonly rerender: DocRerender;
     // The worker's, queued by a page delete: a space's images that no text links any more.
     readonly imageOrphans: DocImageOrphans;
-    // The worker's, off `pnpm ai:reindex --docs`: every published page into the index.
+    // The worker's, off `pnpm ops ai-reindex --docs`: every published page into the index.
     readonly reindex: ReindexDocsUseCase;
   };
   // One person's exceptions to their role. `expire` is the worker's, like the other sweeps.
@@ -1535,7 +1535,7 @@ export class Container {
         this.activity,
         this.routedUnitOfWork,
       ),
-      // The worker's, off `pnpm ai:reindex`: every chunk another model wrote, re-embedded.
+      // The worker's, off `pnpm ops ai-reindex`: every chunk another model wrote, re-embedded.
       reembed: new ReembedChunksUseCase(
         this.authorizer,
         this.searchMode,

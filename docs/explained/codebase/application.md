@@ -48,7 +48,7 @@ Folders by subject: `ai`, `apikey`, `doc`, `flag`, `mail`, `member`, `notificati
 | `index-document.use-case.ts` | Indexes one document for AI search: splits the text into chunks, asks the embedding provider for vectors in batches, and replaces the document's old chunks in one transaction. Run by the worker. |
 | `index.ts` | Folder barrel. |
 | `queue-document-index.use-case.ts` | The request-side half of indexing: checks the permission, refuses the reserved Docs type, then puts an "index this document" job on the queue and returns at once, because embedding takes a network round trip. |
-| `reembed-chunks.use-case.ts` | After the AI provider or model changes, re-embeds every chunk the current model did not write, a batch at a time. The text and chunk boundaries stay as they are. Run by `pnpm ai:reindex`. |
+| `reembed-chunks.use-case.ts` | After the AI provider or model changes, re-embeds every chunk the current model did not write, a batch at a time. The text and chunk boundaries stay as they are. Run by `pnpm ops ai-reindex`. |
 | `search-documents.use-case.ts` | Searches indexed documents. Turns the question into a vector (or uses full-text search when no provider is set) and only searches documents the person may read, leaving out Docs chunks, before ranking anything. |
 
 ### `packages/application/src/apikey/`
@@ -77,7 +77,7 @@ Folders by subject: `ai`, `apikey`, `doc`, `flag`, `mail`, `member`, `notificati
 | `doc-image-orphans.ts` | `DocImageOrphans`: deletes the images of one space that no draft, published page or revision links any more, skipping anything uploaded in the last hour. Queued by a page delete. |
 | `doc-image-sweep.ts` | `DocImageSweep`: deletes every stored image under one folder (a space's or an organization's), in bounded batches. |
 | `doc-page.repository.ts` | `DocPageRepository`: the interface for storing pages: the tree, drafts, the published copy, publishing, revisions, search sections and the list of pages an older renderer wrote. |
-| `doc-rerender.ts` | `DocRerender`: re-renders every published page that an older version of the Markdown renderer produced, for one organization. Run by the worker after the renderer changes (`pnpm doc:rerender`). |
+| `doc-rerender.ts` | `DocRerender`: re-renders every published page that an older version of the Markdown renderer produced, for one organization. Run by the worker after the renderer changes (`pnpm ops doc-rerender`). |
 | `doc-index.subscriber.ts` | `DocIndexSubscriber`: keeps the semantic index of published docs in step: a publish queues the page's text for embedding, and a delete forgets the pages it removed. |
 | `doc-search.ts` | `DocSearch`: searches the doc spaces a reader may see — full text, plus meaning when an embedding provider is set — and turns each match into the page path to open, dropping anything the reader's access links hide. |
 | `doc-shape.ts` | `DocShape`: turns stored rows into the shapes sent to the browser, including the page status (draft, published, changed since publishing). |
@@ -108,7 +108,7 @@ Folders by subject: `ai`, `apikey`, `doc`, `flag`, `mail`, `member`, `notificati
 | `revoke-doc-grant.use-case.ts` | Removes one doc grant and clears the cached answers, so the reader loses access straight away. |
 | `save-doc-grant.use-case.ts` | Opens a granted platform space to an organization, a person or a plan. Audited in the platform's own trail. |
 | `save-doc-page.use-case.ts` | Saves the editor's draft (title, Markdown, slug, icon, access link). Not audited, because readers see nothing until it is published. |
-| `reindex-docs.use-case.ts` | `pnpm ai:reindex --docs`: queues every published page of one organization into the semantic index, for pages published before docs had one. |
+| `reindex-docs.use-case.ts` | `pnpm ops ai-reindex --docs`: queues every published page of one organization into the semantic index, for pages published before docs had one. |
 | `search-docs.use-case.ts` | The search palette (Ctrl+K) over the person's own organization's docs, filtered before ranking so hidden spaces never show. |
 | `search-platform-docs.use-case.ts` | The same search over the platform's docs, limited to the spaces the viewer may read. |
 | `update-doc-space.use-case.ts` | Changes a space's settings (title, audience, theme, GitHub link, access link). A field left out keeps its stored value. |

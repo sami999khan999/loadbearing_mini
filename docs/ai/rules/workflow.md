@@ -6,31 +6,28 @@ description: The commands, what to run before claiming a change is done, the com
 # Working in this repo
 
 ```bash
-pnpm dev                  # builds packages once, then web + worker + realtime in parallel
-pnpm build                # topological from workspace:*
-pnpm typecheck
-pnpm lint                 # biome check . && eslint .
-pnpm test
-pnpm check:architecture   # the assertions no linter expresses
-pnpm check:contrast       # WCAG AA + sRGB gamut, every theme × mode; a gate
-pnpm check:comments       # comment density; reports, never fails
-pnpm deps:check           # syncpack: one version line per dependency
-pnpm repo:check           # sherif: workspace shape
-pnpm infra:up             # postgres, redis, minio, mailpit — the whole lite stack
-pnpm smoke                # wiring check against live containers
-pnpm platform:grant <email>  # the first platform admin; later ones are invited
-pnpm admin:seed           # local only: a verified platform admin, ADMIN_EMAIL/ADMIN_PASSWORD or a printed one
-pnpm queue:replay <queue> [job]  # re-queue failed jobs (kept a week)
-pnpm queue:status | queue:pause <queue|all> | queue:resume <queue|all>  # BullMQ's global pause
-pnpm db:generate          # drizzle-kit, then partition-ddl.ts writes PARTITION BY
-pnpm db:migrate | db:seed | db:studio
-pnpm db:partitions        # the monthly runway, by hand
-pnpm auth:tables          # print Better Auth's schema
+pnpm dev [web|worker|realtime]   # builds packages once, then the apps (all, or one)
+pnpm build | typecheck | lint | format | test | clean
+pnpm check [architecture|contrast|comments|deps|repo]   # no name: every gate, CI's order
+pnpm infra up                     # postgres, redis, minio, mailpit — the whole lite stack;
+                                  # then down | reset | logs
+pnpm db generate | migrate | studio | partitions
+pnpm seed:prod                    # platform organization, its roles, and every docs tree
+pnpm seed:dev                     # the same, plus a verified local platform admin
+                                  # (ADMIN_EMAIL / ADMIN_PASSWORD, or a printed password)
+pnpm smoke [web]                  # wiring check against live containers
+pnpm ops <task> [args]            # platform-grant <email> · queue-replay <queue> [job] ·
+                                  # queue-status · queue-pause|queue-resume <queue|all> ·
+                                  # ai-reindex [--docs] · doc-rerender · doc-bench · auth-tables
 ```
 
-- **`db:migrate` and `db:partitions` walk every node**, catalog first, from `shard-env.ts`'s
-  reading of `DATABASE_SHARD_<n>_URL` — node 0 alone in lite, and the loop stays. `db:generate`,
-  `db:studio` and `db:seed` stay on the catalog.
+`tooling/scripts/task.mjs` is the whole table: an unknown task prints the list. Runnable
+scripts live in each package's `script/`, never at its root (§26).
+
+- **`db migrate` and `db partitions` walk every node**, catalog first, from `shard-env.ts`'s
+  reading of `DATABASE_SHARD_<n>_URL` — node 0 alone in lite, and the loop stays. `db generate`
+  and `db studio` stay on the catalog; the seed writes the catalog, then the docs on the platform
+  organization's node.
 - **Mail goes to Mailpit (`:28025`), never out** — and only while the worker runs, since every
   message is a job on `QueueName.MAIL`.
 - Prefer `pnpm --filter @loadbearing/<pkg> run <script>` over `cd`.
@@ -40,7 +37,7 @@ pnpm auth:tables          # print Better Auth's schema
 1. **On a clean clone:** `pnpm build:packages && pnpm --filter @loadbearing/web build` first —
    `apps/web/src/route-tree.gen.ts` is generated and gitignored, and without it every route file
    fails typecheck with an unrelated-looking error.
-2. **`pnpm check:architecture`.** The barrel check needs `build:packages` and the bundle check needs
+2. **`pnpm check architecture`.** The barrel check needs `build:packages` and the bundle check needs
    the web build; without them they print `○ skipped`, which under `CI=true` fails. **A skip is
    unverified, not a pass.**
 3. `pnpm typecheck && pnpm lint && pnpm test`.
@@ -53,9 +50,9 @@ rule files drifting from `docs/opinions/`, a `docs/` folder with no `index.md`, 
 names nothing on disk, the two pnpm version declarations disagreeing, a tenant unique index not
 leading with `organization_id`, a foreign key with no leading index, a partitioned table missing
 from `PartitionedTable`, a repository spanning placements, a second pool opener, a catalog event
-nothing emits, `.env.example` drift, an untypechecked script above `src/`, a host port stated twice
-and disagreeing, a permission no procedure asserts, the four `DATABASE_SHARD_<n>_URL` readers
-disagreeing, a flag expired or unread, and a colour outside the twelve.
+nothing emits, `.env.example` drift, a script loose at a package root or untypechecked, a host port
+stated twice and disagreeing, a permission no procedure asserts, the four `DATABASE_SHARD_<n>_URL`
+readers disagreeing, a flag expired or unread, and a colour outside the twelve.
 
 `.claude/` is excluded from every `check-architecture` grep (it has held full worktree checkouts).
 

@@ -18,6 +18,6 @@ description: Line comments only, two lines maximum, and where the reasoning goes
   defences, and anything said in a second file. Keep the failure the line prevents.
 - **No commented-out code.** Git has it; write the sentence instead.
 - **Not a rule against comments** — one saying why the obvious approach is wrong earns its place.
-- **`pnpm check:comments`** reports density and block counts and never fails; §14 is the gate.
+- **`pnpm check comments`** reports density and block counts and never fails; §14 is the gate.
 
 Argument: [`docs/opinions/comments.md`](../../opinions/comments.md).

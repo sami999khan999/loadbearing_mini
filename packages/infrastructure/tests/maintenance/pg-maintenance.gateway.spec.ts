@@ -61,7 +61,7 @@ beforeAll(async () => {
     .from(roles)
     .where(and(eq(roles.organizationId, organizationId), eq(roles.key, "member")))
     .limit(1);
-  if (!role) throw new Error("run `pnpm db:seed` first");
+  if (!role) throw new Error("run `pnpm seed:dev` first");
   roleId = role.id;
 });
 

@@ -6,7 +6,7 @@ description: Bringing back the big kit's Workers page — live processes, pausin
 # Worker control
 
 **The limit.** Lite chooses each worker's queues with `WORKER_QUEUES` and fixes their concurrency at
-boot. Changing either is a redeploy. Pausing a queue is `pnpm queue:pause <queue>` from a shell with
+boot. Changing either is a redeploy. Pausing a queue is `pnpm ops queue-pause <queue>` from a shell with
 the queue Redis URL. Nobody can see which processes are running or what each one serves.
 
 **When.** More than one worker service runs, or an operator without shell access needs to pause a
@@ -72,11 +72,11 @@ upstream:apps/worker/docs/reference/supervisor.md
 Then merge these by hand; each is a few lines in a file lite already has:
 
 - **Table:** `worker_queue_settings` from `upstream:packages/infrastructure/src/pg/schema/platform.schema.ts`.
-  Run `pnpm db:generate` for the migration rather than copying the big kit's numbered one, and add
+  Run `pnpm db generate` for the migration rather than copying the big kit's numbered one, and add
   the table to `CATALOG` in `packages/application/src/primitive/shard.ts`.
 - **Permissions:** `platform.worker.read` and `platform.worker.manage` in
   `packages/permissions/src/catalog/platform.permissions.ts`, and `workers` in
-  `packages/permissions/src/route/platform.routes.ts`. `pnpm db:seed` grants them to the platform
+  `packages/permissions/src/route/platform.routes.ts`. `pnpm seed:dev` grants them to the platform
   admin role.
 - **Contract and router:** the worker fleet schemas in `platform.contract.ts`, the six procedures in
   `platform.procedures.ts`, their keys in `packages/contracts/src/catalog/platform.permissions.ts`,
@@ -94,7 +94,7 @@ Then merge these by hand; each is a few lines in a file lite already has:
 which in lite is the only one and already runs `noeviction`. After a [Split Redis](split-redis.md)
 they move with `REDIS_QUEUE_URL`.
 
-**Keep `pnpm queue:pause`.** It writes the same BullMQ pause the page does, and it still works when
+**Keep `pnpm ops queue-pause`.** It writes the same BullMQ pause the page does, and it still works when
 the web app is down. The page reads that state back, so the two never disagree.
 
 ## Check it worked
