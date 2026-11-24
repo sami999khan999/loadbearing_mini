@@ -12,7 +12,7 @@ const COMPOSE_FILE = join(ROOT, "infra", "docker-compose.yml");
 const ENV_FILE = join(ROOT, ".env");
 
 // `--env-file` and not `--env-file-if-exists`: compose has no such flag and errors on a
-// missing file, and CI runs `infra:up` with no `.env` at all. Hence the existence check.
+// missing file, and CI runs `infra up` with no `.env` at all. Hence the existence check.
 export function composeArgs(args, hasEnvFile) {
   return ["compose", ...(hasEnvFile ? ["--env-file", ENV_FILE] : []), "-f", COMPOSE_FILE, ...args];
 }

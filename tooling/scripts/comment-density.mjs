@@ -2,7 +2,7 @@
 // judges it: what share of the lines is comment, and how many blocks exceed the
 // two-line ceiling. Reports; never fails. The gate is check-architecture §14.
 //
-// Run: pnpm check:comments
+// Run: pnpm check comments
 
 // @ts-check
 
