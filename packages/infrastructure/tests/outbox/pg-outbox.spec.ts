@@ -49,6 +49,11 @@ beforeAll(async () => {
     delete from outbox_event e
     where not exists (select 1 from organizations o where o.id = e.organization_id)
   `);
+  // And the seeded organization's own: `seed:prod` publishes its docs pages, and with no
+  // worker draining them they are pending rows this spec would count as its own.
+  await database.client.execute(
+    sql`delete from outbox_event where organization_id = ${organizationId}`,
+  );
 
   // The month this spec writes into has to exist: no DEFAULT partition, on purpose.
   await new PgMaintenanceGateway(

@@ -5,8 +5,8 @@ import {
   type PartitionedTableEntry,
   type Placement,
   sql,
-} from "../../import.js";
-import { BaseRepository, type DrizzleClient } from "../primitive/index.js";
+} from "../../../import.js";
+import { BaseRepository, type DrizzleClient } from "../../primitive/index.js";
 
 // Partition names to one `drop table`: the parent's lock is taken once per statement,
 // so fifty is fifty times fewer, and the statement stays short enough to read in a log.

@@ -8,9 +8,9 @@ import {
   type Placement,
   sql,
   Uuid,
-} from "../../import.js";
-import { BaseRepository } from "../primitive/index.js";
-import { rolePermissions, roles } from "../schema/index.js";
+} from "../../../import.js";
+import { BaseRepository } from "../../primitive/index.js";
+import { rolePermissions, roles } from "../../schema/index.js";
 
 interface SystemRole {
   readonly key: string;

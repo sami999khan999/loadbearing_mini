@@ -8,9 +8,9 @@ import {
   type Placement,
   sql,
   Uuid,
-} from "../../import.js";
-import { BaseRepository } from "../primitive/index.js";
-import { organizations, rolePermissions, roles } from "../schema/index.js";
+} from "../../../import.js";
+import { BaseRepository } from "../../primitive/index.js";
+import { organizations, rolePermissions, roles } from "../../schema/index.js";
 
 // The tier's top role: every platform key and every tenant key, so the platform organization
 // is run like any other — its admin invites, builds roles and writes docs. See platform-scope.md.
@@ -23,7 +23,7 @@ export class PlatformRoleSeed extends BaseRepository {
   // RBAC.
   protected override readonly placement: Placement = "catalog";
 
-  // Returns the organization it seeded, or null when none is marked — `pnpm db:seed`
+  // Returns the organization it seeded, or null when none is marked — `pnpm seed:dev`
   // marks one immediately before calling this, so null is a deployment that has not.
   public async run(): Promise<OrganizationId | null> {
     const found = await this.db
