@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { shardUrls } from "../../shard-env.js";
+import { shardUrls } from "../../script/shard-env.js";
 
 // `vi.stubEnv` rather than writing `process.env`: this spec would otherwise be the one
 // file in `tests/` on the allowlist that lets a file read the environment directly.
@@ -43,7 +43,7 @@ describe("shardUrls", () => {
     expect(shardUrls()).toEqual([{ url: NODE_0, directUrl: NODE_0 }]);
   });
 
-  // Node 0 leads, which is what `pnpm db:migrate` relies on: the catalog carries the
+  // Node 0 leads, which is what `pnpm db migrate` relies on: the catalog carries the
   // tables every other node's schema is generated from.
   it("puts the catalog first and the shards after it in index order", () => {
     envWith({ DATABASE_URL: NODE_0, DATABASE_SHARD_2_URL: NODE_2, DATABASE_SHARD_1_URL: NODE_1 });

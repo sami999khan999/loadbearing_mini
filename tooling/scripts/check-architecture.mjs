@@ -4,7 +4,7 @@
 // independent of ESLint config, cannot be silenced by an inline comment, and keeps
 // working if someone reorganises the lint setup.
 //
-// Run: pnpm check:architecture
+// Run: pnpm check architecture
 
 // @ts-check
 
@@ -197,9 +197,9 @@ const ENV_EXEMPT = [
   // `auth/src/factory/auth.config.ts`, which are runtime code with a role suffix.
   /^[^/]+\.config\.(ts|mts|js|mjs)$/,
   /^(packages|apps)\/[^/]+\/[^/]+\.config\.(ts|mts|js|mjs)$/,
-  // Every runnable script sits above `src/`, so a folder barrel can be imported without
-  // executing one — see packages/infrastructure/seed.ts for the failure that moved them.
-  /^packages\/auth\/tables\.ts$/,
+  // Every runnable script sits in `script/`, above `src/`, so a folder barrel can be
+  // imported without executing one. §26 keeps them out of the package root.
+  /^packages\/[^/]+\/script\/[^/]+\.(ts|mjs)$/,
   // Each suite's own `env.ts`: the one file in it that reads the environment, so the
   // harness dials the ports `.env` names rather than a literal that silently drifts.
   /^packages\/(composition|infrastructure)\/tests\/support\/(config|database)\.ts$/,
@@ -209,7 +209,6 @@ const ENV_EXEMPT = [
   // The production entry that forks the web workers: it sizes the pool before any app
   // code, and so before `env.ts`, has run.
   /^apps\/web\/cluster\.mjs$/,
-  /^packages\/infrastructure\/(admin-seed|ai-reindex|doc-bench|doc-rerender|migrate|partitions|platform-grant|queue-control|queue-replay|seed|shard-env|smoke)\.ts$/,
 ];
 
 assert("only `env.ts` reads `process.env`", (failures) => {
@@ -1102,7 +1101,7 @@ assert("every package with tests typechecks them", (failures) => {
 
 // ── 20 — every migration is safe on a table that already holds rows ──────────
 //
-// `pnpm db:generate` emits the unsafe form by default: `CREATE UNIQUE INDEX` over
+// `pnpm db generate` emits the unsafe form by default: `CREATE UNIQUE INDEX` over
 // whatever is there, and `ADD COLUMN ... NOT NULL` with no default. Both are correct on
 // an empty table and abort halfway through a deploy on a populated one.
 
@@ -1515,32 +1514,43 @@ assert("`.env.example` documents every key an app requires", (failures) => {
   }
 });
 
-// ── 26 — every script above `src/` is typechecked ────────────────────────────
+// ── 26 — runnable scripts live in `script/`, and `script/` is typechecked ─────────
 //
-// A runnable script at a package root is code nothing imports, so nothing but `tsc`
-// can notice when a signature under it moves. `platform-grant.ts` sat outside its own
-// `include` and called a two-argument `TransactionScope.within` that had taken three
-// for a phase — a `TypeError` at the moment somebody needed the first platform admin.
+// A package root holds its manifest, tool configs, type shims and folders. A runnable
+// script there is one more loose file nothing names the kind of: infrastructure's root had
+// grown to fifteen before they moved to `script/`, which sits above `src/` for the same
+// reason they did — a barrel must never run one.
+//
+// And nothing imports a script, so nothing but `tsc` notices when a signature under it
+// moves. `platform-grant.ts` sat outside its own `include` and called a two-argument
+// `TransactionScope.within` that had taken three — a `TypeError` at the moment somebody
+// needed the first platform admin.
 
-// `*.config.ts` is the exemption, and it is a category rather than a list: a tool config
-// is consumed by its own tool, which supplies types this `tsconfig` does not name.
-const TOOL_CONFIG = /\.config\.ts$/;
+// Categories, not a list: a tool config is consumed by its own tool, a declaration file is
+// types rather than code, and a test setup file is the test runner's config by another name.
+const ROOT_ALLOWED = /(\.config\.(ts|mts|js|mjs)|\.d\.ts|^vitest\.setup\.ts)$/;
+// The production entry that forks the web workers: an app's entry, like `main.ts`, not a
+// script anyone runs by hand.
+const ROOT_ENTRIES = new Set(["apps/web/cluster.mjs"]);
 
-assert("every script above `src/` is in its package's tsconfig", (failures) => {
+assert("runnable scripts live in `script/`, and `script/` is typechecked", (failures) => {
   const dirs = sourceDirs();
   if (dirs.length === 0) return "no packages or apps to read";
 
   for (const dir of dirs) {
-    const config = join(dir, "tsconfig.json");
-    if (!existsSync(config)) continue;
-
-    const include = readFileSync(config, "utf8");
-
     for (const file of readdirSync(dir)) {
-      if (!file.endsWith(".ts") || file.endsWith(".d.ts") || TOOL_CONFIG.test(file)) continue;
-      if (include.includes(`"${file}"`)) continue;
+      const path = rel(join(dir, file));
+      if (!/\.(ts|mts|js|mjs)$/.test(file) || ROOT_ALLOWED.test(file)) continue;
+      if (ROOT_ENTRIES.has(path) || !statSync(join(dir, file)).isFile()) continue;
+      failures.push(`${path}: a script at the package root — move it to ${rel(dir)}/script/`);
+    }
 
-      failures.push(`${rel(join(dir, file))}: not in ${rel(config)}, so nothing typechecks it`);
+    const scripts = join(dir, "script");
+    const config = join(dir, "tsconfig.json");
+    if (!existsSync(scripts) || !existsSync(config)) continue;
+    const typed = readdirSync(scripts).some((file) => file.endsWith(".ts"));
+    if (typed && !readFileSync(config, "utf8").includes('"script/**/*.ts"')) {
+      failures.push(`${rel(config)}: does not include "script/**/*.ts", so nothing typechecks it`);
     }
   }
 });
@@ -1693,7 +1703,7 @@ assert("every permission in the catalog gates a procedure", (failures) => {
 //
 // `DATABASE_SHARD_<n>_URL` is parsed in four places and cannot be parsed in one: each
 // app declares the environment it needs, and the scripts above
-// `packages/infrastructure/src` cannot import an app. So the copies stay and the rule
+// `packages/infrastructure/script/` cannot import an app. So the copies stay and the rule
 // does not — two of them once disagreed about an empty value, and the odd one out threw
 // an error naming shard 1 as its own missing predecessor.
 
@@ -1701,7 +1711,7 @@ const SHARD_READERS = [
   "apps/web/src/env.ts",
   "apps/worker/src/env.ts",
   "apps/realtime/src/env.ts",
-  "packages/infrastructure/shard-env.ts",
+  "packages/infrastructure/script/shard-env.ts",
 ];
 
 // The body only. The infrastructure copy names its return type where the three apps inline
@@ -1808,7 +1818,7 @@ assert("every flag is live", (failures) => {
 // ── 32 — no colour outside the twelve ──────────────────────────────────────
 //
 // Tailwind's palette is reset to the twelve, so `bg-red-500` generates nothing, but an
-// arbitrary value compiles: `text-[#fff]` is a colour no theme knows and `check:contrast`
+// arbitrary value compiles: `text-[#fff]` is a colour no theme knows and `check contrast`
 // never sees. The same holds for a literal in a `style` prop or in any stylesheet outside
 // `style/color/`. `style/token.css` may write `oklch(0 0 0 / <alpha>)` for a shadow, and only that.
 

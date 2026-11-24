@@ -1,8 +1,8 @@
+import { migrate, type OrganizationId, sql } from "../src/import.js";
+import { Database, DatabaseCluster } from "../src/pg/primitive/index.js";
+import { TenantPartitionSeed } from "../src/pg/seed/index.js";
+import { ShardScope, TransactionScope } from "../src/pg/transaction/index.js";
 import { shardUrls } from "./shard-env.js";
-import { migrate, type OrganizationId, sql } from "./src/import.js";
-import { Database, DatabaseCluster } from "./src/pg/primitive/index.js";
-import { TenantPartitionSeed } from "./src/pg/seed/index.js";
-import { ShardScope, TransactionScope } from "./src/pg/transaction/index.js";
 
 // Nothing here is ever placed by a resolver: the loop names the node, and every
 // repository it builds is a one-node cluster over that node's connection.

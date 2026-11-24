@@ -1,4 +1,4 @@
-// `pnpm doc:bench`: seeds a public 2,000-page platform space and measures it against a
+// `pnpm ops doc-bench`: seeds a public 2,000-page platform space and measures it against a
 // running web server. The budgets it is read against: docs/plans/BACKLOG.md `DS0.2`.
 
 import { gzipSync } from "node:zlib";
@@ -12,12 +12,12 @@ import {
   sql,
   type UserId,
   Uuid,
-} from "./src/import.js";
-import { Database, DatabaseCluster } from "./src/pg/primitive/index.js";
-import { PgDocPageRepository } from "./src/pg/repository/index.js";
-import { docPages, docSections, docSpaces, organizations } from "./src/pg/schema/index.js";
-import { ShardScope, TransactionScope } from "./src/pg/transaction/index.js";
-import { UnifiedMarkdownRenderer } from "./src/unified/index.js";
+} from "../src/import.js";
+import { Database, DatabaseCluster } from "../src/pg/primitive/index.js";
+import { PgDocPageRepository } from "../src/pg/repository/index.js";
+import { docPages, docSections, docSpaces, organizations } from "../src/pg/schema/index.js";
+import { ShardScope, TransactionScope } from "../src/pg/transaction/index.js";
+import { UnifiedMarkdownRenderer } from "../src/unified/index.js";
 
 const url = process.env.DATABASE_DIRECT_URL ?? process.env.DATABASE_URL;
 if (!url) throw new Error("DATABASE_DIRECT_URL or DATABASE_URL is required.");
@@ -64,7 +64,7 @@ const [platform] = await database.client
   .from(organizations)
   .where(eq(organizations.isPlatform, true))
   .limit(1);
-if (!platform) throw new Error("run `pnpm db:seed` first: no platform organization");
+if (!platform) throw new Error("run `pnpm seed:dev` first: no platform organization");
 const organizationId = platform.id;
 const author = Identifiers.userId.parse(Uuid.v7()) as UserId;
 

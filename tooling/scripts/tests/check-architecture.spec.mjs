@@ -1128,63 +1128,64 @@ describe("25 — .env.example documents every key an app requires", () => {
   });
 });
 
-describe("26 — every script above src/ is typechecked", () => {
-  const NAME = "every script above `src/` is in its package's tsconfig";
+describe("26 — runnable scripts live in script/, and script/ is typechecked", () => {
+  const NAME = "runnable scripts live in `script/`, and `script/` is typechecked";
 
   const CONFIG = (include) =>
     JSON.stringify({ extends: "@loadbearing/tsconfig/library.json", include });
 
-  it("accepts a root script the tsconfig names", async () => {
+  it("accepts a script in script/ the tsconfig includes", async () => {
     passes(
+      await run({
+        "packages/application/tsconfig.json": CONFIG(["src/**/*.ts", "script/**/*.ts"]),
+        "packages/application/script/seed.ts": "export const seeded = true;\n",
+      }),
+      NAME,
+    );
+  });
+
+  // The rule this exists for: a loose file at the root names no kind, and they accumulate.
+  it("catches a script at the package root", async () => {
+    fails(
       await run({
         "packages/application/tsconfig.json": CONFIG(["src/**/*.ts", "seed.ts"]),
         "packages/application/seed.ts": "export const seeded = true;\n",
       }),
       NAME,
+      "packages/application/seed.ts",
     );
   });
 
-  // The failure this exists for: a script nothing imports, so nothing but `tsc` can
-  // notice when a signature under it moves.
-  it("catches a root script the tsconfig leaves out", async () => {
+  it("catches a loose .mjs at an app root too", async () => {
+    fails(
+      await run({ "apps/worker/package.json": "{}", "apps/worker/run.mjs": "export {};\n" }),
+      NAME,
+      "apps/worker/run.mjs",
+    );
+  });
+
+  // The failure that made the typecheck half: a script nothing imports, so nothing but
+  // `tsc` can notice when a signature under it moves.
+  it("catches a script/ folder the tsconfig leaves out", async () => {
     fails(
       await run({
         "packages/application/tsconfig.json": CONFIG(["src/**/*.ts"]),
-        "packages/application/seed.ts": "export const seeded = true;\n",
+        "packages/application/script/seed.ts": "export const seeded = true;\n",
       }),
       NAME,
-      "seed.ts",
+      "does not include",
     );
   });
 
-  // A category, not a list: a tool config is consumed by its own tool, which supplies
-  // types the package's `tsconfig` does not name.
-  it("exempts a tool config", async () => {
+  // Categories, not a list: each is consumed by its own tool, or is types rather than code.
+  it("exempts tool configs, declaration files and the test setup file", async () => {
     passes(
       await run({
         "packages/application/tsconfig.json": CONFIG(["src/**/*.ts"]),
         "packages/application/drizzle.config.ts": "export default {};\n",
         "packages/application/vitest.config.ts": "export default {};\n",
-      }),
-      NAME,
-    );
-  });
-
-  it("ignores a declaration file, which is types rather than code", async () => {
-    passes(
-      await run({
-        "packages/application/tsconfig.json": CONFIG(["src/**/*.ts"]),
-        "packages/application/web.d.ts": "declare const x: number;\n",
-      }),
-      NAME,
-    );
-  });
-
-  it("says nothing about a package with no tsconfig of its own", async () => {
-    passes(
-      await run({
-        "packages/application/seed.ts": "export const seeded = true;\n",
-        "packages/application/tsconfig.json": null,
+        "packages/application/vitest.setup.ts": "export {};\n",
+        "packages/application/highlight.d.ts": "export {};\n",
       }),
       NAME,
     );
@@ -1326,7 +1327,7 @@ describe("29 — the four shard readers run one algorithm", () => {
     "apps/realtime/package.json": PKG("realtime"),
     "apps/realtime/src/env.ts": reader(realtime),
     "packages/infrastructure/package.json": PKG("infrastructure"),
-    "packages/infrastructure/shard-env.ts": reader(script),
+    "packages/infrastructure/script/shard-env.ts": reader(script),
   });
 
   it("accepts four copies of one rule", async () => {
@@ -1341,7 +1342,7 @@ describe("29 — the four shard readers run one algorithm", () => {
   // The drift that happened: the scripts' copy and the apps' copies disagreed about an
   // empty value, and the odd one out threw naming shard 1 as its own predecessor.
   it("catches one copy that parses differently", async () => {
-    fails(await run(trees(1, 1, 0)), NAME, "packages/infrastructure/shard-env.ts");
+    fails(await run(trees(1, 1, 0)), NAME, "packages/infrastructure/script/shard-env.ts");
   });
 
   // A comment is not a difference. `withoutComments` runs first, which is what lets each

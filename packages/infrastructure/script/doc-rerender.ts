@@ -1,8 +1,8 @@
 // After `MarkdownRenderer.version` moves. Queues one `doc-rerender` job per organization
 // on the maintenance queue; the worker renders that tenant's stale published pages again.
 
-import { Queue, QueueName, Redis, sql } from "./src/import.js";
-import { Database } from "./src/pg/primitive/index.js";
+import { Queue, QueueName, Redis, sql } from "../src/import.js";
+import { Database } from "../src/pg/primitive/index.js";
 
 const databaseUrl = process.env.DATABASE_DIRECT_URL ?? process.env.DATABASE_URL;
 if (!databaseUrl) throw new Error("DATABASE_DIRECT_URL or DATABASE_URL is required.");

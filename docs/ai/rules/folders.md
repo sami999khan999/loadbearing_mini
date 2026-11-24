@@ -25,9 +25,11 @@ description: What src/ may hold, role folders vs subject folders, and the two ex
 - **An app's root is closed; only framework-resolved files stay loose** — `main.ts`, `env.ts`,
   and `apps/web`'s `router.tsx`, `endpoint.ts`, `route-tree.gen.ts`. Startup assembly goes in
   `bootstrap/`.
-- **Build-time artefacts and runnable scripts sit above `src/`:** `drizzle.config.ts`,
-  `migrations/`, `build-sprite.mjs`, `infrastructure/{migrate,seed,smoke}.ts`, `auth/tables.ts`. A
-  script inside a folder runs when its barrel is imported (that once connected to Postgres
-  mid-sign-in).
+- **Build-time artefacts and runnable scripts sit above `src/`,** and **runnable scripts sit in
+  `script/`, never loose at the package root:** `infrastructure/script/{migrate,seed-dev,seed-prod}.ts`,
+  `auth/script/tables.ts`, `asset/script/build-sprite.mjs`. A root holds the manifest, tool configs
+  (`*.config.*`, `vitest.setup.ts`), `*.d.ts` and folders (§26). A script inside a folder runs
+  when its barrel is imported (that once connected to Postgres mid-sign-in). A script stays thin:
+  env in, one class in `src/` called, result printed.
 
 Argument: [`docs/opinions/folders.md`](../../opinions/folders.md).

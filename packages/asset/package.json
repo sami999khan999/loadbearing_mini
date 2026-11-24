@@ -18,9 +18,9 @@
     "dist"
   ],
   "scripts": {
-    "prebuild": "node build-sprite.mjs",
+    "prebuild": "node script/build-sprite.mjs",
     "build": "tsup",
-    "dev": "node build-sprite.mjs && tsup --watch",
+    "dev": "node script/build-sprite.mjs && tsup --watch",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
     "clean": "rimraf dist src/icon/sprite.svg"

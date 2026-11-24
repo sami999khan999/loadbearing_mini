@@ -5,22 +5,5 @@
       "highlight.js": ["./highlight-js.d.ts"]
     }
   },
-  "include": [
-    "src/**/*.ts",
-    "src/**/*.tsx",
-    "tests/**/*.ts",
-    "tests/**/*.tsx",
-    "admin-seed.ts",
-    "migrate.ts",
-    "partition-ddl.ts",
-    "partitions.ts",
-    "platform-grant.ts",
-    "queue-replay.ts",
-    "queue-control.ts",
-    "ai-reindex.ts",
-    "doc-bench.ts",
-    "doc-rerender.ts",
-    "seed.ts",
-    "shard-env.ts"
-  ]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "tests/**/*.ts", "tests/**/*.tsx", "script/**/*.ts"]
 }

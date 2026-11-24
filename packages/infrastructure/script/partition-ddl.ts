@@ -1,12 +1,12 @@
-// The second half of `db:generate`. Drizzle cannot express `PARTITION BY` and its
+// The second half of `db generate`. Drizzle cannot express `PARTITION BY` and its
 // snapshots do not know the clause exists, so the generated DDL is rewritten here.
 
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { PartitionedTable, type PartitionedTableEntry } from "./src/import.js";
+import { PartitionedTable, type PartitionedTableEntry } from "../src/import.js";
 
-const MIGRATIONS = join(import.meta.dirname, "migrations");
+const MIGRATIONS = join(import.meta.dirname, "..", "migrations");
 
 // What a rewrite refuses to guess. Drizzle emits the composite form only when the schema
 // declares `primaryKey({ columns })`, so a missing key is a schema change, not a patch.

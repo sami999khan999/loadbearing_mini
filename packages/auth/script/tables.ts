@@ -1,6 +1,6 @@
-import { AuthFactory } from "./src/factory/index.js";
-import { type CacheStore, Database, getSchema, type OrganizationId } from "./src/import.js";
-import { AuthMailer } from "./src/mail/index.js";
+import { AuthFactory } from "../src/factory/index.js";
+import { type CacheStore, Database, getSchema, type OrganizationId } from "../src/import.js";
+import { AuthMailer } from "../src/mail/index.js";
 import {
   InvitationClaimer,
   type InvitationPreview,
@@ -8,7 +8,7 @@ import {
   MembershipReader,
   OrganizationFounder,
   type OrganizationSummary,
-} from "./src/session/index.js";
+} from "../src/session/index.js";
 
 // Better Auth's own tables, printed from the pinned runtime rather than by
 // `@better-auth/cli`, which trails the library. Diff against pg/schema/auth.schema.ts.

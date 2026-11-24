@@ -3,15 +3,15 @@
 // can grant the first `platform.*` key through the API. Every later admin is invited
 // through the members screen with the platform organization active.
 
-import { and, eq, Uuid } from "./src/import.js";
-import { Database } from "./src/pg/primitive/index.js";
-import { memberships, organizations, roles, users } from "./src/pg/schema/index.js";
-import { TransactionScope } from "./src/pg/transaction/index.js";
+import { and, eq, Uuid } from "../src/import.js";
+import { Database } from "../src/pg/primitive/index.js";
+import { memberships, organizations, roles, users } from "../src/pg/schema/index.js";
+import { TransactionScope } from "../src/pg/transaction/index.js";
 
 const ROLE_KEY = "platform_admin";
 
 const email = process.argv[2];
-if (!email) throw new Error("usage: pnpm platform:grant <email>");
+if (!email) throw new Error("usage: pnpm ops platform-grant <email>");
 
 // Direct, for the reason the migrator and the seed give: this runs once, by hand, and a
 // transaction pooler is the wrong thing in front of it.
@@ -50,14 +50,14 @@ const outcome = await database.client.transaction(async (tx) =>
       .where(eq(organizations.isPlatform, true))
       .limit(1);
     if (!organization)
-      throw new Error("No organization is marked is_platform. Run `pnpm db:seed`.");
+      throw new Error("No organization is marked is_platform. Run `pnpm seed:dev`.");
 
     const [role] = await tx
       .select({ id: roles.id })
       .from(roles)
       .where(and(eq(roles.organizationId, organization.id), eq(roles.key, ROLE_KEY)));
     if (!role)
-      throw new Error(`No ${ROLE_KEY} role in ${organization.slug}. Run \`pnpm db:seed\`.`);
+      throw new Error(`No ${ROLE_KEY} role in ${organization.slug}. Run \`pnpm seed:dev\`.`);
 
     const [existing] = await tx
       .select({ roleId: memberships.roleId })

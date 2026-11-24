@@ -21,7 +21,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
     "clean": "rimraf dist",
-    "auth:tables": "tsx --env-file-if-exists=../../.env tables.ts"
+    "auth:tables": "tsx --env-file-if-exists=../../.env script/tables.ts"
   },
   "devDependencies": {
     "@loadbearing/tsconfig": "workspace:*",

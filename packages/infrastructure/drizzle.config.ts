@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { defineConfig } from "drizzle-kit";
 
 // drizzle-kit is a bin rather than a `tsx` entrypoint, so the `--env-file-if-exists` every
-// other `db:*` script carries cannot be handed to it. Without this, `pnpm db:generate`
+// other `db:*` script carries cannot be handed to it. Without this, `pnpm db generate`
 // throws below on a machine whose `.env` holds both URLs.
 //
 // The same `../../.env` the sibling scripts pass, from the package directory a pnpm filter
@@ -14,7 +14,7 @@ if (existsSync(ENV_FILE)) process.loadEnvFile(ENV_FILE);
 // read the environment directly. An explicit throw, not `!`: an undefined URL here
 // produces a connection error naming nothing.
 //
-// Direct, never pooled: drizzle-kit introspects and writes DDL, and `db:studio` holds a
+// Direct, never pooled: drizzle-kit introspects and writes DDL, and `db studio` holds a
 // session open. `DATABASE_URL` is the fallback for a deployment running no pooler.
 //
 // The **catalog**, never a shard, and it does not loop: every node runs the same schema,

@@ -1,8 +1,8 @@
-// What `pnpm queue:status`, `queue:pause` and `queue:resume` run. The pause is BullMQ's
+// What `pnpm ops queue-status`, `ops queue-pause` and `ops queue-resume` run. The pause is BullMQ's
 // global one, kept in the queue's own keys: every worker obeys it and it survives restarts.
 
-import { BullMqQueueControlGateway } from "./src/bullmq/index.js";
-import { QueueName, Redis } from "./src/import.js";
+import { BullMqQueueControlGateway } from "../src/bullmq/index.js";
+import { QueueName, Redis } from "../src/import.js";
 
 const COMMANDS = ["status", "pause", "resume"] as const;
 const QUEUES: readonly string[] = QueueName.ALL;

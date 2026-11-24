@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { liveTables, PartitionKeyMissing, rewrite, TableAlreadyLive } from "../../partition-ddl.js";
+import {
+  liveTables,
+  PartitionKeyMissing,
+  rewrite,
+  TableAlreadyLive,
+} from "../../script/partition-ddl.js";
 
 // Drizzle's own shape, down to the tab indent and the trailing `--> statement-breakpoint`:
 // the rewriter matches generated text, so a fixture that tidied it would prove nothing.
@@ -38,7 +43,7 @@ describe("the partition DDL generator", () => {
     expect(sql).toBe(input);
   });
 
-  // Idempotent, because `db:generate` is run again the moment somebody edits the schema
+  // Idempotent, because `db generate` is run again the moment somebody edits the schema
   // and the file it just wrote is the file it opens.
   it("skips a statement that already carries the clause", () => {
     const once = rewrite(created("messages", TIMED, '"id","organization_id","created_at"')).sql;

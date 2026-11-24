@@ -1,13 +1,13 @@
 // The dead letter's other half. A job that runs out of attempts stays in BullMQ's failed
 // set for a week (`BullMqQueuePublisher`), and this puts it back on its queue.
 
-import { Queue, Redis } from "./src/import.js";
+import { Queue, Redis } from "../src/import.js";
 
 const QUEUES = ["mail", "event", "notification", "embedding", "maintenance"];
 
 const [name, jobName] = process.argv.slice(2);
 if (!name || !QUEUES.includes(name)) {
-  throw new Error(`usage: pnpm queue:replay <${QUEUES.join("|")}> [jobName]`);
+  throw new Error(`usage: pnpm ops queue-replay <${QUEUES.join("|")}> [jobName]`);
 }
 
 const url = process.env.REDIS_QUEUE_URL;

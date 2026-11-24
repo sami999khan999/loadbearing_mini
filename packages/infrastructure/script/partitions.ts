@@ -4,12 +4,12 @@
 // `--sweep <organization_id>` is the other half: cold storage outlives a tenant, and
 // until a delete use-case enqueues the job, this is what reaches it.
 
+import { type OrganizationId, PartitionedTable, sql } from "../src/import.js";
+import { Database, DatabaseCluster } from "../src/pg/primitive/index.js";
+import { PgMaintenanceGateway, PgPartitionArchiveGateway } from "../src/pg/repository/index.js";
+import { PgUnitOfWork, ShardScope, TransactionScope } from "../src/pg/transaction/index.js";
+import { S3StorageGateway } from "../src/s3/index.js";
 import { shardUrls } from "./shard-env.js";
-import { type OrganizationId, PartitionedTable, sql } from "./src/import.js";
-import { Database, DatabaseCluster } from "./src/pg/primitive/index.js";
-import { PgMaintenanceGateway, PgPartitionArchiveGateway } from "./src/pg/repository/index.js";
-import { PgUnitOfWork, ShardScope, TransactionScope } from "./src/pg/transaction/index.js";
-import { S3StorageGateway } from "./src/s3/index.js";
 
 // Nothing here is ever placed by a resolver: the loop names the node, and each
 // gateway is a one-node cluster over that node's connection.

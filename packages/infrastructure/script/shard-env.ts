@@ -1,7 +1,7 @@
 // The physical nodes, in index order, for the scripts above `src/`. A second reader of
 // `DATABASE_SHARD_<n>_URL` beside each app's `env.ts`, and deliberately so: a script is
 // the one category allowed to read the environment directly, and importing an app's
-// `Env` from here would make `pnpm db:migrate` parse the web app's whole schema.
+// `Env` from here would make `pnpm db migrate` parse the web app's whole schema.
 
 export interface ShardUrls {
   readonly url: string;

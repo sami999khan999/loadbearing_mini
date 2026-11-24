@@ -102,7 +102,8 @@ so `catalog/` means the same in `errors` and `permissions`.
 | `subscriber/` | the durable-reaction seam and the registry over it | `application` |
 | `schema/` | every table declaration, plus the barrel drizzle-kit is pointed at | `infrastructure` |
 | `transaction/` | the `UnitOfWork` seam and the scope it reads | `infrastructure` |
-| `seed/` | the seed classes a runnable script above `src/` calls | `infrastructure` |
+| `seed/` | the seed classes a script calls, one subject folder each, converging on `DatabaseSeed` | `infrastructure` |
+| `script/` | runnable scripts, above `src/`: env in, one class called, result printed | any package |
 | `container/` | the DI root and the config shape it takes | `composition` |
 | `fake/` | test doubles for ports, one per port, never on the barrel | `composition` |
 | `client/` | the outbound transport and the typed client over it | `api-client` |
@@ -181,13 +182,32 @@ its subject.
 
 ## Build-time artefacts and runnable scripts sit above `src/`
 
-`drizzle.config.ts`, `migrations/`, `build-sprite.mjs` are not shipped code, and `src/` is the
-shipped surface.
+`drizzle.config.ts` and `migrations/` are not shipped code, and `src/` is the shipped surface.
 
 **Runnable scripts too — because a script inside a folder runs when its barrel is imported.** When
 `PgPersonalOrganizationEnroller` needed `SystemRoleSeed` and the seed was `src/pg/seed/index.ts`,
-importing the class connected to Postgres and called `process.exit` mid-sign-in. So
-`packages/infrastructure/{migrate,seed,smoke}.ts` and `packages/auth/tables.ts` sit at the package
-root, named for what they do, and the classes they use stay importable in `src/`. That also keeps
-`dotenv`, `process.env` and `console.log` out of `src/`: the lint exemptions are four filenames, not
-four globs over library code.
+importing the class connected to Postgres and called `process.exit` mid-sign-in. So the scripts
+sit outside `src/`, named for what they do, and the classes they use stay importable in `src/`.
+
+**And they sit in `script/`, never loose at the package root.** They began there, and
+`infrastructure`'s root reached fifteen of them beside its configs before anyone could say which
+file was which kind. `script/` names the kind once:
+
+```
+packages/infrastructure/
+├── package.json  tsconfig.json  *.config.ts     manifest and tool configs
+├── migrations/  clickhouse-migrations/          build-time artefacts
+├── script/                                      runnable: seed-dev.ts, migrate.ts, …
+├── src/  tests/  docs/
+```
+
+A package or app root holds its manifest, tool configs (`*.config.*`, `vitest.setup.ts`), type
+shims (`*.d.ts`) and folders; `apps/web/cluster.mjs`, the production entry, is the one named
+exception. `check-architecture` §26 fails on any other loose script, and on a `script/` the
+package's `tsconfig` does not include. That also keeps `process.env` and `console.log` out of
+`src/`: the lint exemption is one glob over `script/`, never a glob over library code.
+
+**A script stays thin.** It reads the environment and argv, opens what it needs, calls a class in
+`src/` and prints the result. `pnpm seed:dev` and `pnpm seed:prod` are two such scripts over one
+class, `DatabaseSeed` in `src/pg/seed/`, whose `dev()` and `prod()` run the subject folders under it
+(`platform/`, `tenant/`, `system/`, `doc/`, `admin/`).

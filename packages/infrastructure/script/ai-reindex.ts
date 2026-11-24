@@ -1,9 +1,9 @@
 // After `EMBEDDING_PROVIDER` or `EMBEDDING_MODEL` changes. Queues one `reembed` job per
 // organization on the embedding queue; `--docs` queues `doc-reindex`, every published page.
 
-import { BullMqQueuePublisher } from "./src/bullmq/index.js";
-import { QueueName, Redis, sql } from "./src/import.js";
-import { Database } from "./src/pg/primitive/index.js";
+import { BullMqQueuePublisher } from "../src/bullmq/index.js";
+import { QueueName, Redis, sql } from "../src/import.js";
+import { Database } from "../src/pg/primitive/index.js";
 
 // The backfill for pages published before `DC.2`; a publish after it indexes itself.
 const job = process.argv.includes("--docs") ? "doc-reindex" : "reembed";
