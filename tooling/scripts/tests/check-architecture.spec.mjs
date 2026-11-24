@@ -1,8 +1,8 @@
 // Each assertion run against a tree that violates it, and against one that does not.
 //
 // The script derives ROOT from its own location, so a fixture is a temporary tree with a
-// copy of it under `tooling/scripts/` — no ROOT parameter to thread through thirty-one
-// assertions, and the thing under test is the file the repository actually runs.
+// copy of it under `tooling/scripts/` — no ROOT parameter to thread through every
+// assertion, and the thing under test is the file the repository actually runs.
 
 // @ts-check
 
@@ -42,8 +42,9 @@ const BASE = {
     "",
   ].join("\n"),
   "AGENTS.md":
-    "Start at docs/ai/index.md. The rulebook is [layering](docs/ai/rules/layering.md).\n",
-  "CLAUDE.md": "@docs/ai/rules/layering.md\n",
+    "Start at docs/ai/index.md. The rulebook is [layering](docs/ai/rules/layering.md).\n\n" +
+    "@docs/ai/rules/layering.md\n",
+  "CLAUDE.md": "@AGENTS.md\n",
   "docs/index.md": "Docs.\n",
   // Relative, not `docs/ai/rules/…`: §12 resolves a root-anchored target from the root,
   // §15 resolves every target the way a renderer does, and only one of those is a link
@@ -142,7 +143,7 @@ describe("the fixture harness", () => {
   it("reports every assertion, and none of them fails on a clean tree", async () => {
     const results = await run();
 
-    expect(results).toHaveLength(31);
+    expect(results).toHaveLength(32);
     for (const { name, status } of results) {
       expect(status, `${name} failed on the base fixture`).not.toBe("✗");
     }
@@ -384,7 +385,7 @@ describe("12 — the rule files route to every opinions page", () => {
     );
   });
 
-  it("catches a rule file CLAUDE.md does not import", async () => {
+  it("catches a rule file AGENTS.md does not import", async () => {
     fails(
       await run({
         "docs/ai/rules/files.md": "Kebab-case. See docs/opinions/files.md.\n",
@@ -1452,5 +1453,70 @@ describe("32 — no colour outside the twelve", () => {
       NAME,
       "example.css:2",
     );
+  });
+});
+
+describe("33 — every agent reads one copy", () => {
+  const DESCRIPTION = "Run book. Use when adding a thing.";
+  const SKILL = `---\nname: add-thing\ndescription: ${DESCRIPTION}\n---\n\n@docs/ai/skills/add-thing.md\n`;
+  const LINKED = {
+    "docs/ai/skills/add-thing.md": `---\ntitle: Add\ndescription: ${DESCRIPTION}\n---\n\n# Add\n`,
+    ".claude/skills/add-thing/SKILL.md": SKILL,
+    ".agents/skills/add-thing/SKILL.md": SKILL,
+  };
+
+  it("passes a run book pointed at from both skill homes", async () => {
+    passes(await run(LINKED), "every agent reads one copy");
+  });
+
+  it("catches a CLAUDE.md that says more than `@AGENTS.md`", async () => {
+    fails(
+      await run({ "CLAUDE.md": "@AGENTS.md\n\nAlso, never use tabs.\n" }),
+      "every agent reads one copy",
+      "CLAUDE.md is not exactly",
+    );
+  });
+
+  it("catches a SKILL.md that carries the run book instead of pointing at it", async () => {
+    fails(
+      await run({
+        ...LINKED,
+        ".agents/skills/add-thing/SKILL.md": SKILL.replace("@docs", "Step 1. @docs"),
+      }),
+      "every agent reads one copy",
+      ".agents/skills/add-thing/SKILL.md's body is not exactly",
+    );
+  });
+
+  it("catches a description that drifted from the run book", async () => {
+    fails(
+      await run({
+        ...LINKED,
+        ".claude/skills/add-thing/SKILL.md": SKILL.replace("a thing", "things"),
+      }),
+      "every agent reads one copy",
+      "description differs",
+    );
+  });
+
+  it("catches a SKILL.md whose name does not match its folder", async () => {
+    fails(
+      await run({
+        ...LINKED,
+        ".claude/skills/add-thing/SKILL.md": SKILL.replace("name: add-thing", "name: other"),
+      }),
+      "every agent reads one copy",
+      "no `name: add-thing`",
+    );
+  });
+
+  it("catches a run book with no SKILL.md, and a skill folder with no run book", async () => {
+    const results = await run({
+      ...LINKED,
+      ".agents/skills/add-thing/SKILL.md": null,
+      ".claude/skills/gone/SKILL.md": SKILL,
+    });
+    fails(results, "every agent reads one copy", ".agents/skills/add-thing/SKILL.md is missing");
+    fails(results, "every agent reads one copy", ".claude/skills/gone has no run book");
   });
 });

@@ -27,14 +27,15 @@ import {
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
-// `.claude` holds agent scratch space — skills, and at one point a full worktree checkout,
-// which every grep here would have counted twice. Excluded by construction, not by luck.
+// `.claude` and `.agents` hold agent config — skill pointers into docs/, and at one point a
+// full worktree checkout — which every grep here would count twice. Excluded by construction.
 const SKIP_DIRS = new Set([
   "node_modules",
   "dist",
   ".output",
   ".git",
   ".claude",
+  ".agents",
   "migrations",
   "src-tauri",
 ]);
@@ -588,33 +589,27 @@ assert("the rule files route to every opinions page", (failures) => {
     failures.push("AGENTS.md points at neither docs/ai/index.md nor the rulebook contents");
   }
 
-  // CLAUDE.md `@`-imports every rule file, which is what makes the rulebook load at the
-  // start of a session instead of when an agent thinks to go looking. A rule nobody
-  // imports is the failure this whole assertion exists for, one layer up: it is routed
-  // to, it is correct, and it silently stops being loaded. Skipped when CLAUDE.md is
-  // absent — it is Claude Code's file, and deleting it is a supported choice that leaves
-  // the routers above as the only path in.
-  const claudeMd = join(ROOT, "CLAUDE.md");
+  // AGENTS.md `@`-imports every rule file — CLAUDE.md imports it (§33) — which is
+  // what makes the rulebook load at the start of a Claude Code session instead of when an
+  // agent thinks to go looking, and names every file for an agent that does not inline
+  // imports. A rule nobody imports is the failure this whole assertion exists for, one
+  // layer up: it is routed to, it is correct, and it silently stops being loaded.
+  const imported = new Set(
+    [...briefSource.matchAll(/^@(\S+\.md)\s*$/gm)].map((match) => match[1] ?? ""),
+  );
 
-  if (existsSync(claudeMd)) {
-    const claudeSource = readFileSync(claudeMd, "utf8");
-    const imported = new Set(
-      [...claudeSource.matchAll(/^@(\S+\.md)\s*$/gm)].map((match) => match[1] ?? ""),
-    );
-
-    for (const file of ruleFiles) {
-      if (file === "index.md") continue;
-      if (!imported.has(`${RULES_DIR}/${file}`)) {
-        failures.push(`CLAUDE.md does not @-import ${RULES_DIR}/${file}, so it never loads`);
-      }
+  for (const file of ruleFiles) {
+    if (file === "index.md") continue;
+    if (!imported.has(`${RULES_DIR}/${file}`)) {
+      failures.push(`AGENTS.md does not @-import ${RULES_DIR}/${file}, so it never loads`);
     }
+  }
 
-    // An import naming a moved or deleted file fails silently — Claude Code inlines
-    // nothing and says nothing, which is the same missing chapter from the other side.
-    for (const target of imported) {
-      if (!existsSync(join(ROOT, target))) {
-        failures.push(`CLAUDE.md @-imports ${target}, which does not exist`);
-      }
+  // An import naming a moved or deleted file fails silently — Claude Code inlines
+  // nothing and says nothing, which is the same missing chapter from the other side.
+  for (const target of imported) {
+    if (!existsSync(join(ROOT, target))) {
+      failures.push(`AGENTS.md @-imports ${target}, which does not exist`);
     }
   }
 
@@ -1859,6 +1854,88 @@ assert("no colour outside the twelve", (failures) => {
       if (hit) failures.push(`${rel(file)}:${index + 1}: \`${hit}\` is a literal colour`);
     });
   }
+});
+
+// ── 33 — every agent reads one copy ─────────────────────────────────────────
+//
+// Claude Code reads CLAUDE.md and `.claude/skills/`; Codex and most others read AGENTS.md
+// and `.agents/skills/`. Two real copies of one instruction drift, and silently: each
+// agent follows its own and both look obeyed. So every one of those files is a pointer
+// written as an `@` line — Claude Code inlines it, any other agent reads it as a path.
+// CLAUDE.md is exactly `@AGENTS.md`; a SKILL.md is the frontmatter an agent decides by
+// plus `@docs/ai/skills/<name>.md`, and nothing else. A body with prose in it is the
+// second copy starting, and a run book with no SKILL.md is a skill no agent finds.
+//
+// The description is the one thing written twice, because an agent reads it before it
+// loads anything. It must match the run book's word for word.
+
+const SKILLS_DIR = "docs/ai/skills";
+const SKILL_HOMES = [".claude/skills", ".agents/skills"];
+
+function frontmatterKey(text, key) {
+  const block = /^---\n([\s\S]*?)\n---/.exec(text)?.[1] ?? "";
+  return new RegExp(`^${key}:\\s*(.+)$`, "m").exec(block)?.[1]?.trim() ?? null;
+}
+
+assert("every agent reads one copy", (failures) => {
+  const claudeMd = join(ROOT, "CLAUDE.md");
+
+  if (existsSync(claudeMd) && readFileSync(claudeMd, "utf8").trim() !== "@AGENTS.md") {
+    failures.push("CLAUDE.md is not exactly `@AGENTS.md` — two briefs drift apart");
+  }
+
+  const books = join(ROOT, SKILLS_DIR);
+  const names = existsSync(books)
+    ? readdirSync(books)
+        .filter((f) => f.endsWith(".md") && f !== "index.md")
+        .map((f) => basename(f, ".md"))
+    : [];
+
+  for (const name of names) {
+    const description = frontmatterKey(
+      readFileSync(join(books, `${name}.md`), "utf8"),
+      "description",
+    );
+    if (!description) {
+      failures.push(
+        `${SKILLS_DIR}/${name}.md has no description, so no agent knows when to load it`,
+      );
+    }
+
+    for (const home of SKILL_HOMES) {
+      const skill = join(ROOT, home, name, "SKILL.md");
+      const shown = `${home}/${name}/SKILL.md`;
+      if (!existsSync(skill)) {
+        failures.push(`${shown} is missing, so no agent finds ${SKILLS_DIR}/${name}.md`);
+        continue;
+      }
+
+      const text = readFileSync(skill, "utf8");
+      if (frontmatterKey(text, "name") !== name) {
+        failures.push(`${shown} has no \`name: ${name}\` in its frontmatter`);
+      }
+      if (frontmatterKey(text, "description") !== description) {
+        failures.push(`${shown}'s description differs from ${SKILLS_DIR}/${name}.md's`);
+      }
+      if (text.replace(/^---\n[\s\S]*?\n---/, "").trim() !== `@${SKILLS_DIR}/${name}.md`) {
+        failures.push(`${shown}'s body is not exactly \`@${SKILLS_DIR}/${name}.md\``);
+      }
+    }
+  }
+
+  // The other direction: a skill folder whose run book was renamed or deleted, or that
+  // was written in full and never had one.
+  for (const home of SKILL_HOMES) {
+    const dir = join(ROOT, home);
+    if (!existsSync(dir)) continue;
+    for (const entry of readdirSync(dir)) {
+      if (!names.includes(entry)) {
+        failures.push(`${home}/${entry} has no run book at ${SKILLS_DIR}/${entry}.md`);
+      }
+    }
+  }
+
+  return null;
 });
 
 let failed = 0;
